@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/MinimalOpenAPI/MinimalOpenAPI.csproj" />
+    <ProjectReference Include="../../src/MinimalOpenAPI.Generator/MinimalOpenAPI.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- Map OpenApi items to AdditionalFiles for the generator -->
+  <ItemGroup>
+    <OpenApi Include="openapi.yaml" />
+  </ItemGroup>
+
+  <!-- Polyfill for NuGet-style build integration when using a project reference -->
+  <ItemGroup>
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiFile" />
+    <CompilerVisibleProperty Include="RootNamespace" />
+    <!-- Pass openapi.yaml directly to the generator as AdditionalFiles -->
+    <AdditionalFiles Include="openapi.yaml" MinimalOpenApiFile="true" />
+  </ItemGroup>
+
+</Project>

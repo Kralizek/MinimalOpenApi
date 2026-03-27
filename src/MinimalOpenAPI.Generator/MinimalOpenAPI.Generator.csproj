@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>true</IsPackable>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <LangVersion>latest</LangVersion>
+    <Description>Roslyn incremental source generator for MinimalOpenAPI contract-first framework.</Description>
+    <!-- Pack the generator as an analyzer -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="PolySharp" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Pack the generator dll under analyzers/dotnet/cs -->
+  <ItemGroup>
+    <None Include="$(OutputPath)\$(AssemblyName).dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+    <!-- Include .targets file in buildTransitive -->
+    <None Include="buildTransitive\MinimalOpenAPI.Generator.targets"
+          Pack="true"
+          PackagePath="buildTransitive" />
+    <None Include="buildTransitive\MinimalOpenAPI.Generator.targets"
+          Pack="true"
+          PackagePath="build" />
+  </ItemGroup>
+
+</Project>

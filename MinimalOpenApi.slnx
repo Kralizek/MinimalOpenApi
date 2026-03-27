@@ -1,2 +1,15 @@
 <Solution>
+  <Folder Name="/sample/">
+    <Project Path="sample/MinimalOpenAPI.Sample.Api/MinimalOpenAPI.Sample.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/MinimalOpenAPI/MinimalOpenAPI.csproj" />
+    <Project Path="src/MinimalOpenAPI.Generator/MinimalOpenAPI.Generator.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MinimalOpenAPI.Generator.Tests/MinimalOpenAPI.Generator.Tests.csproj" />
+    <Project Path="tests/MinimalOpenAPI.IntegrationTests/MinimalOpenAPI.IntegrationTests.csproj" />
+    <Project Path="tests/MinimalOpenAPI.Runtime.Tests/MinimalOpenAPI.Runtime.Tests.csproj" />
+  </Folder>
 </Solution>
+

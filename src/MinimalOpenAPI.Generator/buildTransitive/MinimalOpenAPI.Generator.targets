@@ -1,0 +1,22 @@
+<Project>
+  <!--
+    Makes the build property 'MinimalOpenApiFile' visible to the Roslyn analyzer
+    through AnalyzerConfigOptions.
+  -->
+  <ItemGroup>
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiFile" />
+    <CompilerVisibleProperty Include="RootNamespace" />
+  </ItemGroup>
+
+  <!--
+    Forward <OpenApi Include="..." /> items to AdditionalFiles so the generator
+    can read them. Must run before CoreCompile.
+  -->
+  <Target Name="AddMinimalOpenApiFilesToAdditionalFiles"
+          BeforeTargets="CoreCompile"
+          Condition="'@(OpenApi)' != ''">
+    <ItemGroup>
+      <AdditionalFiles Include="@(OpenApi)" MinimalOpenApiFile="true" />
+    </ItemGroup>
+  </Target>
+</Project>
