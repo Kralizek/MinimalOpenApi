@@ -84,6 +84,18 @@ internal static class EndpointMappingGenerator
         sb.AppendLine();
         sb.AppendLine($"            .WithName(\"{operation.OperationId}\")");
 
+        if (!string.IsNullOrEmpty(operation.Summary))
+            sb.AppendLine($"            .WithSummary(\"{EscapeString(operation.Summary)}\")");
+
+        if (!string.IsNullOrEmpty(operation.Description))
+            sb.AppendLine($"            .WithDescription(\"{EscapeString(operation.Description)}\")");
+
+        if (operation.Tags.Count > 0)
+        {
+            var tags = string.Join(", ", operation.Tags.Select(t => $"\"{EscapeString(t)}\""));
+            sb.AppendLine($"            .WithTags({tags})");
+        }
+
         var responses = operation.Responses.OrderBy(r => r.StatusCode).ToList();
         for (var i = 0; i < responses.Count; i++)
         {
@@ -161,4 +173,13 @@ internal static class EndpointMappingGenerator
         500 => "InternalServerError",
         _ => string.Empty
     };
+
+    private static string EscapeString(string value)
+        => value
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("\r\n", " ")
+            .Replace("\n", " ")
+            .Replace("\r", " ")
+            .Replace("\t", " ");
 }

@@ -36,7 +36,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateTodoRequest'
+              $ref: '#/components/schemas/Todo'
       responses:
         "201":
           description: Created
@@ -87,7 +87,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateTodoRequest'
+              $ref: '#/components/schemas/Todo'
       responses:
         "200":
           description: OK
@@ -122,36 +122,13 @@ components:
     Todo:
       type: object
       required:
-        - id
         - title
         - isComplete
       properties:
         id:
           type: string
           format: uuid
-        title:
-          type: string
-        description:
-          type: string
           nullable: true
-        isComplete:
-          type: boolean
-    CreateTodoRequest:
-      type: object
-      required:
-        - title
-      properties:
-        title:
-          type: string
-        description:
-          type: string
-          nullable: true
-    UpdateTodoRequest:
-      type: object
-      required:
-        - title
-        - isComplete
-      properties:
         title:
           type: string
         description:

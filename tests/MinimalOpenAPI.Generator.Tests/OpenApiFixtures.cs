@@ -12,6 +12,10 @@ internal static class OpenApiFixtures
           /tenants/{tenantId}/clients/{clientId}:
             get:
               operationId: getClient
+              summary: Get a specific client
+              description: Returns the client with the specified identifier.
+              tags:
+                - clients
               parameters:
                 - name: tenantId
                   in: path

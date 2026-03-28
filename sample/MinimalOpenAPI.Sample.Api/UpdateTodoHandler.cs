@@ -12,7 +12,7 @@ public sealed class UpdateTodoHandler : UpdateTodoEndpoint
 
     public override Task<Results<Ok<Todo>, BadRequest, NotFound>> HandleAsync(
         global::System.Guid id,
-        UpdateTodoRequest request,
+        Todo request,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Title))

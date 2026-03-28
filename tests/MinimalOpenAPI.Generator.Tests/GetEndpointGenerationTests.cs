@@ -101,6 +101,20 @@ public class GetEndpointGenerationTests
     }
 
     [Test]
+    public void GeneratesEndpointMappingWithSummaryDescriptionAndTags()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: GetClientHandlerImpl,
+            additionalFiles: AdditionalFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "EndpointMapping.g.cs");
+
+        Assert.That(source, Does.Contain(".WithSummary(\"Get a specific client\")"));
+        Assert.That(source, Does.Contain(".WithDescription(\"Returns the client with the specified identifier.\")"));
+        Assert.That(source, Does.Contain(".WithTags(\"clients\")"));
+    }
+
+    [Test]
     public void GeneratesDiRegistration()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(

@@ -11,7 +11,7 @@ public sealed class CreateTodoHandler : CreateTodoEndpoint
     public CreateTodoHandler(InMemoryTodoStore store) => _store = store;
 
     public override Task<Results<Created<Todo>, BadRequest>> HandleAsync(
-        CreateTodoRequest request,
+        Todo request,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Title))
