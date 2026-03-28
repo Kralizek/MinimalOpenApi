@@ -1,0 +1,92 @@
+name: Publish
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    name: Pack and publish
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write   # push to GitHub Packages (nightly builds)
+      contents: write   # upload assets to a GitHub Release
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Nerdbank.GitVersioning needs full git history to compute the version
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          # Configure GitHub Packages as an authenticated NuGet source so nightly packages
+          # can be pushed without a separate `dotnet nuget add source` step.
+          source-url: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+        env:
+          NUGET_AUTH_TOKEN: ${{ github.token }}
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release --warnaserror
+
+      # For release events, override the version with the tag name (e.g. v1.2.3 → 1.2.3).
+      # This produces a stable, suffix-free NuGet version regardless of the git height.
+      # For push-to-main events, Nerdbank.GitVersioning computes a pre-release version
+      # automatically (e.g. 1.0.5-preview.5), so no override is needed.
+      - name: Set release version
+        if: github.event_name == 'release'
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          echo "RELEASE_VERSION=${tag#v}" >> "$GITHUB_ENV"
+
+      - name: Pack
+        run: |
+          PACK_ARGS="--no-build --configuration Release --output ./artifacts --warnaserror"
+          if [ -n "${RELEASE_VERSION:-}" ]; then
+            PACK_ARGS="$PACK_ARGS -p:Version=$RELEASE_VERSION"
+          fi
+          # Pack each source project individually to avoid spurious warnings from
+          # non-packable projects (sample app, tests) that live in the same solution.
+          dotnet pack $PACK_ARGS src/MinimalOpenAPI.Abstractions/MinimalOpenAPI.Abstractions.csproj
+          dotnet pack $PACK_ARGS src/MinimalOpenAPI.Generator/MinimalOpenAPI.Generator.csproj
+          dotnet pack $PACK_ARGS src/MinimalOpenAPI.Parser.Yaml/MinimalOpenAPI.Parser.Yaml.csproj
+          dotnet pack $PACK_ARGS src/MinimalOpenAPI/MinimalOpenAPI.csproj
+          dotnet pack $PACK_ARGS src/MinimalOpenAPI.Runtime/MinimalOpenAPI.Runtime.csproj
+
+      - name: Upload packages as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: ./artifacts/*.nupkg
+          if-no-files-found: error
+
+      # ── Nightly (push to main) ──────────────────────────────────────────────────
+      - name: Push to GitHub Packages
+        if: github.event_name == 'push'
+        run: |
+          dotnet nuget push "./artifacts/*.nupkg" \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --api-key "${{ github.token }}" \
+            --skip-duplicate
+
+      # ── Stable release (published GitHub Release with a vX.Y.Z tag) ────────────
+      - name: Upload packages to GitHub Release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" ./artifacts/*.nupkg \
+            --repo "${{ github.repository }}"
+
+      - name: Push to NuGet.org
+        if: github.event_name == 'release'
+        run: |
+          dotnet nuget push "./artifacts/*.nupkg" \
+            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate

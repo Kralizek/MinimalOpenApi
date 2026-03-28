@@ -1,0 +1,6 @@
+<Project>
+  <!-- Apply Nerdbank.GitVersioning to every project in the repo. -->
+  <ItemGroup>
+    <PackageReference Include="Nerdbank.GitVersioning" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

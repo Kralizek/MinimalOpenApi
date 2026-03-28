@@ -6,9 +6,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <IsPackable>true</IsPackable>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <RootNamespace>MinimalOpenAPI</RootNamespace>
     <Description>OpenAPI document model and parser abstractions for MinimalOpenAPI.</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="PolySharp" PrivateAssets="all" />

@@ -5,12 +5,17 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>true</IsPackable>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <RootNamespace>MinimalOpenAPI</RootNamespace>
     <Description>
       Meta-package for the MinimalOpenAPI contract-first framework.
       Adds both the ASP.NET Core runtime and the Roslyn source generator.
     </Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <!--
     Runtime reference flows to consumers transitively so they get
