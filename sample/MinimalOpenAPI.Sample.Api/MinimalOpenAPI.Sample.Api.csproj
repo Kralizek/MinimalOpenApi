@@ -7,16 +7,17 @@
   </PropertyGroup>
 
   <!--
-    Single reference: the generator package ships both the Roslyn analyzer and
-    (via NuGet buildTransitive) the MSBuild targets that wire up <OpenApi> items.
-    In a project-reference development setup we import the targets explicitly.
+    In the NuGet scenario a consumer would have:
+      <PackageReference Include="MinimalOpenApi" />
+    and the build/buildTransitive targets would be imported automatically.
+
+    In this project-reference dev scenario we import the targets explicitly
+    and reference the meta project, which transitively brings in the runtime.
   -->
-  <Import Project="../../src/MinimalOpenAPI.Generator/buildTransitive/MinimalOpenAPI.Generator.targets" />
+  <Import Project="../../src/MinimalOpenAPI.Pack/buildTransitive/MinimalOpenAPI.Pack.targets" />
 
   <ItemGroup>
-    <ProjectReference Include="../../src/MinimalOpenAPI.Generator/MinimalOpenAPI.Generator.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/MinimalOpenAPI.Pack/MinimalOpenAPI.Pack.csproj" />
   </ItemGroup>
 
   <ItemGroup>

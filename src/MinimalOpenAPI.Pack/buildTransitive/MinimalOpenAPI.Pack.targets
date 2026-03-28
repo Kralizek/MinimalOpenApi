@@ -1,0 +1,82 @@
+<Project>
+  <!--
+    Meta-package MSBuild targets for MinimalOpenApi.
+
+    In the NuGet package scenario this file is imported automatically by the
+    .NET SDK from buildTransitive/.  In the project-reference development
+    scenario the consuming project imports it explicitly:
+
+      <Import Project="../../src/MinimalOpenApi/buildTransitive/MinimalOpenApi.targets" />
+
+    Responsibilities:
+      1. Forward <OpenApi Include="…" /> items to AdditionalFiles with the
+         MinimalOpenApiFile metadata so the generator can see them.
+      2. Add MinimalOpenAPI.Generator as a Roslyn analyzer (dev scenario).
+      3. Add the generator's runtime dependencies as analyzers so Roslyn can
+         load the generator DLL (dev scenario).
+  -->
+
+  <!-- ── OpenApi item type ────────────────────────────────────────────── -->
+  <ItemGroup>
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiFile" />
+    <CompilerVisibleProperty Include="RootNamespace" />
+  </ItemGroup>
+
+  <!--
+    Transfer <OpenApi> items to AdditionalFiles with the MinimalOpenApiFile
+    metadata flag set.  Must run before GenerateMSBuildEditorConfigFileCore so
+    that the metadata is included in the generated analyzer config file that
+    Roslyn reads via AnalyzerConfigOptions.
+  -->
+  <Target Name="AddMinimalOpenApiFilesToAdditionalFiles"
+          BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile">
+    <ItemGroup>
+      <AdditionalFiles Include="@(OpenApi)" MinimalOpenApiFile="true" />
+    </ItemGroup>
+  </Target>
+
+  <!-- ── Project-reference development scenario ──────────────────────── -->
+  <!--
+    Paths below resolve relative to THIS targets file so they work regardless
+    of where the consuming project lives in the repo.
+  -->
+  <PropertyGroup>
+    <_MinimalOpenApiGeneratorProj>$(MSBuildThisFileDirectory)..\..\MinimalOpenAPI.Generator\MinimalOpenAPI.Generator.csproj</_MinimalOpenApiGeneratorProj>
+    <_MinimalOpenApiGenDir>$(MSBuildThisFileDirectory)..\..\MinimalOpenAPI.Generator\bin\$(Configuration)\netstandard2.0\</_MinimalOpenApiGenDir>
+  </PropertyGroup>
+
+  <!--
+    Add MinimalOpenAPI.Generator as a Roslyn analyzer so the IIncrementalGenerator
+    runs during compilation.  The Condition ensures this only applies when the
+    generator project exists on disk (dev scenario); in the NuGet scenario the
+    generator DLL is already in analyzers/dotnet/cs/ of the package.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="$(_MinimalOpenApiGeneratorProj)"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      Condition="Exists('$(_MinimalOpenApiGeneratorProj)')" />
+  </ItemGroup>
+
+  <!--
+    Add the generator's runtime dependencies as analyzers so Roslyn can load
+    the generator DLL in its isolated AssemblyLoadContext.
+
+    These items are placed inside a <Target> (not a static <ItemGroup>) so the
+    Exists() check runs at *build execution time* — after the generator project
+    and its dependencies have already been compiled — rather than at project
+    evaluation time when a fresh CI checkout would have no bin/ output yet.
+  -->
+  <Target Name="AddMinimalOpenApiGeneratorDependencyAnalyzers"
+          BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Analyzer Include="$(_MinimalOpenApiGenDir)MinimalOpenAPI.Abstractions.dll"
+                Condition="Exists('$(_MinimalOpenApiGenDir)MinimalOpenAPI.Abstractions.dll')" />
+      <Analyzer Include="$(_MinimalOpenApiGenDir)MinimalOpenAPI.Parser.Yaml.dll"
+                Condition="Exists('$(_MinimalOpenApiGenDir)MinimalOpenAPI.Parser.Yaml.dll')" />
+      <Analyzer Include="$(_MinimalOpenApiGenDir)YamlDotNet.dll"
+                Condition="Exists('$(_MinimalOpenApiGenDir)YamlDotNet.dll')" />
+    </ItemGroup>
+  </Target>
+
+</Project>

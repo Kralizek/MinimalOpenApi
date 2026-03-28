@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>true</IsPackable>
+    <Description>
+      Meta-package for the MinimalOpenAPI contract-first framework.
+      Adds both the ASP.NET Core runtime and the Roslyn source generator.
+    </Description>
+  </PropertyGroup>
+
+  <!--
+    Runtime reference flows to consumers transitively so they get
+    AddMinimalOpenApi() and the rest of the public API.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../MinimalOpenAPI/MinimalOpenAPI.csproj" />
+  </ItemGroup>
+
+  <!-- Ship the targets file in both build and buildTransitive -->
+  <ItemGroup>
+    <None Include="buildTransitive\MinimalOpenAPI.Pack.targets"
+          Pack="true" PackagePath="buildTransitive\MinimalOpenApi.targets" />
+    <None Include="buildTransitive\MinimalOpenAPI.Pack.targets"
+          Pack="true" PackagePath="build\MinimalOpenApi.targets" />
+  </ItemGroup>
+
+</Project>
