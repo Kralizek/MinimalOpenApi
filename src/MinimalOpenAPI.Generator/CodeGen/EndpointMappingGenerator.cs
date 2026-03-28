@@ -85,10 +85,10 @@ internal static class EndpointMappingGenerator
         sb.AppendLine($"            .WithName(\"{operation.OperationId}\")");
 
         if (!string.IsNullOrEmpty(operation.Summary))
-            sb.AppendLine($"            .WithSummary(\"{EscapeString(operation.Summary)}\")");
+            sb.AppendLine($"            .WithSummary(\"{EscapeString(operation.Summary!)}\")");
 
         if (!string.IsNullOrEmpty(operation.Description))
-            sb.AppendLine($"            .WithDescription(\"{EscapeString(operation.Description)}\")");
+            sb.AppendLine($"            .WithDescription(\"{EscapeString(operation.Description!)}\")");
 
         if (operation.Tags.Count > 0)
         {
