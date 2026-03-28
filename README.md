@@ -66,7 +66,7 @@ That's it — no manual route registration, no manual DI wiring.
 
 ### Nightly builds
 
-Pre-release packages built from every commit to `main` are published to the GitHub Packages NuGet feed:
+Pre-release packages built from every commit to `master` are published to the GitHub Packages NuGet feed:
 
 ```
 https://nuget.pkg.github.com/Kralizek/index.json
@@ -96,6 +96,6 @@ Contributions are welcome. Please open an issue first to discuss proposed change
 1. Fork the repository.
 2. Create a feature branch (`git checkout -b feature/my-change`).
 3. Commit your changes.
-4. Open a pull request against `main`.
+4. Open a pull request against `master`.
 
 The CI pipeline enforces a warning-free build (`--warnaserror`) and runs all unit and integration tests.

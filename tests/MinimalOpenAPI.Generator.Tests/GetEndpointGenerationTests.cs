@@ -18,7 +18,10 @@ public class GetEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpoint.g.cs");
 
-        Assert.That(source, Does.Contain("public abstract class GetClientEndpoint"));
+        Assert.That(source, Does.Contain("public class GetClientEndpoint"));
+        Assert.That(source, Does.Contain("public virtual"));
+        Assert.That(source, Does.Contain("HandleAsync("));
+        Assert.That(source, Does.Contain("NotImplementedException"));
     }
 
     [Test]
@@ -34,6 +37,7 @@ public class GetEndpointGenerationTests
         Assert.That(source, Does.Contain("System.Guid clientId"));
         Assert.That(source, Does.Contain("bool? includeDeleted"));
         Assert.That(source, Does.Contain("CancellationToken cancellationToken"));
+        Assert.That(source, Does.Contain("HandleAsync("));
     }
 
     [Test]
@@ -73,10 +77,12 @@ public class GetEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
 
-        Assert.That(source, Does.Contain("public sealed record Client("));
-        Assert.That(source, Does.Contain("System.Guid Id"));
-        Assert.That(source, Does.Contain("string Name"));
-        Assert.That(source, Does.Contain("string? VatNumber"));
+        Assert.That(source, Does.Contain("public sealed record Client"));
+        Assert.That(source, Does.Contain("public global::System.Guid Id { get; init; }"));
+        Assert.That(source, Does.Contain("public string Name { get; init; }"));
+        Assert.That(source, Does.Contain("public string? VatNumber { get; init; }"));
+        Assert.That(source, Does.Contain("[JsonPropertyName(\"id\")]"));
+        Assert.That(source, Does.Contain("[JsonPropertyName(\"name\")]"));
     }
 
     [Test]
@@ -91,6 +97,7 @@ public class GetEndpointGenerationTests
         Assert.That(source, Does.Contain("/tenants/{tenantId:guid}/clients/{clientId:guid}"));
         Assert.That(source, Does.Contain("MapGet("));
         Assert.That(source, Does.Contain("WithName(\"getClient\")"));
+        Assert.That(source, Does.Contain("MapMinimalOpenApiEndpoints("));
     }
 
     [Test]
@@ -114,7 +121,7 @@ public class GetEndpointGenerationTests
             userSource: "",
             additionalFiles: AdditionalFiles);
 
-        Assert.That(result.Diagnostics, Has.Some.Matches<Microsoft.CodeAnalysis.Diagnostic>(d => d.Id == "MOA001"));
+        Assert.That(result.Diagnostics, Has.Some.Matches<Microsoft.CodeAnalysis.Diagnostic>(d => d.Id == "MOA001" && d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Warning));
     }
 
     [Test]

@@ -4,12 +4,12 @@ using MinimalOpenAPI.Sample.Api.Generated;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<InMemoryClientStore>();
+builder.Services.AddSingleton<InMemoryTodoStore>();
 builder.Services.AddMinimalOpenApi();
 
 var app = builder.Build();
 
-app.MapEndpoints();
+app.MapMinimalOpenApiEndpoints();
 
 app.Run();
 

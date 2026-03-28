@@ -2,7 +2,7 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|--------------------
-MOA001 | MinimalOpenAPI | Error | Missing handler implementation
+MOA001 | MinimalOpenAPI | Warning | Missing handler implementation
 MOA002 | MinimalOpenAPI | Error | Duplicate handler implementations
 MOA003 | MinimalOpenAPI | Error | Duplicate registration customizer implementations
 MOA004 | MinimalOpenAPI | Error | OpenAPI parse error

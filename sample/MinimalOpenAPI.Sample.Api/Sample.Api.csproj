@@ -5,6 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
+    <!-- Preserve the namespace that matches the source files even after the project was renamed -->
+    <RootNamespace>MinimalOpenAPI.Sample.Api</RootNamespace>
   </PropertyGroup>
 
   <!--

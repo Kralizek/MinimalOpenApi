@@ -9,16 +9,16 @@ namespace MinimalOpenAPI.Parser.Yaml;
 /// </summary>
 public sealed class YamlOpenApiParser : IOpenApiParser
 {
-    public OpenApiDocument Parse(string content)
+    public System.Threading.Tasks.Task<OpenApiDocument> ParseAsync(string content, System.Threading.CancellationToken cancellationToken = default)
     {
         var stream = new YamlStream();
         stream.Load(new StringReader(content));
 
         if (stream.Documents.Count == 0)
-            return new OpenApiDocument();
+            return System.Threading.Tasks.Task.FromResult(new OpenApiDocument());
 
         var root = (YamlMappingNode)stream.Documents[0].RootNode;
-        return ExtractDocument(root);
+        return System.Threading.Tasks.Task.FromResult(ExtractDocument(root));
     }
 
     private static OpenApiDocument ExtractDocument(YamlMappingNode root)
@@ -75,8 +75,15 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             Format = GetString(node, "format"),
             Nullable = GetBool(node, "nullable"),
             Properties = properties,
-            Required = required
+            Required = required,
+            Items = ExtractItemsSchema(node)
         };
+    }
+
+    private static OpenApiSchema? ExtractItemsSchema(YamlMappingNode node)
+    {
+        var itemsNode = GetMapping(node, "items");
+        return itemsNode is not null ? ExtractSchema(itemsNode) : null;
     }
 
     // ── Operations ────────────────────────────────────────────────────────
@@ -110,11 +117,22 @@ public sealed class YamlOpenApiParser : IOpenApiParser
     private static OpenApiOperation ExtractOperation(
         YamlMappingNode opNode, string method, string route)
     {
+        var tagsNode = GetSequence(opNode, "tags");
+        var tags = new List<string>();
+        if (tagsNode is not null)
+        {
+            foreach (var item in tagsNode.Children)
+                tags.Add(Scalar(item));
+        }
+
         return new OpenApiOperation
         {
             OperationId = GetString(opNode, "operationId") ?? BuildOperationId(method, route),
             HttpMethod = method,
             Route = route,
+            Summary = GetString(opNode, "summary"),
+            Description = GetString(opNode, "description"),
+            Tags = tags,
             Parameters = ExtractParameters(opNode),
             RequestBody = ExtractRequestBody(opNode),
             Responses = ExtractResponses(opNode)

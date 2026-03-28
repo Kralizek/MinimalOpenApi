@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../sample/MinimalOpenAPI.Sample.Api/MinimalOpenAPI.Sample.Api.csproj" />
+    <ProjectReference Include="../../sample/MinimalOpenAPI.Sample.Api/Sample.Api.csproj" />
   </ItemGroup>
 
 </Project>

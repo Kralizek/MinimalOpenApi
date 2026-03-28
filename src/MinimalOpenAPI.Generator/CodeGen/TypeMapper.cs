@@ -21,6 +21,13 @@ internal static class TypeMapper
             return nullable ? $"{schema.Ref}?" : schema.Ref;
         }
 
+        if (schema.Type?.ToLowerInvariant() == "array")
+        {
+            var itemType = schema.Items is not null ? MapSchema(schema.Items) : "object";
+            var arrayType = $"{itemType}[]";
+            return nullable ? $"{arrayType}?" : arrayType;
+        }
+
         var baseType = (schema.Type?.ToLowerInvariant(), schema.Format?.ToLowerInvariant()) switch
         {
             ("string", "uuid") => "global::System.Guid",
@@ -44,15 +51,17 @@ internal static class TypeMapper
     /// <summary>Maps an HTTP status code to the TypedResults type name.</summary>
     public static string MapStatusCode(int statusCode, OpenApiSchema? schema)
     {
-        if (schema?.Ref is not null)
+        var responseType = schema is not null ? MapSchema(schema) : null;
+
+        if (responseType is not null && responseType != "object")
         {
             return statusCode switch
             {
-                200 => $"global::Microsoft.AspNetCore.Http.HttpResults.Ok<{schema.Ref}>",
-                201 => $"global::Microsoft.AspNetCore.Http.HttpResults.Created<{schema.Ref}>",
-                202 => $"global::Microsoft.AspNetCore.Http.HttpResults.Accepted<{schema.Ref}>",
-                400 => $"global::Microsoft.AspNetCore.Http.HttpResults.BadRequest<{schema.Ref}>",
-                _ => $"global::Microsoft.AspNetCore.Http.HttpResults.Ok<{schema.Ref}>"
+                200 => $"global::Microsoft.AspNetCore.Http.HttpResults.Ok<{responseType}>",
+                201 => $"global::Microsoft.AspNetCore.Http.HttpResults.Created<{responseType}>",
+                202 => $"global::Microsoft.AspNetCore.Http.HttpResults.Accepted<{responseType}>",
+                400 => $"global::Microsoft.AspNetCore.Http.HttpResults.BadRequest<{responseType}>",
+                _ => $"global::Microsoft.AspNetCore.Http.HttpResults.Ok<{responseType}>"
             };
         }
 

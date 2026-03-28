@@ -37,7 +37,14 @@ internal static class DependencyInjectionRegistrationGenerator
             var handlerImpl = handlers.FirstOrDefault(h => h.BaseName == handlerBase);
             if (handlerImpl is not null)
             {
+                // Register concrete implementation
                 sb.AppendLine($"        services.AddScoped<{rootNamespace}.Generated.{handlerBase}, {handlerImpl.FullName}>();");
+            }
+            else
+            {
+                // No implementation found — register the base class so the endpoint resolves at runtime
+                // (it will throw NotImplementedException when invoked, matching the MOA001 warning)
+                sb.AppendLine($"        services.AddScoped<{rootNamespace}.Generated.{handlerBase}>();");
             }
 
             var customizerBase = TypeMapper.RegistrationClassName(op.OperationId);

@@ -56,7 +56,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
                 try
                 {
-                    var doc = parser.Parse(content);
+                    var doc = parser.ParseAsync(content).GetAwaiter().GetResult();
                     return (Doc: (OpenApiDocument?)doc, Path: path, Namespace: ns,
                             Error: (string?)null, UnsupportedExtension: (string?)null);
                 }

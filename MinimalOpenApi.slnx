@@ -1,6 +1,6 @@
 <Solution>
   <Folder Name="/sample/">
-    <Project Path="sample/MinimalOpenAPI.Sample.Api/MinimalOpenAPI.Sample.Api.csproj" />
+    <Project Path="sample/MinimalOpenAPI.Sample.Api/Sample.Api.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/MinimalOpenAPI.Runtime/MinimalOpenAPI.Runtime.csproj" />

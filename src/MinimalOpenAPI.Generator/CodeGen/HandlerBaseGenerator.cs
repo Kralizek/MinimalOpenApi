@@ -22,16 +22,19 @@ internal static class HandlerBaseGenerator
         sb.AppendLine();
         sb.AppendLine($"/// <summary>Abstract handler base for the <c>{operation.OperationId}</c> operation.</summary>");
         TypeMapper.AppendGeneratedAttributes(sb);
-        sb.AppendLine($"public abstract class {handlerClass}");
+        sb.AppendLine($"public class {handlerClass}");
         sb.AppendLine("{");
-        sb.AppendLine($"    public abstract global::System.Threading.Tasks.Task<{returnType}> Handle(");
+        sb.Append($"    public virtual global::System.Threading.Tasks.Task<{returnType}> HandleAsync(");
 
         for (var i = 0; i < parameters.Count; i++)
         {
-            var sep = i < parameters.Count - 1 ? "," : ");";
-            sb.AppendLine($"        {parameters[i]}{sep}");
+            var sep = i < parameters.Count - 1 ? ", " : "";
+            sb.Append($"{parameters[i]}{sep}");
         }
 
+        sb.AppendLine(")");
+        sb.AppendLine($"        => throw new global::System.NotImplementedException(");
+        sb.AppendLine($"            $\"{{GetType().Name}} has not implemented HandleAsync for operation '{operation.OperationId}'.\");");
         sb.AppendLine("}");
         return sb.ToString();
     }

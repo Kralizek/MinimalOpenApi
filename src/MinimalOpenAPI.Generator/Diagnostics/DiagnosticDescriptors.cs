@@ -10,9 +10,9 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor MissingHandlerImplementation = new(
         id: "MOA001",
         title: "Missing handler implementation",
-        messageFormat: "No concrete implementation of '{0}' was found. Create a class that inherits from '{0}'.",
+        messageFormat: "No concrete implementation of '{0}' was found. The default implementation will throw NotImplementedException at runtime. Create a class that inherits from '{0}' to provide a real implementation.",
         category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
+        defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
     /// <summary>More than one concrete implementation found for a generated handler base class.</summary>

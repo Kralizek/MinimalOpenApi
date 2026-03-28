@@ -1,25 +1,17 @@
 openapi: "3.0.0"
 info:
-  title: Sample API
+  title: Todo API
   version: "1.0.0"
 paths:
-  /tenants/{tenantId}/clients/{clientId}:
+  /todos:
     get:
-      operationId: getClient
+      operationId: listTodos
+      summary: List all todo items
+      description: Returns all todo items, optionally filtered by completion status.
+      tags:
+        - todos
       parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: clientId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: includeDeleted
+        - name: isComplete
           in: query
           required: false
           schema:
@@ -30,14 +22,61 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Client'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Todo'
+    post:
+      operationId: createTodo
+      summary: Create a new todo item
+      description: Creates a new todo item and returns the created resource.
+      tags:
+        - todos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTodoRequest'
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        "400":
+          description: Bad Request
+  /todos/{id}:
+    get:
+      operationId: getTodo
+      summary: Get a specific todo item
+      description: Returns the todo item with the specified identifier.
+      tags:
+        - todos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
         "404":
           description: Not found
-  /tenants/{tenantId}/clients:
-    post:
-      operationId: createClient
+    put:
+      operationId: updateTodo
+      summary: Update an existing todo item
+      description: Updates the title, description, completion status, or priority of a todo item.
+      tags:
+        - todos
       parameters:
-        - name: tenantId
+        - name: id
           in: path
           required: true
           schema:
@@ -48,43 +87,75 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateClientRequest'
+              $ref: '#/components/schemas/UpdateTodoRequest'
       responses:
-        "201":
-          description: Created
+        "200":
+          description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Client'
+                $ref: '#/components/schemas/Todo'
         "400":
           description: Bad Request
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteTodo
+      summary: Delete a todo item
+      description: Permanently removes the todo item with the specified identifier.
+      tags:
+        - todos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not found
 components:
   schemas:
-    Client:
+    Todo:
       type: object
       required:
         - id
-        - tenantId
-        - name
+        - title
+        - isComplete
       properties:
         id:
           type: string
           format: uuid
-        tenantId:
+        title:
           type: string
-          format: uuid
-        name:
-          type: string
-        vatNumber:
+        description:
           type: string
           nullable: true
-    CreateClientRequest:
+        isComplete:
+          type: boolean
+    CreateTodoRequest:
       type: object
       required:
-        - name
+        - title
       properties:
-        name:
+        title:
           type: string
-        vatNumber:
+        description:
           type: string
           nullable: true
+    UpdateTodoRequest:
+      type: object
+      required:
+        - title
+        - isComplete
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        isComplete:
+          type: boolean

@@ -4,5 +4,5 @@ namespace MinimalOpenAPI.Abstractions;
 
 public interface IOpenApiParser
 {
-    OpenApiDocument Parse(string content);
+    System.Threading.Tasks.Task<OpenApiDocument> ParseAsync(string content, System.Threading.CancellationToken cancellationToken = default);
 }

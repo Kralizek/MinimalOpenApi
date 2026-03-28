@@ -18,7 +18,10 @@ public class PostEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateClientEndpoint.g.cs");
 
-        Assert.That(source, Does.Contain("public abstract class CreateClientEndpoint"));
+        Assert.That(source, Does.Contain("public class CreateClientEndpoint"));
+        Assert.That(source, Does.Contain("public virtual"));
+        Assert.That(source, Does.Contain("HandleAsync("));
+        Assert.That(source, Does.Contain("NotImplementedException"));
     }
 
     [Test]
@@ -57,8 +60,10 @@ public class PostEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
 
-        Assert.That(source, Does.Contain("public sealed record CreateClientRequest("));
-        Assert.That(source, Does.Contain("public sealed record Client("));
+        Assert.That(source, Does.Contain("public sealed record CreateClientRequest"));
+        Assert.That(source, Does.Contain("public sealed record Client"));
+        Assert.That(source, Does.Contain("[JsonPropertyName("));
+        Assert.That(source, Does.Contain("{ get; init; }"));
     }
 
     [Test]

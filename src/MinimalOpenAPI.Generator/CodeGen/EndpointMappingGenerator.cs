@@ -25,11 +25,16 @@ internal static class EndpointMappingGenerator
         sb.AppendLine("/// <summary>Generated endpoint route builder extensions for MinimalOpenAPI.</summary>");
         sb.AppendLine("public static class MinimalOpenApiGeneratedEndpointRouteBuilderExtensions");
         sb.AppendLine("{");
-        sb.AppendLine("    /// <summary>Maps all generated MinimalOpenAPI endpoints.</summary>");
-        sb.AppendLine("    public static global::Microsoft.AspNetCore.Routing.IEndpointRouteBuilder MapEndpoints(");
-        sb.AppendLine("        this global::Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder)");
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// Maps all generated MinimalOpenAPI endpoints and returns a <see cref=\"global::Microsoft.AspNetCore.Routing.RouteGroupBuilder\"/>");
+        sb.AppendLine("    /// that can be further configured (e.g. <c>.RequireAuthorization()</c> to protect all endpoints at once).");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    public static global::Microsoft.AspNetCore.Routing.RouteGroupBuilder MapMinimalOpenApiEndpoints(");
+        sb.AppendLine("        this global::Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder,");
+        sb.AppendLine("        string? prefix = null)");
         sb.AppendLine("    {");
         sb.AppendLine("        var services = builder.ServiceProvider;");
+        sb.AppendLine("        var group = builder.MapGroup(prefix ?? string.Empty);");
         sb.AppendLine();
 
         foreach (var op in operations)
@@ -38,7 +43,7 @@ internal static class EndpointMappingGenerator
             sb.AppendLine();
         }
 
-        sb.AppendLine("        return builder;");
+        sb.AppendLine("        return group;");
         sb.AppendLine("    }");
         sb.AppendLine("}");
         return sb.ToString();
@@ -59,10 +64,10 @@ internal static class EndpointMappingGenerator
         var varName = TypeMapper.ToCamelCase(TypeMapper.HandlerClassName(operation.OperationId));
 
         sb.AppendLine($"        // {operation.OperationId}");
-        sb.AppendLine($"        var {varName} = builder.Map{httpMethod}(");
+        sb.AppendLine($"        var {varName} = group.Map{httpMethod}(");
         sb.AppendLine($"            \"{constrainedRoute}\",");
         sb.AppendLine($"            static ({lambdaParams})");
-        sb.AppendLine($"                => handler.Handle({handlerInvocation}));");
+        sb.AppendLine($"                => handler.HandleAsync({handlerInvocation}));");
         sb.AppendLine();
 
         // Apply optional customizer
@@ -84,9 +89,10 @@ internal static class EndpointMappingGenerator
         {
             var response = responses[i];
             var sep = i < responses.Count - 1 ? "" : ";";
-            if (response.Schema?.Ref is not null)
+            var responseTypeName = response.Schema is not null ? TypeMapper.MapSchema(response.Schema) : null;
+            if (responseTypeName is not null && responseTypeName != "object")
             {
-                sb.AppendLine($"            .Produces<{response.Schema.Ref}>(global::Microsoft.AspNetCore.Http.StatusCodes.Status{response.StatusCode}{GetStatusCodeName(response.StatusCode)}){sep}");
+                sb.AppendLine($"            .Produces<{responseTypeName}>(global::Microsoft.AspNetCore.Http.StatusCodes.Status{response.StatusCode}{GetStatusCodeName(response.StatusCode)}){sep}");
             }
             else
             {
