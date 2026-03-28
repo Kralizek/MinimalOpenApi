@@ -4,6 +4,9 @@ MinimalOpenAPI is a **contract-first** OpenAPI framework for ASP.NET Core Minima
 
 Define your API surface in an OpenAPI (YAML) file. The Roslyn source generator reads it and automatically produces strongly-typed handler base classes, DTO records, DI registration, and endpoint mapping code. You only need to inherit the generated base class and fill in the business logic.
 
+For a deep-dive into the design, architecture, and internals see
+[docs/architecture.md](docs/architecture.md).
+
 ## How it works
 
 ```
