@@ -1,6 +1,5 @@
 using MinimalOpenAPI;
 using MinimalOpenAPI.Sample.Api;
-using MinimalOpenAPI.Sample.Api.Generated;
 
 var builder = WebApplication.CreateBuilder(args);
 

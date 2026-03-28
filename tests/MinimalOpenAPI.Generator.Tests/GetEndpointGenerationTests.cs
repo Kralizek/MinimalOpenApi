@@ -97,7 +97,10 @@ public class GetEndpointGenerationTests
         Assert.That(source, Does.Contain("/tenants/{tenantId:guid}/clients/{clientId:guid}"));
         Assert.That(source, Does.Contain("MapGet("));
         Assert.That(source, Does.Contain("WithName(\"getClient\")"));
-        Assert.That(source, Does.Contain("MapMinimalOpenApiEndpoints("));
+        // The generated class is internal; the public MapMinimalOpenApiEndpoints lives in the runtime.
+        Assert.That(source, Does.Contain("internal static class MinimalOpenApiGeneratedEndpointRouteBuilderExtensions"));
+        Assert.That(source, Does.Contain("internal static"));
+        Assert.That(source, Does.Contain("MapEndpoints("));
     }
 
     [Test]
@@ -126,6 +129,9 @@ public class GetEndpointGenerationTests
         Assert.That(source, Does.Contain("AddGeneratedEndpoints("));
         Assert.That(source, Does.Contain("GetClientEndpoint"));
         Assert.That(source, Does.Contain("GetClientHandler"));
+        // ModuleInitializer must also register the endpoint mapping delegate.
+        Assert.That(source, Does.Contain("RegisterEndpointMapping("));
+        Assert.That(source, Does.Contain("MapEndpoints("));
     }
 
     [Test]

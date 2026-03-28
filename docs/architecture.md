@@ -102,22 +102,52 @@ NuGet entry point.  Has no C# code of its own.  Its sole purpose is to pull in:
 - `MinimalOpenAPI.Runtime` — runtime DI and routing APIs.
 - `MinimalOpenAPI.Generator` — Roslyn analyzer (source generator).
 
+Both are declared as `ProjectReference` items in the csproj (the generator with
+`ReferenceOutputAssembly="false"` so the meta-package does not link against the
+generator DLL).  When the meta-package is packed, NuGet converts both references
+into `<dependency>` entries in the `.nuspec`, so a consumer only needs:
+
+```xml
+<PackageReference Include="MinimalOpenAPI" Version="*" />
+```
+
+to receive the runtime *and* the generator automatically.  This is the same
+pattern used by packages like `NetEscapades.EnumGenerators`.
+
 It also ships `buildTransitive/MinimalOpenAPI.targets` which handles the MSBuild
 plumbing described in §5.
 
 ### 4.2 `MinimalOpenAPI.Runtime`
 
-Contains a single class, `ServiceCollectionExtensions`, with two methods:
+Contains a single class, `ServiceCollectionExtensions`, with four methods:
 
 - **`RegisterGeneratedServices(Action<IServiceCollection>)`** — called by the
   source-generated `[ModuleInitializer]` (§6.4) to register a callback that
   will wire in all generated handlers before the application starts.
+- **`RegisterEndpointMapping(Func<IEndpointRouteBuilder, string?, RouteGroupBuilder>)`** —
+  called by the same `[ModuleInitializer]` to register a callback that performs
+  the actual endpoint mapping.
 - **`AddMinimalOpenApi(IServiceCollection)`** — called by the application in
-  `Program.cs`.  Invokes the callback registered by `RegisterGeneratedServices`.
+  `Program.cs`.  Invokes the `RegisterGeneratedServices` callback.
+- **`MapMinimalOpenApiEndpoints(IEndpointRouteBuilder, string?)`** — called by
+  the application in `Program.cs`.  Invokes the `RegisterEndpointMapping`
+  callback.  Falls back to an empty route group if no generator has run.
 
-The indirection through a static callback field is what lets the *generated*
-code (which lives in a different assembly from the runtime) hook into a single
-user-facing API call without requiring reflection.
+The indirection through static callback fields is what lets the *generated*
+code (which lives in a different conceptual layer from the runtime) hook into
+two single user-facing API calls without requiring reflection or a `using` for
+the generated namespace.
+
+Because `MapMinimalOpenApiEndpoints` is defined in the `MinimalOpenAPI` runtime
+namespace (the same one as `AddMinimalOpenApi`), users only need:
+
+```csharp
+using MinimalOpenAPI;
+// ...
+app.MapMinimalOpenApiEndpoints();
+```
+
+No `using {RootNamespace}.Generated;` is required.
 
 ### 4.3 `MinimalOpenAPI.Generator`
 
@@ -225,8 +255,8 @@ For a spec with `n` operations the generator emits `2n + 3` source files:
 | File | Purpose |
 |------|---------|
 | `MinimalOpenApi.Dtos.g.cs` | One `sealed record` per `components/schemas` object. Properties are typed using `TypeMapper.MapSchema`. Required properties get non-nullable types with default values; optional properties get nullable types. |
-| `MinimalOpenApi.DependencyInjection.g.cs` | `AddGeneratedEndpoints(IServiceCollection)` extension method that registers each handler (as `services.AddScoped<Base, Impl>()`) and each customizer (as `services.AddSingleton<Base, Impl>()`). Also contains `MinimalOpenApiModuleInitializer` which uses `[ModuleInitializer]` to call `ServiceCollectionExtensions.RegisterGeneratedServices` the moment the assembly is loaded. |
-| `MinimalOpenApi.EndpointMapping.g.cs` | `MapMinimalOpenApiEndpoints(IEndpointRouteBuilder, string? prefix)` extension method. Each route is mapped using `group.MapGet/Post/Put/…` with a static lambda that resolves the handler from DI (ASP.NET Core's built-in parameter binding), calls `handler.HandleAsync(…)`, and applies `.WithName`, `.WithSummary`, `.WithDescription`, `.WithTags`, and `.Produces<T>` metadata from the OpenAPI spec. |
+| `MinimalOpenApi.DependencyInjection.g.cs` | `AddGeneratedEndpoints(IServiceCollection)` extension method that registers each handler (as `services.AddScoped<Base, Impl>()`) and each customizer (as `services.AddSingleton<Base, Impl>()`). Also contains `MinimalOpenApiModuleInitializer` which uses `[ModuleInitializer]` to call both `ServiceCollectionExtensions.RegisterGeneratedServices` AND `ServiceCollectionExtensions.RegisterEndpointMapping` the moment the assembly is loaded. |
+| `MinimalOpenApi.EndpointMapping.g.cs` | **Internal** `MinimalOpenApiGeneratedEndpointRouteBuilderExtensions` class with an `internal static MapEndpoints(IEndpointRouteBuilder, string?)` method. Each route is mapped using `group.MapGet/Post/Put/…` with a static lambda that resolves the handler from DI, calls `handler.HandleAsync(…)`, and applies `.WithName`, `.WithSummary`, `.WithDescription`, `.WithTags`, and `.Produces<T>` metadata from the OpenAPI spec. The public entry point is the runtime's `MapMinimalOpenApiEndpoints`; this class is an internal implementation detail registered via the callback in §4.2. |
 
 All generated types carry `[ExcludeFromCodeCoverage]` and `[GeneratedCode]`
 attributes to prevent them from appearing in coverage reports.
@@ -339,17 +369,26 @@ wraps multiple types in `Results<T1, T2, …>`.
 ## 9. Runtime startup hook (ModuleInitializer)
 
 The generated `MinimalOpenApiModuleInitializer` class uses the
-`[System.Runtime.CompilerServices.ModuleInitializer]` attribute to call
-`ServiceCollectionExtensions.RegisterGeneratedServices` the instant the
-consuming assembly is loaded by the CLR — before any user code in `Program.cs`
-runs.  This lets the user call only:
+`[System.Runtime.CompilerServices.ModuleInitializer]` attribute to call two
+methods on `ServiceCollectionExtensions` the instant the consuming assembly is
+loaded by the CLR — before any user code in `Program.cs` runs:
+
+1. `RegisterGeneratedServices` — stores the DI registration callback.
+2. `RegisterEndpointMapping` — stores the endpoint mapping callback.
+
+This lets the user call only:
 
 ```csharp
 builder.Services.AddMinimalOpenApi();
+// …
+app.MapMinimalOpenApiEndpoints();
 ```
 
-without needing to reference any generated type directly.  The generated code
-stores a callback, and `AddMinimalOpenApi` invokes it.
+without needing to reference any generated type directly and without needing a
+`using {RootNamespace}.Generated;` import.  The generated code stores callbacks,
+and the runtime methods invoke them.  The public `MapMinimalOpenApiEndpoints` is
+defined entirely in `MinimalOpenAPI.Runtime` (namespace `MinimalOpenAPI`), just
+like `AddMinimalOpenApi`.
 
 ---
 
@@ -401,10 +440,13 @@ message (including the concrete type name and operation ID) when the developer
 forgets to override `HandleAsync`.  An interface would throw a less helpful
 `InvalidOperationException` from the DI container.
 
-**`[ModuleInitializer]` for DI wiring**: The alternative would be requiring the
-developer to call `services.AddGeneratedEndpoints()` explicitly, which leaks
-generated type names into user code.  The module initializer keeps the public
-API surface to a single `AddMinimalOpenApi()` call.
+**`[ModuleInitializer]` for both DI wiring and endpoint mapping**: The
+alternative would be requiring the developer to call
+`services.AddGeneratedEndpoints()` and the generated `MapMinimalOpenApiEndpoints`
+explicitly, leaking generated type names (and their namespaces) into user code.
+The module initializer + callback pattern keeps the public API surface to two
+calls — `AddMinimalOpenApi()` and `MapMinimalOpenApiEndpoints()` — both in the
+`MinimalOpenAPI` namespace, with no `using {RootNamespace}.Generated;` required.
 
 **Customizer as singleton, handler as scoped**: Handlers may hold scoped
 dependencies (e.g. `DbContext`).  Customizers configure route metadata at

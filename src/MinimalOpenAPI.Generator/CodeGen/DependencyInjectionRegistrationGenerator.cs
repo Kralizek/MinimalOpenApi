@@ -62,16 +62,22 @@ internal static class DependencyInjectionRegistrationGenerator
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// Wires <see cref=\"MinimalOpenApiGeneratedServiceCollectionExtensions.AddGeneratedEndpoints\"/>");
         sb.AppendLine("/// into <see cref=\"global::MinimalOpenAPI.ServiceCollectionExtensions.AddMinimalOpenApi\"/>");
-        sb.AppendLine("/// before the application starts, so the consumer only calls");
-        sb.AppendLine("/// <c>services.AddMinimalOpenApi()</c>.");
+        sb.AppendLine("/// and registers the endpoint mapping delegate with");
+        sb.AppendLine("/// <see cref=\"global::MinimalOpenAPI.ServiceCollectionExtensions.MapMinimalOpenApiEndpoints\"/>,");
+        sb.AppendLine("/// so the consumer only calls <c>services.AddMinimalOpenApi()</c> and");
+        sb.AppendLine("/// <c>app.MapMinimalOpenApiEndpoints()</c>.");
         sb.AppendLine("/// </summary>");
         TypeMapper.AppendGeneratedAttributes(sb);
         sb.AppendLine("internal static class MinimalOpenApiModuleInitializer");
         sb.AppendLine("{");
         sb.AppendLine("    [global::System.Runtime.CompilerServices.ModuleInitializer]");
-        sb.AppendLine("    internal static void Register() =>");
+        sb.AppendLine("    internal static void Register()");
+        sb.AppendLine("    {");
         sb.AppendLine("        global::MinimalOpenAPI.ServiceCollectionExtensions");
         sb.AppendLine("            .RegisterGeneratedServices(services => services.AddGeneratedEndpoints());");
+        sb.AppendLine($"        global::MinimalOpenAPI.ServiceCollectionExtensions.RegisterEndpointMapping(");
+        sb.AppendLine($"            (builder, prefix) => global::{rootNamespace}.Generated.MinimalOpenApiGeneratedEndpointRouteBuilderExtensions.MapEndpoints(builder, prefix));");
+        sb.AppendLine("    }");
         sb.AppendLine("}");
         return sb.ToString();
     }

@@ -19,10 +19,25 @@
 
   <!--
     Runtime reference flows to consumers transitively so they get
-    AddMinimalOpenApi() and the rest of the public API.
+    AddMinimalOpenApi(), MapMinimalOpenApiEndpoints() and the rest of the public API.
   -->
   <ItemGroup>
     <ProjectReference Include="../MinimalOpenAPI.Runtime/MinimalOpenAPI.Runtime.csproj" />
+  </ItemGroup>
+
+  <!--
+    Declare MinimalOpenAPI.Generator as a package dependency so that consumers
+    who install the MinimalOpenAPI meta-package also receive the Roslyn source
+    generator automatically — without having to add a separate PackageReference.
+
+    ReferenceOutputAssembly=false: the meta-package does not compile against the
+    generator DLL (it is an analyser-only package).  Omitting PrivateAssets="all"
+    is intentional: NuGet will still include this as a <dependency> in the packed
+    .nuspec, which is exactly what we want.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../MinimalOpenAPI.Generator/MinimalOpenAPI.Generator.csproj"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- Ship the targets file in both build and buildTransitive -->
