@@ -108,6 +108,27 @@ public class PostEndpointGenerationTests
         Assert.That(result.Diagnostics, Has.Some.Matches<Microsoft.CodeAnalysis.Diagnostic>(d => d.Id == "MOA003"));
     }
 
+    [Test]
+    public void DuplicateRegistrationCustomizerDiagnosticHasOpenApiFileLocation()
+    {
+        var userSource = CreateClientHandlerImpl + """
+            public class RegA : CreateClientEndpointRegistration { }
+            public class RegB : CreateClientEndpointRegistration { }
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: userSource,
+            additionalFiles: AdditionalFiles);
+
+        var moa003 = result.Diagnostics.FirstOrDefault(d => d.Id == "MOA003");
+        Assert.That(moa003, Is.Not.Null, "MOA003 should be emitted");
+        Assert.That(moa003!.Location, Is.Not.EqualTo(Microsoft.CodeAnalysis.Location.None),
+            "MOA003 must carry a source location so it is visible in the IDE Error List");
+        Assert.That(moa003.Location.GetLineSpan().Path,
+            Does.EndWith("openapi.yaml"),
+            "MOA003 location should point to the OpenAPI spec file");
+    }
+
     private const string CreateClientHandlerImpl = """
         public class CreateClientHandler : CreateClientEndpoint
         {

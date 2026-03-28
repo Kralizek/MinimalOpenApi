@@ -1,5 +1,6 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
 using MinimalOpenAPI.Abstractions;
 using MinimalOpenAPI.Abstractions.Models;
 using MinimalOpenAPI.Generator.CodeGen;
@@ -108,7 +109,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             {
                 spc.ReportDiagnostic(Diagnostic.Create(
                     DiagnosticDescriptors.UnsupportedFileExtension,
-                    Location.None,
+                    CreateOpenApiLocation(path),
                     unsupportedExtension, path));
                 return;
             }
@@ -117,14 +118,14 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             {
                 spc.ReportDiagnostic(Diagnostic.Create(
                     DiagnosticDescriptors.ParseError,
-                    Location.None,
+                    CreateOpenApiLocation(path),
                     path, error));
                 return;
             }
 
             if (doc is null) return;
 
-            GenerateForDocument(spc, doc, ns, classes.ToArray());
+            GenerateForDocument(spc, doc, ns, path, classes.ToArray());
         });
     }
 
@@ -142,10 +143,23 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         };
     }
 
+    /// <summary>
+    /// Creates a <see cref="Location"/> that points to the start of the given OpenAPI
+    /// spec file.  Using a real file location (rather than <see cref="Location.None"/>)
+    /// ensures that diagnostics are visible in IDE Error Lists, shown with the correct
+    /// filename, and survive the Roslyn incremental-generator analysis cache.
+    /// </summary>
+    private static Location CreateOpenApiLocation(string filePath)
+        => Location.Create(
+            filePath,
+            textSpan: TextSpan.FromBounds(0, 0),
+            lineSpan: new LinePositionSpan(new LinePosition(0, 0), new LinePosition(0, 0)));
+
     private static void GenerateForDocument(
         SourceProductionContext spc,
         OpenApiDocument doc,
         string rootNamespace,
+        string openApiFilePath,
         ClassInfo[] allClasses)
     {
         // Generate DTOs
@@ -183,7 +197,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 case 0:
                     spc.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.MissingHandlerImplementation,
-                        Location.None,
+                        CreateOpenApiLocation(openApiFilePath),
                         handlerBase));
                     break;
                 case 1:
@@ -196,7 +210,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 default:
                     spc.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.DuplicateHandlerImplementation,
-                        Location.None,
+                        CreateOpenApiLocation(openApiFilePath),
                         handlerBase,
                         string.Join(", ", handlerImpls.Select(h => h.FullName))));
                     break;
@@ -221,7 +235,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 default:
                     spc.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.DuplicateRegistrationCustomizerImplementation,
-                        Location.None,
+                        CreateOpenApiLocation(openApiFilePath),
                         customizerBase,
                         string.Join(", ", customizerImpls.Select(c => c.FullName))));
                     break;

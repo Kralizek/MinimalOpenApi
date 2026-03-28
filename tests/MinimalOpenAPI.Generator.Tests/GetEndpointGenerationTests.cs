@@ -141,7 +141,25 @@ public class GetEndpointGenerationTests
             userSource: "",
             additionalFiles: AdditionalFiles);
 
-        Assert.That(result.Diagnostics, Has.Some.Matches<Microsoft.CodeAnalysis.Diagnostic>(d => d.Id == "MOA001" && d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Warning));
+        Assert.That(result.Diagnostics, Has.Some.Matches<Microsoft.CodeAnalysis.Diagnostic>(d =>
+            d.Id == "MOA001" &&
+            d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Warning));
+    }
+
+    [Test]
+    public void MissingHandlerDiagnosticHasOpenApiFileLocation()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "",
+            additionalFiles: AdditionalFiles);
+
+        var moa001 = result.Diagnostics.FirstOrDefault(d => d.Id == "MOA001");
+        Assert.That(moa001, Is.Not.Null, "MOA001 should be emitted");
+        Assert.That(moa001!.Location, Is.Not.EqualTo(Microsoft.CodeAnalysis.Location.None),
+            "MOA001 must carry a source location so it is visible in the IDE Error List");
+        Assert.That(moa001.Location.GetLineSpan().Path,
+            Does.EndWith("openapi.yaml"),
+            "MOA001 location should point to the OpenAPI spec file");
     }
 
     [Test]
@@ -167,6 +185,37 @@ public class GetEndpointGenerationTests
             additionalFiles: AdditionalFiles);
 
         Assert.That(result.Diagnostics, Has.Some.Matches<Microsoft.CodeAnalysis.Diagnostic>(d => d.Id == "MOA002"));
+    }
+
+    [Test]
+    public void DuplicateHandlerDiagnosticHasOpenApiFileLocation()
+    {
+        var userSource = """
+            public class HandlerA : GetClientEndpoint
+            {
+                public override System.Threading.Tasks.Task<object> Handle(
+                    System.Guid tenantId, System.Guid clientId, bool? includeDeleted,
+                    System.Threading.CancellationToken ct) => throw new System.NotImplementedException();
+            }
+            public class HandlerB : GetClientEndpoint
+            {
+                public override System.Threading.Tasks.Task<object> Handle(
+                    System.Guid tenantId, System.Guid clientId, bool? includeDeleted,
+                    System.Threading.CancellationToken ct) => throw new System.NotImplementedException();
+            }
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: userSource,
+            additionalFiles: AdditionalFiles);
+
+        var moa002 = result.Diagnostics.FirstOrDefault(d => d.Id == "MOA002");
+        Assert.That(moa002, Is.Not.Null, "MOA002 should be emitted");
+        Assert.That(moa002!.Location, Is.Not.EqualTo(Microsoft.CodeAnalysis.Location.None),
+            "MOA002 must carry a source location so it is visible in the IDE Error List");
+        Assert.That(moa002.Location.GetLineSpan().Path,
+            Does.EndWith("openapi.yaml"),
+            "MOA002 location should point to the OpenAPI spec file");
     }
 
     // A minimal implementation for tests that need exactly one handler
