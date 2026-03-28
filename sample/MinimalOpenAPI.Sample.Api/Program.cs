@@ -1,3 +1,4 @@
+using MinimalOpenAPI;
 using MinimalOpenAPI.Sample.Api;
 using MinimalOpenAPI.Sample.Api.Generated;
 

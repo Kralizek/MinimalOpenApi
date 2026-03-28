@@ -1,8 +1,7 @@
-using FluentAssertions;
-
 namespace MinimalOpenAPI.Generator.Tests;
 
 /// <summary>Tests for POST endpoint generation (path + request body).</summary>
+[TestFixture]
 public class PostEndpointGenerationTests
 {
     private static readonly (string, string)[] AdditionalFiles =
@@ -10,7 +9,7 @@ public class PostEndpointGenerationTests
         ("openapi.yaml", OpenApiFixtures.CreateClientYaml)
     ];
 
-    [Fact]
+    [Test]
     public void GeneratesHandlerBaseClass()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -19,10 +18,10 @@ public class PostEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateClientEndpoint.g.cs");
 
-        source.Should().Contain("public abstract class CreateClientEndpoint");
+        Assert.That(source, Does.Contain("public abstract class CreateClientEndpoint"));
     }
 
-    [Fact]
+    [Test]
     public void GeneratedHandlerIncludesBodyParameter()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -31,12 +30,12 @@ public class PostEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateClientEndpoint.g.cs");
 
-        source.Should().Contain("System.Guid tenantId");
-        source.Should().Contain("CreateClientRequest request");
-        source.Should().Contain("CancellationToken cancellationToken");
+        Assert.That(source, Does.Contain("System.Guid tenantId"));
+        Assert.That(source, Does.Contain("CreateClientRequest request"));
+        Assert.That(source, Does.Contain("CancellationToken cancellationToken"));
     }
 
-    [Fact]
+    [Test]
     public void GeneratedHandlerHasCorrectReturnType()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -45,11 +44,11 @@ public class PostEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateClientEndpoint.g.cs");
 
-        source.Should().Contain("Created<Client>");
-        source.Should().Contain("BadRequest");
+        Assert.That(source, Does.Contain("Created<Client>"));
+        Assert.That(source, Does.Contain("BadRequest"));
     }
 
-    [Fact]
+    [Test]
     public void GeneratesDtosForRequestAndResponseSchemas()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -58,11 +57,11 @@ public class PostEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
 
-        source.Should().Contain("public sealed record CreateClientRequest(");
-        source.Should().Contain("public sealed record Client(");
+        Assert.That(source, Does.Contain("public sealed record CreateClientRequest("));
+        Assert.That(source, Does.Contain("public sealed record Client("));
     }
 
-    [Fact]
+    [Test]
     public void GeneratesEndpointMappingWithBodyParameter()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -71,13 +70,13 @@ public class PostEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "EndpointMapping.g.cs");
 
-        source.Should().Contain("MapPost(");
-        source.Should().Contain("/tenants/{tenantId:guid}/clients");
-        source.Should().Contain("CreateClientRequest request");
-        source.Should().Contain("WithName(\"createClient\")");
+        Assert.That(source, Does.Contain("MapPost("));
+        Assert.That(source, Does.Contain("/tenants/{tenantId:guid}/clients"));
+        Assert.That(source, Does.Contain("CreateClientRequest request"));
+        Assert.That(source, Does.Contain("WithName(\"createClient\")"));
     }
 
-    [Fact]
+    [Test]
     public void GeneratesRegistrationCustomizerBase()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -86,10 +85,10 @@ public class PostEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateClientEndpointRegistration.g.cs");
 
-        source.Should().Contain("public abstract class CreateClientEndpointRegistration");
+        Assert.That(source, Does.Contain("public abstract class CreateClientEndpointRegistration"));
     }
 
-    [Fact]
+    [Test]
     public void ReportsDuplicateRegistrationCustomizerDiagnostic()
     {
         var userSource = CreateClientHandlerImpl + """
@@ -101,8 +100,7 @@ public class PostEndpointGenerationTests
             userSource: userSource,
             additionalFiles: AdditionalFiles);
 
-        var diagnostics = result.Diagnostics;
-        diagnostics.Should().Contain(d => d.Id == "MOA003");
+        Assert.That(result.Diagnostics, Has.Some.Matches<Microsoft.CodeAnalysis.Diagnostic>(d => d.Id == "MOA003"));
     }
 
     private const string CreateClientHandlerImpl = """

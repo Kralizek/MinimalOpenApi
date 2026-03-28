@@ -1,3 +1,2 @@
-global using Xunit;
-global using FluentAssertions;
+global using NUnit.Framework;
 global using Microsoft.Extensions.DependencyInjection;

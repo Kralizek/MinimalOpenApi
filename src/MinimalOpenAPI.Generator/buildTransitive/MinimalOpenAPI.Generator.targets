@@ -30,9 +30,16 @@
     In the NuGet package scenario these DLLs are already in
     analyzers/dotnet/cs/ and Roslyn picks them up automatically; the
     Condition="Exists(...)" guards prevent this block from applying there.
+
+    MinimalOpenAPI is also added as a ProjectReference so the generated
+    [ModuleInitializer] code (which calls
+    MinimalOpenAPI.ServiceCollectionExtensions.RegisterGeneratedServices) can
+    compile in the consuming project.  In the NuGet scenario MinimalOpenAPI is
+    a declared package dependency instead.
   -->
   <PropertyGroup>
     <_MinimalOpenApiGenDir>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\netstandard2.0\</_MinimalOpenApiGenDir>
+    <_MinimalOpenApiRuntimeProj>$(MSBuildThisFileDirectory)..\..\MinimalOpenAPI\MinimalOpenAPI.csproj</_MinimalOpenApiRuntimeProj>
   </PropertyGroup>
   <ItemGroup>
     <Analyzer Include="$(_MinimalOpenApiGenDir)MinimalOpenAPI.Abstractions.dll"
@@ -41,5 +48,7 @@
               Condition="Exists('$(_MinimalOpenApiGenDir)MinimalOpenAPI.Parser.Yaml.dll')" />
     <Analyzer Include="$(_MinimalOpenApiGenDir)YamlDotNet.dll"
               Condition="Exists('$(_MinimalOpenApiGenDir)YamlDotNet.dll')" />
+    <ProjectReference Include="$(_MinimalOpenApiRuntimeProj)"
+                      Condition="Exists('$(_MinimalOpenApiRuntimeProj)')" />
   </ItemGroup>
 </Project>

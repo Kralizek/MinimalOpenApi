@@ -1,8 +1,7 @@
-using FluentAssertions;
-
 namespace MinimalOpenAPI.Generator.Tests;
 
 /// <summary>Tests for GET endpoint generation (path + query parameters).</summary>
+[TestFixture]
 public class GetEndpointGenerationTests
 {
     private static readonly (string, string)[] AdditionalFiles =
@@ -10,7 +9,7 @@ public class GetEndpointGenerationTests
         ("openapi.yaml", OpenApiFixtures.GetClientYaml)
     ];
 
-    [Fact]
+    [Test]
     public void GeneratesHandlerBaseClass()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -19,10 +18,10 @@ public class GetEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpoint.g.cs");
 
-        source.Should().Contain("public abstract class GetClientEndpoint");
+        Assert.That(source, Does.Contain("public abstract class GetClientEndpoint"));
     }
 
-    [Fact]
+    [Test]
     public void GeneratedHandlerHasCorrectHandleSignature()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -31,13 +30,13 @@ public class GetEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpoint.g.cs");
 
-        source.Should().Contain("System.Guid tenantId");
-        source.Should().Contain("System.Guid clientId");
-        source.Should().Contain("bool? includeDeleted");
-        source.Should().Contain("CancellationToken cancellationToken");
+        Assert.That(source, Does.Contain("System.Guid tenantId"));
+        Assert.That(source, Does.Contain("System.Guid clientId"));
+        Assert.That(source, Does.Contain("bool? includeDeleted"));
+        Assert.That(source, Does.Contain("CancellationToken cancellationToken"));
     }
 
-    [Fact]
+    [Test]
     public void GeneratedHandlerHasCorrectReturnType()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -46,12 +45,12 @@ public class GetEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpoint.g.cs");
 
-        source.Should().Contain("Results<");
-        source.Should().Contain("Ok<Client>");
-        source.Should().Contain("NotFound>");
+        Assert.That(source, Does.Contain("Results<"));
+        Assert.That(source, Does.Contain("Ok<Client>"));
+        Assert.That(source, Does.Contain("NotFound>"));
     }
 
-    [Fact]
+    [Test]
     public void GeneratesRegistrationCustomizerBaseClass()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -60,12 +59,12 @@ public class GetEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpointRegistration.g.cs");
 
-        source.Should().Contain("public abstract class GetClientEndpointRegistration");
-        source.Should().Contain("Configure(");
-        source.Should().Contain("RouteHandlerBuilder builder");
+        Assert.That(source, Does.Contain("public abstract class GetClientEndpointRegistration"));
+        Assert.That(source, Does.Contain("Configure("));
+        Assert.That(source, Does.Contain("RouteHandlerBuilder builder"));
     }
 
-    [Fact]
+    [Test]
     public void GeneratesDtoForClientSchema()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -74,13 +73,13 @@ public class GetEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
 
-        source.Should().Contain("public sealed record Client(");
-        source.Should().Contain("System.Guid Id");
-        source.Should().Contain("string Name");
-        source.Should().Contain("string? VatNumber");
+        Assert.That(source, Does.Contain("public sealed record Client("));
+        Assert.That(source, Does.Contain("System.Guid Id"));
+        Assert.That(source, Does.Contain("string Name"));
+        Assert.That(source, Does.Contain("string? VatNumber"));
     }
 
-    [Fact]
+    [Test]
     public void GeneratesEndpointMappingWithRouteConstraints()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -89,12 +88,12 @@ public class GetEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "EndpointMapping.g.cs");
 
-        source.Should().Contain("/tenants/{tenantId:guid}/clients/{clientId:guid}");
-        source.Should().Contain("MapGet(");
-        source.Should().Contain("WithName(\"getClient\")");
+        Assert.That(source, Does.Contain("/tenants/{tenantId:guid}/clients/{clientId:guid}"));
+        Assert.That(source, Does.Contain("MapGet("));
+        Assert.That(source, Does.Contain("WithName(\"getClient\")"));
     }
 
-    [Fact]
+    [Test]
     public void GeneratesDiRegistration()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -103,24 +102,22 @@ public class GetEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
 
-        source.Should().Contain("AddMinimalOpenApi(");
-        source.Should().Contain("GetClientEndpoint");
-        source.Should().Contain("GetClientHandler");
+        Assert.That(source, Does.Contain("AddGeneratedEndpoints("));
+        Assert.That(source, Does.Contain("GetClientEndpoint"));
+        Assert.That(source, Does.Contain("GetClientHandler"));
     }
 
-    [Fact]
+    [Test]
     public void ReportsMissingHandlerImplementationDiagnostic()
     {
-        // No handler implementation provided
         var (result, _) = GeneratorTestHelper.RunGenerator(
             userSource: "",
             additionalFiles: AdditionalFiles);
 
-        var diagnostics = result.Diagnostics;
-        diagnostics.Should().Contain(d => d.Id == "MOA001");
+        Assert.That(result.Diagnostics, Has.Some.Matches<Microsoft.CodeAnalysis.Diagnostic>(d => d.Id == "MOA001"));
     }
 
-    [Fact]
+    [Test]
     public void ReportsDuplicateHandlerImplementationDiagnostic()
     {
         var userSource = """
@@ -142,8 +139,7 @@ public class GetEndpointGenerationTests
             userSource: userSource,
             additionalFiles: AdditionalFiles);
 
-        var diagnostics = result.Diagnostics;
-        diagnostics.Should().Contain(d => d.Id == "MOA002");
+        Assert.That(result.Diagnostics, Has.Some.Matches<Microsoft.CodeAnalysis.Diagnostic>(d => d.Id == "MOA002"));
     }
 
     // A minimal implementation for tests that need exactly one handler

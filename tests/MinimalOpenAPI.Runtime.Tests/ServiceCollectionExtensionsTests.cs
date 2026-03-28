@@ -3,40 +3,37 @@ using MinimalOpenAPI;
 namespace MinimalOpenAPI.Runtime.Tests;
 
 /// <summary>Tests for the AddMinimalOpenApi extension method.</summary>
+[TestFixture]
 public class ServiceCollectionExtensionsTests
 {
-    [Fact]
+    [Test]
     public void AddMinimalOpenApi_ReturnsServiceCollection()
     {
         var services = new ServiceCollection();
 
         var result = services.AddMinimalOpenApi();
 
-        result.Should().BeSameAs(services);
+        Assert.That(result, Is.SameAs(services));
     }
 
-    [Fact]
+    [Test]
     public void AddMinimalOpenApi_CanBuildServiceProvider()
     {
         var services = new ServiceCollection();
         services.AddMinimalOpenApi();
 
-        var action = () => services.BuildServiceProvider();
-
-        action.Should().NotThrow();
+        Assert.DoesNotThrow(() => services.BuildServiceProvider());
     }
 
-    [Fact]
+    [Test]
     public void AddMinimalOpenApi_CalledMultipleTimes_DoesNotThrow()
     {
         var services = new ServiceCollection();
 
-        var action = () =>
+        Assert.DoesNotThrow(() =>
         {
             services.AddMinimalOpenApi();
             services.AddMinimalOpenApi();
-        };
-
-        action.Should().NotThrow();
+        });
     }
 }

@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using System.Collections.Immutable;
@@ -67,7 +66,7 @@ internal static class GeneratorTestHelper
         var source = result.GeneratedTrees
             .FirstOrDefault(t => t.FilePath.EndsWith(hintNameSuffix, StringComparison.OrdinalIgnoreCase));
 
-        source.Should().NotBeNull($"Generated file ending with '{hintNameSuffix}' should exist");
+        Assert.That(source, Is.Not.Null, $"Generated file ending with '{hintNameSuffix}' should exist");
         return source!.GetText().ToString();
     }
 }

@@ -26,8 +26,8 @@ internal static class DependencyInjectionRegistrationGenerator
         TypeMapper.AppendGeneratedAttributes(sb);
         sb.AppendLine("public static class MinimalOpenApiGeneratedServiceCollectionExtensions");
         sb.AppendLine("{");
-        sb.AppendLine("    /// <summary>Registers all MinimalOpenAPI services, endpoint handlers, and registration customizers.</summary>");
-        sb.AppendLine("    public static global::Microsoft.Extensions.DependencyInjection.IServiceCollection AddMinimalOpenApi(");
+        sb.AppendLine("    /// <summary>Registers all generated endpoint handlers and registration customizers.</summary>");
+        sb.AppendLine("    public static global::Microsoft.Extensions.DependencyInjection.IServiceCollection AddGeneratedEndpoints(");
         sb.AppendLine("        this global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)");
         sb.AppendLine("    {");
 
@@ -50,6 +50,21 @@ internal static class DependencyInjectionRegistrationGenerator
 
         sb.AppendLine("        return services;");
         sb.AppendLine("    }");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// Wires <see cref=\"MinimalOpenApiGeneratedServiceCollectionExtensions.AddGeneratedEndpoints\"/>");
+        sb.AppendLine("/// into <see cref=\"global::MinimalOpenAPI.ServiceCollectionExtensions.AddMinimalOpenApi\"/>");
+        sb.AppendLine("/// before the application starts, so the consumer only calls");
+        sb.AppendLine("/// <c>services.AddMinimalOpenApi()</c>.");
+        sb.AppendLine("/// </summary>");
+        TypeMapper.AppendGeneratedAttributes(sb);
+        sb.AppendLine("internal static class MinimalOpenApiModuleInitializer");
+        sb.AppendLine("{");
+        sb.AppendLine("    [global::System.Runtime.CompilerServices.ModuleInitializer]");
+        sb.AppendLine("    internal static void Register() =>");
+        sb.AppendLine("        global::MinimalOpenAPI.ServiceCollectionExtensions");
+        sb.AppendLine("            .RegisterGeneratedServices(services => services.AddGeneratedEndpoints());");
         sb.AppendLine("}");
         return sb.ToString();
     }
