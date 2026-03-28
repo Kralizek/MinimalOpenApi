@@ -6,7 +6,7 @@
     .NET SDK from buildTransitive/.  In the project-reference development
     scenario the consuming project imports it explicitly:
 
-      <Import Project="../../src/MinimalOpenApi/buildTransitive/MinimalOpenApi.targets" />
+      <Import Project="../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
 
     Responsibilities:
       1. Forward <OpenApi Include="…" /> items to AdditionalFiles with the

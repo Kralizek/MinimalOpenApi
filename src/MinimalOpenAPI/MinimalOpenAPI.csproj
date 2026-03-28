@@ -22,10 +22,10 @@
 
   <!-- Ship the targets file in both build and buildTransitive -->
   <ItemGroup>
-    <None Include="buildTransitive\MinimalOpenAPI.Pack.targets"
-          Pack="true" PackagePath="buildTransitive\MinimalOpenApi.targets" />
-    <None Include="buildTransitive\MinimalOpenAPI.Pack.targets"
-          Pack="true" PackagePath="build\MinimalOpenApi.targets" />
+    <None Include="buildTransitive\MinimalOpenAPI.targets"
+          Pack="true" PackagePath="buildTransitive\MinimalOpenAPI.targets" />
+    <None Include="buildTransitive\MinimalOpenAPI.targets"
+          Pack="true" PackagePath="build\MinimalOpenAPI.targets" />
   </ItemGroup>
 
 </Project>

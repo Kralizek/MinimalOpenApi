@@ -14,10 +14,10 @@
     In this project-reference dev scenario we import the targets explicitly
     and reference the meta project, which transitively brings in the runtime.
   -->
-  <Import Project="../../src/MinimalOpenAPI.Pack/buildTransitive/MinimalOpenAPI.Pack.targets" />
+  <Import Project="../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
 
   <ItemGroup>
-    <ProjectReference Include="../../src/MinimalOpenAPI.Pack/MinimalOpenAPI.Pack.csproj" />
+    <ProjectReference Include="../../src/MinimalOpenAPI/MinimalOpenAPI.csproj" />
   </ItemGroup>
 
   <ItemGroup>
