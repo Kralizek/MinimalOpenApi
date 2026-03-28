@@ -10,13 +10,36 @@
 
   <!--
     Forward <OpenApi Include="..." /> items to AdditionalFiles so the generator
-    can read them. Must run before CoreCompile.
+    can read them.  Runs before both GenerateMSBuildEditorConfigFileCore (so
+    the MinimalOpenApiFile metadata is included in the generated analyzer
+    config that Roslyn uses for AnalyzerConfigOptions) and CoreCompile.
   -->
   <Target Name="AddMinimalOpenApiFilesToAdditionalFiles"
-          BeforeTargets="CoreCompile"
-          Condition="'@(OpenApi)' != ''">
+          BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile">
     <ItemGroup>
       <AdditionalFiles Include="@(OpenApi)" MinimalOpenApiFile="true" />
     </ItemGroup>
   </Target>
+
+  <!--
+    Project-reference development scenario: add the generator's runtime
+    dependencies (MinimalOpenAPI.Abstractions, MinimalOpenAPI.Parser.Yaml,
+    YamlDotNet) as Analyzer items so Roslyn loads them into the same isolated
+    AssemblyLoadContext as the generator DLL.
+
+    In the NuGet package scenario these DLLs are already in
+    analyzers/dotnet/cs/ and Roslyn picks them up automatically; the
+    Condition="Exists(...)" guards prevent this block from applying there.
+  -->
+  <PropertyGroup>
+    <_MinimalOpenApiGenDir>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\netstandard2.0\</_MinimalOpenApiGenDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Analyzer Include="$(_MinimalOpenApiGenDir)MinimalOpenAPI.Abstractions.dll"
+              Condition="Exists('$(_MinimalOpenApiGenDir)MinimalOpenAPI.Abstractions.dll')" />
+    <Analyzer Include="$(_MinimalOpenApiGenDir)MinimalOpenAPI.Parser.Yaml.dll"
+              Condition="Exists('$(_MinimalOpenApiGenDir)MinimalOpenAPI.Parser.Yaml.dll')" />
+    <Analyzer Include="$(_MinimalOpenApiGenDir)YamlDotNet.dll"
+              Condition="Exists('$(_MinimalOpenApiGenDir)YamlDotNet.dll')" />
+  </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-using MinimalOpenAPI.Generator.Models;
+using MinimalOpenAPI.Abstractions.Models;
 using System.Text;
 
 namespace MinimalOpenAPI.Generator.CodeGen;
@@ -6,7 +6,7 @@ namespace MinimalOpenAPI.Generator.CodeGen;
 /// <summary>
 /// Generates the DI registration extension method for all discovered handlers.
 /// </summary>
-internal static class DiRegistrationGenerator
+internal static class DependencyInjectionRegistrationGenerator
 {
     public static string Generate(
         List<OpenApiOperation> operations,
@@ -23,10 +23,11 @@ internal static class DiRegistrationGenerator
         sb.AppendLine($"namespace {rootNamespace}.Generated;");
         sb.AppendLine();
         sb.AppendLine("/// <summary>Generated DI registration for MinimalOpenAPI handlers.</summary>");
+        TypeMapper.AppendGeneratedAttributes(sb);
         sb.AppendLine("public static class MinimalOpenApiGeneratedServiceCollectionExtensions");
         sb.AppendLine("{");
-        sb.AppendLine("    /// <summary>Registers all generated endpoint handlers and registration customizers.</summary>");
-        sb.AppendLine("    public static global::Microsoft.Extensions.DependencyInjection.IServiceCollection AddGeneratedEndpoints(");
+        sb.AppendLine("    /// <summary>Registers all MinimalOpenAPI services, endpoint handlers, and registration customizers.</summary>");
+        sb.AppendLine("    public static global::Microsoft.Extensions.DependencyInjection.IServiceCollection AddMinimalOpenApi(");
         sb.AppendLine("        this global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)");
         sb.AppendLine("    {");
 

@@ -1,6 +1,6 @@
-namespace MinimalOpenAPI.Generator.Models;
+namespace MinimalOpenAPI.Abstractions.Models;
 
-internal enum ParameterLocation
+public enum ParameterLocation
 {
     Path,
     Query,
@@ -8,10 +8,10 @@ internal enum ParameterLocation
     Cookie
 }
 
-internal sealed class OpenApiParameter
+public sealed class OpenApiParameter
 {
     public string Name { get; init; } = string.Empty;
     public ParameterLocation In { get; init; }
     public bool Required { get; init; }
-    public OpenApiSchema Schema { get; init; } = new();
+    public OpenApiSchema Schema { get; init; } = new OpenApiSchema();
 }

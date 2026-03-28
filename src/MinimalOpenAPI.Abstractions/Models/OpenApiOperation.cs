@@ -1,6 +1,6 @@
-namespace MinimalOpenAPI.Generator.Models;
+namespace MinimalOpenAPI.Abstractions.Models;
 
-internal sealed class OpenApiOperation
+public sealed class OpenApiOperation
 {
     public string OperationId { get; init; } = string.Empty;
     public string HttpMethod { get; init; } = string.Empty;

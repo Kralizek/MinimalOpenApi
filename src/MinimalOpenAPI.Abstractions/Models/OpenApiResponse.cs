@@ -1,6 +1,6 @@
-namespace MinimalOpenAPI.Generator.Models;
+namespace MinimalOpenAPI.Abstractions.Models;
 
-internal sealed class OpenApiResponse
+public sealed class OpenApiResponse
 {
     public int StatusCode { get; init; }
     public string Description { get; init; } = string.Empty;

@@ -17,11 +17,38 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
     <PackageReference Include="PolySharp" PrivateAssets="all" />
+    <!--
+      YamlDotNet is a runtime dependency of the parser.  No PrivateAssets so it
+      flows transitively to consumers (e.g. the test project) via project references.
+      The None items below bundle the DLL into the NuGet analyzer package separately.
+    -->
+    <PackageReference Include="YamlDotNet" GeneratePathProperty="true" />
   </ItemGroup>
 
-  <!-- Pack the generator dll under analyzers/dotnet/cs -->
+  <ItemGroup>
+    <!--
+      No PrivateAssets so these flow transitively when the generator is referenced
+      as a project reference (e.g. in tests).  Packing is handled by the None items.
+    -->
+    <ProjectReference Include="../MinimalOpenAPI.Abstractions/MinimalOpenAPI.Abstractions.csproj" />
+    <ProjectReference Include="../MinimalOpenAPI.Parser.Yaml/MinimalOpenAPI.Parser.Yaml.csproj" />
+  </ItemGroup>
+
+  <!-- Pack the generator dll and its runtime dependencies under analyzers/dotnet/cs -->
   <ItemGroup>
     <None Include="$(OutputPath)\$(AssemblyName).dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+    <None Include="$(OutputPath)\MinimalOpenAPI.Abstractions.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+    <None Include="$(OutputPath)\MinimalOpenAPI.Parser.Yaml.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+    <None Include="$(PkgYamlDotNet)\lib\netstandard2.0\YamlDotNet.dll"
           Pack="true"
           PackagePath="analyzers/dotnet/cs"
           Visible="false" />
@@ -33,5 +60,12 @@
           Pack="true"
           PackagePath="build" />
   </ItemGroup>
+  <!-- Copy YamlDotNet alongside the generator so the .targets file's
+       <Analyzer> item can find it in the project-reference dev scenario -->
+  <Target Name="CopyYamlDotNetToOutput" AfterTargets="Build">
+    <Copy SourceFiles="$(PkgYamlDotNet)\lib\netstandard2.0\YamlDotNet.dll"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

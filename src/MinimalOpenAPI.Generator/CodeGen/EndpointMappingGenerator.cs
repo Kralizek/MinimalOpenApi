@@ -1,4 +1,4 @@
-using MinimalOpenAPI.Generator.Models;
+using MinimalOpenAPI.Abstractions.Models;
 using System.Text;
 
 namespace MinimalOpenAPI.Generator.CodeGen;

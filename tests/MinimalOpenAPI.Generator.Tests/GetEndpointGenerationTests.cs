@@ -103,7 +103,7 @@ public class GetEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
 
-        source.Should().Contain("AddGeneratedEndpoints(");
+        source.Should().Contain("AddMinimalOpenApi(");
         source.Should().Contain("GetClientEndpoint");
         source.Should().Contain("GetClientHandler");
     }

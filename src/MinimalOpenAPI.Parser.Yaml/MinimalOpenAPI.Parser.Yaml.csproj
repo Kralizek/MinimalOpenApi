@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>true</IsPackable>
+    <Description>YAML-based OpenAPI parser for MinimalOpenAPI, built on YamlDotNet.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../MinimalOpenAPI.Abstractions/MinimalOpenAPI.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="YamlDotNet" />
+  </ItemGroup>
+
+</Project>

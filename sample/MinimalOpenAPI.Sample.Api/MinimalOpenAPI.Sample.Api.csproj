@@ -6,24 +6,21 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!--
+    Single reference: the generator package ships both the Roslyn analyzer and
+    (via NuGet buildTransitive) the MSBuild targets that wire up <OpenApi> items.
+    In a project-reference development setup we import the targets explicitly.
+  -->
+  <Import Project="../../src/MinimalOpenAPI.Generator/buildTransitive/MinimalOpenAPI.Generator.targets" />
+
   <ItemGroup>
-    <ProjectReference Include="../../src/MinimalOpenAPI/MinimalOpenAPI.csproj" />
     <ProjectReference Include="../../src/MinimalOpenAPI.Generator/MinimalOpenAPI.Generator.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
 
-  <!-- Map OpenApi items to AdditionalFiles for the generator -->
   <ItemGroup>
     <OpenApi Include="openapi.yaml" />
-  </ItemGroup>
-
-  <!-- Polyfill for NuGet-style build integration when using a project reference -->
-  <ItemGroup>
-    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiFile" />
-    <CompilerVisibleProperty Include="RootNamespace" />
-    <!-- Pass openapi.yaml directly to the generator as AdditionalFiles -->
-    <AdditionalFiles Include="openapi.yaml" MinimalOpenApiFile="true" />
   </ItemGroup>
 
 </Project>

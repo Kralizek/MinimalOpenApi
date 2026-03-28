@@ -1,6 +1,6 @@
-namespace MinimalOpenAPI.Generator.Models;
+namespace MinimalOpenAPI.Abstractions.Models;
 
-internal sealed class OpenApiRequestBody
+public sealed class OpenApiRequestBody
 {
     public bool Required { get; init; }
     public OpenApiSchema? Schema { get; init; }

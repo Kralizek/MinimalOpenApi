@@ -1,9 +1,10 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using MinimalOpenAPI.Abstractions;
+using MinimalOpenAPI.Abstractions.Models;
 using MinimalOpenAPI.Generator.CodeGen;
 using MinimalOpenAPI.Generator.Diagnostics;
-using MinimalOpenAPI.Generator.Models;
-using MinimalOpenAPI.Generator.Parser;
+using MinimalOpenAPI.Parser.Yaml;
 
 namespace MinimalOpenAPI.Generator;
 
@@ -38,21 +39,31 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 return ns ?? "MinimalOpenAPI.Generated";
             });
 
-        // 3. Parse OpenAPI documents
+        // 3. Parse OpenAPI documents — parser is selected from the file extension
         var parsedDocuments = openApiFiles
             .Combine(rootNamespace)
             .Select((pair, _) =>
             {
                 var ((content, path), ns) = pair;
+
+                var parser = SelectParser(path);
+                if (parser is null)
+                {
+                    var ext = System.IO.Path.GetExtension(path);
+                    return (Doc: (OpenApiDocument?)null, Path: path, Namespace: ns,
+                            Error: (string?)null, UnsupportedExtension: ext);
+                }
+
                 try
                 {
-                    IOpenApiParser parser = new YamlOpenApiParser();
                     var doc = parser.Parse(content);
-                    return (Doc: (OpenApiDocument?)doc, Path: path, Namespace: ns, Error: (string?)null);
+                    return (Doc: (OpenApiDocument?)doc, Path: path, Namespace: ns,
+                            Error: (string?)null, UnsupportedExtension: (string?)null);
                 }
                 catch (Exception ex)
                 {
-                    return (Doc: null, Path: path, Namespace: ns, Error: ex.Message);
+                    return (Doc: (OpenApiDocument?)null, Path: path, Namespace: ns,
+                            Error: ex.Message, UnsupportedExtension: (string?)null);
                 }
             });
 
@@ -91,7 +102,16 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         // 6. Generate source files
         context.RegisterSourceOutput(combined, (spc, pair) =>
         {
-            var ((doc, path, ns, error), classes) = pair;
+            var ((doc, path, ns, error, unsupportedExtension), classes) = pair;
+
+            if (unsupportedExtension is not null)
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.UnsupportedFileExtension,
+                    Location.None,
+                    unsupportedExtension, path));
+                return;
+            }
 
             if (error is not null)
             {
@@ -106,6 +126,20 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
             GenerateForDocument(spc, doc, ns, classes.ToArray());
         });
+    }
+
+    /// <summary>
+    /// Returns the appropriate parser for the given file path based on its extension,
+    /// or <see langword="null"/> if no parser supports that extension.
+    /// </summary>
+    private static IOpenApiParser? SelectParser(string path)
+    {
+        var ext = System.IO.Path.GetExtension(path);
+        return ext.ToLowerInvariant() switch
+        {
+            ".yaml" or ".yml" => new YamlOpenApiParser(),
+            _ => null
+        };
     }
 
     private static void GenerateForDocument(
@@ -195,7 +229,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         }
 
         // Generate DI registration
-        var diSource = DiRegistrationGenerator.Generate(doc.Operations, handlers, customizers, rootNamespace);
+        var diSource = DependencyInjectionRegistrationGenerator.Generate(doc.Operations, handlers, customizers, rootNamespace);
         spc.AddSource("MinimalOpenApi.DependencyInjection.g.cs", diSource);
 
         // Generate endpoint mapping

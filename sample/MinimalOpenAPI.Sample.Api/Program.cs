@@ -1,12 +1,10 @@
-using MinimalOpenAPI;
 using MinimalOpenAPI.Sample.Api;
 using MinimalOpenAPI.Sample.Api.Generated;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddMinimalOpenApi();
 builder.Services.AddSingleton<InMemoryClientStore>();
-builder.Services.AddGeneratedEndpoints();
+builder.Services.AddMinimalOpenApi();
 
 var app = builder.Build();
 

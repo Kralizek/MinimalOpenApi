@@ -1,4 +1,4 @@
-using MinimalOpenAPI.Generator.Models;
+using MinimalOpenAPI.Abstractions.Models;
 
 namespace MinimalOpenAPI.Generator.CodeGen;
 
@@ -7,6 +7,12 @@ namespace MinimalOpenAPI.Generator.CodeGen;
 /// </summary>
 internal static class TypeMapper
 {
+    /// <summary>The tool name used in <c>[GeneratedCode]</c> attributes on all generated types.</summary>
+    public const string GeneratorName = "MinimalOpenAPI.Generator";
+
+    /// <summary>The tool version used in <c>[GeneratedCode]</c> attributes on all generated types.</summary>
+    public const string GeneratorVersion = "1.0.0";
+
     /// <summary>Maps an OpenAPI schema to the C# type name.</summary>
     public static string MapSchema(OpenApiSchema schema, bool nullable = false)
     {
@@ -104,6 +110,16 @@ internal static class TypeMapper
     /// <summary>Returns the registration customizer class name for an operation.</summary>
     public static string RegistrationClassName(string operationId) =>
         ToPascalCase(operationId) + "EndpointRegistration";
+
+    /// <summary>
+    /// Emits the standard generated-code attribute lines that must appear on every
+    /// generated type: <c>[ExcludeFromCodeCoverage]</c> and <c>[GeneratedCode]</c>.
+    /// </summary>
+    public static void AppendGeneratedAttributes(System.Text.StringBuilder sb, string indent = "")
+    {
+        sb.AppendLine($"{indent}[global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]");
+        sb.AppendLine($"{indent}[global::System.CodeDom.Compiler.GeneratedCode(\"{GeneratorName}\", \"{GeneratorVersion}\")]");
+    }
 
     /// <summary>Builds a route with type constraints for path parameters.</summary>
     public static string BuildConstrainedRoute(string route, List<OpenApiParameter> parameters)

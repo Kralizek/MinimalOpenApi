@@ -1,6 +1,6 @@
-namespace MinimalOpenAPI.Generator.Models;
+namespace MinimalOpenAPI.Abstractions.Models;
 
-internal sealed class OpenApiSchema
+public sealed class OpenApiSchema
 {
     public string? Type { get; init; }
     public string? Format { get; init; }

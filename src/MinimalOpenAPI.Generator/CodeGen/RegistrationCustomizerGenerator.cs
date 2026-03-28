@@ -1,4 +1,4 @@
-using MinimalOpenAPI.Generator.Models;
+using MinimalOpenAPI.Abstractions.Models;
 using System.Text;
 
 namespace MinimalOpenAPI.Generator.CodeGen;
@@ -19,6 +19,7 @@ internal static class RegistrationCustomizerGenerator
         sb.AppendLine($"namespace {rootNamespace}.Generated;");
         sb.AppendLine();
         sb.AppendLine($"/// <summary>Optional registration customizer base for the <c>{operation.OperationId}</c> operation.</summary>");
+        TypeMapper.AppendGeneratedAttributes(sb);
         sb.AppendLine($"public abstract class {registrationClass}");
         sb.AppendLine("{");
         sb.AppendLine("    /// <summary>Override to apply additional endpoint configuration such as authorization or rate limiting.</summary>");

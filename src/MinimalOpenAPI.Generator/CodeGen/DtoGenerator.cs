@@ -1,4 +1,4 @@
-using MinimalOpenAPI.Generator.Models;
+using MinimalOpenAPI.Abstractions.Models;
 using System.Text;
 
 namespace MinimalOpenAPI.Generator.CodeGen;
@@ -42,6 +42,7 @@ internal static class DtoGenerator
         Dictionary<string, OpenApiSchema> allSchemas)
     {
         sb.AppendLine($"/// <summary>Generated DTO for schema <c>{name}</c>.</summary>");
+        TypeMapper.AppendGeneratedAttributes(sb);
         sb.Append($"public sealed record {name}(");
 
         var props = schema.Properties.ToList();

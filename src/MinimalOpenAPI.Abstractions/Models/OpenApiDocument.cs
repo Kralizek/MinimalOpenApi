@@ -1,6 +1,6 @@
-namespace MinimalOpenAPI.Generator.Models;
+namespace MinimalOpenAPI.Abstractions.Models;
 
-internal sealed class OpenApiDocument
+public sealed class OpenApiDocument
 {
     public string Title { get; init; } = string.Empty;
     public string Version { get; init; } = "1.0.0";

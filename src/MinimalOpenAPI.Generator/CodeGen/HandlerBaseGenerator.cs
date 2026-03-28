@@ -1,4 +1,4 @@
-using MinimalOpenAPI.Generator.Models;
+using MinimalOpenAPI.Abstractions.Models;
 using System.Text;
 
 namespace MinimalOpenAPI.Generator.CodeGen;
@@ -21,6 +21,7 @@ internal static class HandlerBaseGenerator
         sb.AppendLine($"namespace {rootNamespace}.Generated;");
         sb.AppendLine();
         sb.AppendLine($"/// <summary>Abstract handler base for the <c>{operation.OperationId}</c> operation.</summary>");
+        TypeMapper.AppendGeneratedAttributes(sb);
         sb.AppendLine($"public abstract class {handlerClass}");
         sb.AppendLine("{");
         sb.AppendLine($"    public abstract global::System.Threading.Tasks.Task<{returnType}> Handle(");

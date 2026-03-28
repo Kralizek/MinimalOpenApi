@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>true</IsPackable>
+    <Description>OpenAPI document model and parser abstractions for MinimalOpenAPI.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="PolySharp" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>
