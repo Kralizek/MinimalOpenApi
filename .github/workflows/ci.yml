@@ -12,6 +12,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Nerdbank.GitVersioning needs full history to compute version height
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
