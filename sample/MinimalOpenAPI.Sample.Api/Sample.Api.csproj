@@ -11,17 +11,14 @@
 
   <!--
     In the NuGet scenario a consumer would have:
-      <PackageReference Include="MinimalOpenApi" />
+      <PackageReference Include="MinimalOpenAPI" />
     and the build/buildTransitive targets would be imported automatically.
 
-    In this project-reference dev scenario we import the targets explicitly
-    and reference the meta project, which transitively brings in the runtime.
+    In this project-reference dev scenario we import the targets explicitly.
+    The targets file adds the generator as a Roslyn analyzer and also adds a
+    ProjectReference to MinimalOpenAPI.Runtime so the runtime APIs are available.
   -->
-  <Import Project="../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
-
-  <ItemGroup>
-    <ProjectReference Include="../../src/MinimalOpenAPI/MinimalOpenAPI.csproj" />
-  </ItemGroup>
+  <Import Project="../../src/MinimalOpenAPI.Generator/buildTransitive/MinimalOpenAPI.targets" />
 
   <ItemGroup>
     <OpenApi Include="openapi.yaml" />

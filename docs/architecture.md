@@ -40,9 +40,8 @@ versioned separately from the server code.
 
 ```
 src/
-  MinimalOpenAPI/               ← meta-package (NuGet entry point)
+  MinimalOpenAPI.Generator/     ← NuGet entry point: Roslyn source generator + runtime dep
   MinimalOpenAPI.Runtime/       ← runtime: AddMinimalOpenApi, MapMinimalOpenApiEndpoints
-  MinimalOpenAPI.Generator/     ← Roslyn incremental source generator
   MinimalOpenAPI.Abstractions/  ← OpenAPI document model + IOpenApiParser
   MinimalOpenAPI.Parser.Yaml/   ← YAML parser (IOpenApiParser implementation)
 sample/
@@ -52,6 +51,11 @@ tests/
   MinimalOpenAPI.Runtime.Tests/     ← runtime unit tests
   MinimalOpenAPI.IntegrationTests/  ← WebApplicationFactory integration tests
 ```
+
+> **Package names vs directory names.**  The project in `src/MinimalOpenAPI.Generator/` is
+> packed as **`MinimalOpenAPI`** (the `PackageId` / assembly name matches the `.csproj`
+> filename `MinimalOpenAPI.csproj`).  The directory retains its original name for
+> historical clarity.  There is no separate meta-package.
 
 ---
 
