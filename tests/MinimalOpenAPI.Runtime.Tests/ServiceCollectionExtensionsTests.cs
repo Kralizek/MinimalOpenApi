@@ -1,4 +1,4 @@
-using MinimalOpenAPI.Runtime;
+using MinimalOpenAPI;
 
 namespace MinimalOpenAPI.Runtime.Tests;
 

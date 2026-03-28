@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>true</IsPackable>
+    <RootNamespace>MinimalOpenAPI</RootNamespace>
     <Description>
       Meta-package for the MinimalOpenAPI contract-first framework.
       Adds both the ASP.NET Core runtime and the Roslyn source generator.

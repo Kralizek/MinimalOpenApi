@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <IsPackable>true</IsPackable>
+    <RootNamespace>MinimalOpenAPI</RootNamespace>
     <Description>Lightweight runtime package for MinimalOpenAPI contract-first framework.</Description>
   </PropertyGroup>
 

@@ -54,7 +54,7 @@ internal static class DependencyInjectionRegistrationGenerator
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// Wires <see cref=\"MinimalOpenApiGeneratedServiceCollectionExtensions.AddGeneratedEndpoints\"/>");
-        sb.AppendLine("/// into <see cref=\"global::MinimalOpenAPI.Runtime.ServiceCollectionExtensions.AddMinimalOpenApi\"/>");
+        sb.AppendLine("/// into <see cref=\"global::MinimalOpenAPI.ServiceCollectionExtensions.AddMinimalOpenApi\"/>");
         sb.AppendLine("/// before the application starts, so the consumer only calls");
         sb.AppendLine("/// <c>services.AddMinimalOpenApi()</c>.");
         sb.AppendLine("/// </summary>");
@@ -63,7 +63,7 @@ internal static class DependencyInjectionRegistrationGenerator
         sb.AppendLine("{");
         sb.AppendLine("    [global::System.Runtime.CompilerServices.ModuleInitializer]");
         sb.AppendLine("    internal static void Register() =>");
-        sb.AppendLine("        global::MinimalOpenAPI.Runtime.ServiceCollectionExtensions");
+        sb.AppendLine("        global::MinimalOpenAPI.ServiceCollectionExtensions");
         sb.AppendLine("            .RegisterGeneratedServices(services => services.AddGeneratedEndpoints());");
         sb.AppendLine("}");
         return sb.ToString();

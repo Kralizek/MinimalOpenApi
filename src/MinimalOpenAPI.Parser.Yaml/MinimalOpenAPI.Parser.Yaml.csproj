@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>true</IsPackable>
+    <RootNamespace>MinimalOpenAPI</RootNamespace>
     <Description>YAML-based OpenAPI parser for MinimalOpenAPI, built on YamlDotNet.</Description>
   </PropertyGroup>
 

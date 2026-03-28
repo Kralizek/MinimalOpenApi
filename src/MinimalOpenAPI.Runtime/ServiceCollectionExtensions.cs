@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 
-namespace MinimalOpenAPI.Runtime;
+namespace MinimalOpenAPI;
 
 /// <summary>
 /// Extension methods for registering MinimalOpenAPI services.
