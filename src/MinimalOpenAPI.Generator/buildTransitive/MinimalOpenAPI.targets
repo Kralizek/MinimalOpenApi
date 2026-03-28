@@ -54,11 +54,20 @@
     during compilation.  The Condition ensures this only applies when the
     project file exists on disk (dev scenario); in the NuGet scenario the
     generator DLL is already in analyzers/dotnet/cs/ of the package.
+
+    Properties="TargetFramework=netstandard2.0": MinimalOpenAPI is multi-targeted
+    (netstandard2.0 + net10.0).  Without this override MSBuild picks the net10.0
+    TFM for a net10.0 consumer, loading net10.0/MinimalOpenAPI.dll as the analyzer.
+    That DLL depends on MinimalOpenAPI.Runtime → ASP.NET Core, which Roslyn's
+    isolated AssemblyLoadContext cannot load, causing a FileNotFoundException and a
+    silent generator initialization failure.  Forcing netstandard2.0 ensures Roslyn
+    always receives the netstandard2.0 analyzer DLL regardless of the consumer's TFM.
   -->
   <ItemGroup>
     <ProjectReference Include="$(_MinimalOpenApiProj)"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false"
+                      Properties="TargetFramework=netstandard2.0"
                       Condition="Exists('$(_MinimalOpenApiProj)')" />
   </ItemGroup>
 
