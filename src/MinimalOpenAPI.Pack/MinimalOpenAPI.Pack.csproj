@@ -16,7 +16,7 @@
     AddMinimalOpenApi() and the rest of the public API.
   -->
   <ItemGroup>
-    <ProjectReference Include="../MinimalOpenAPI/MinimalOpenAPI.csproj" />
+    <ProjectReference Include="../MinimalOpenAPI.Runtime/MinimalOpenAPI.Runtime.csproj" />
   </ItemGroup>
 
   <!-- Ship the targets file in both build and buildTransitive -->

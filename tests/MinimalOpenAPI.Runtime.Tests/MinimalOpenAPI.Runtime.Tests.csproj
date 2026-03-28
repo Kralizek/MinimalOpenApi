@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/MinimalOpenAPI/MinimalOpenAPI.csproj" />
+    <ProjectReference Include="../../src/MinimalOpenAPI.Runtime/MinimalOpenAPI.Runtime.csproj" />
   </ItemGroup>
 
 </Project>
