@@ -37,7 +37,7 @@ jobs:
       # For release events, override the version with the tag name (e.g. v1.2.3 → 1.2.3).
       # This produces a stable, suffix-free NuGet version regardless of the git height.
       # For push-to-main events, Nerdbank.GitVersioning computes a pre-release version
-      # automatically (e.g. 1.0.5-preview.5), so no override is needed.
+      # automatically (e.g. 1.0.0-preview.5), so no override is needed.
       - name: Set release version
         if: github.event_name == 'release'
         run: |
