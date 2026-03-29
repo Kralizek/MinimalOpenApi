@@ -6,6 +6,7 @@ using MinimalOpenAPI.Abstractions;
 using MinimalOpenAPI.Abstractions.Models;
 using MinimalOpenAPI.Generator.CodeGen;
 using MinimalOpenAPI.Generator.Diagnostics;
+using MinimalOpenAPI.Parser.Json;
 using MinimalOpenAPI.Parser.Yaml;
 
 namespace MinimalOpenAPI.Generator;
@@ -140,6 +141,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         return ext.ToLowerInvariant() switch
         {
             ".yaml" or ".yml" => new YamlOpenApiParser(),
+            ".json" => new JsonOpenApiParser(),
             _ => null
         };
     }

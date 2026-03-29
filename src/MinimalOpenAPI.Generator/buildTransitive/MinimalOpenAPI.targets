@@ -98,6 +98,8 @@
                 Condition="Exists('$(_MinimalOpenApiGenDir)MinimalOpenAPI.Abstractions.dll')" />
       <Analyzer Include="$(_MinimalOpenApiGenDir)MinimalOpenAPI.Parser.Yaml.dll"
                 Condition="Exists('$(_MinimalOpenApiGenDir)MinimalOpenAPI.Parser.Yaml.dll')" />
+      <Analyzer Include="$(_MinimalOpenApiGenDir)MinimalOpenAPI.Parser.Json.dll"
+                Condition="Exists('$(_MinimalOpenApiGenDir)MinimalOpenAPI.Parser.Json.dll')" />
       <Analyzer Include="$(_MinimalOpenApiGenDir)YamlDotNet.dll"
                 Condition="Exists('$(_MinimalOpenApiGenDir)YamlDotNet.dll')" />
     </ItemGroup>

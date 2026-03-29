@@ -11,7 +11,7 @@
 MinimalOpenAPI is a **contract-first** code-generation framework for ASP.NET Core
 Minimal APIs.
 
-The central idea is that the OpenAPI (YAML) file is the single source of truth.
+The central idea is that the OpenAPI (YAML or JSON) file is the single source of truth.
 Everything that can be derived from it — DTO records, abstract handler base
 classes, DI registration, and endpoint mapping — is generated automatically at
 build time by a Roslyn incremental source generator.  The developer only writes
@@ -25,7 +25,7 @@ the OpenAPI document from the code.  Contract-first inverts that relationship:
 
 | | Code-first | Contract-first (MinimalOpenAPI) |
 |---|---|---|
-| Source of truth | C# code | `openapi.yaml` |
+| Source of truth | C# code | `openapi.yaml` / `openapi.json` |
 | OpenAPI document | Generated (may drift) | Authored by hand or design tool |
 | C# scaffolding | Manual | Generated |
 | Client compatibility | Loose | Enforced — the contract drives the code |
@@ -44,6 +44,7 @@ src/
   MinimalOpenAPI.Runtime/       ← runtime: AddMinimalOpenApi, MapMinimalOpenApiEndpoints
   MinimalOpenAPI.Abstractions/  ← OpenAPI document model + IOpenApiParser
   MinimalOpenAPI.Parser.Yaml/   ← YAML parser (IOpenApiParser implementation)
+  MinimalOpenAPI.Parser.Json/   ← JSON parser (IOpenApiParser implementation)
 sample/
   MinimalOpenAPI.Sample.Api/    ← end-to-end working example (Todo CRUD)
 tests/
@@ -62,7 +63,7 @@ tests/
 ## 3. End-to-end data flow
 
 ```
-openapi.yaml
+openapi.yaml / openapi.json
     │
     │  MSBuild target AddMinimalOpenApiFilesToAdditionalFiles
     │  promotes <OpenApi> items → AdditionalFiles with
@@ -72,7 +73,7 @@ openapi.yaml
 MinimalOpenAPI.Generator  (IIncrementalGenerator, runs inside Roslyn)
     │
     ├─ Reads AdditionalFiles tagged with MinimalOpenApiFile = true
-    ├─ Selects parser by file extension (currently .yaml/.yml only)
+    ├─ Selects parser by file extension (.yaml/.yml → YamlOpenApiParser, .json → JsonOpenApiParser)
     ├─ Calls IOpenApiParser.ParseAsync → OpenApiDocument
     ├─ Scans user-project class declarations (SyntaxProvider)
     │   to discover concrete handler and customizer implementations
@@ -179,6 +180,11 @@ Defines the object model and the parser abstraction:
 Implements `IOpenApiParser` using **YamlDotNet**.  Supports OpenAPI 3.x YAML
 files.  The parser is stateless and can be instantiated once per file.
 
+### 4.6 `MinimalOpenAPI.Parser.Json`
+
+Implements `IOpenApiParser` using **System.Text.Json**.  Supports OpenAPI 3.x JSON
+files.  The parser is stateless and can be instantiated once per file.
+
 ---
 
 ## 5. MSBuild integration
@@ -193,7 +199,7 @@ Key targets:
 | Target | Runs before | Purpose |
 |--------|-------------|---------|
 | `AddMinimalOpenApiFilesToAdditionalFiles` | `GenerateMSBuildEditorConfigFileCore`, `CoreCompile` | Copies `<OpenApi>` items into `<AdditionalFiles>` with `MinimalOpenApiFile=true` metadata and exposes `RootNamespace` as a compiler-visible property. |
-| `AddMinimalOpenApiGeneratorDependencyAnalyzers` | `CoreCompile` | Adds `MinimalOpenAPI.Abstractions`, `MinimalOpenAPI.Parser.Yaml`, and `YamlDotNet` as `<Analyzer>` items so Roslyn can load them into its isolated `AssemblyLoadContext` alongside the generator DLL. |
+| `AddMinimalOpenApiGeneratorDependencyAnalyzers` | `CoreCompile` | Adds `MinimalOpenAPI.Abstractions`, `MinimalOpenAPI.Parser.Yaml`, `MinimalOpenAPI.Parser.Json`, and `YamlDotNet` as `<Analyzer>` items so Roslyn can load them into its isolated `AssemblyLoadContext` alongside the generator DLL. |
 
 The `<CompilerVisibleItemMetadata>` and `<CompilerVisibleProperty>` declarations
 make `MinimalOpenApiFile` and `RootNamespace` readable via
@@ -223,6 +229,7 @@ considered.  This avoids accidentally picking up other `AdditionalFiles` items.
 `SelectParser(string path)` matches the file extension:
 
 - `.yaml` / `.yml` → `YamlOpenApiParser`
+- `.json` → `JsonOpenApiParser`
 - anything else → `null` (emits diagnostic **MOA005**)
 
 The design is intentionally open for extension: adding JSON support means
@@ -366,7 +373,7 @@ wraps multiple types in `Results<T1, T2, …>`.
 | **MOA002** | Error | Two or more classes inherit from the same generated handler base.  Exactly one implementation is required. |
 | **MOA003** | Error | Two or more classes inherit from the same generated customizer base.  At most one is allowed. |
 | **MOA004** | Error | The OpenAPI file could not be parsed (YAML syntax error, etc.). |
-| **MOA005** | Error | The `<OpenApi>` item has a file extension the generator does not recognise (only `.yaml`/`.yml` are supported). |
+| **MOA005** | Error | The `<OpenApi>` item has a file extension the generator does not recognise (only `.yaml`, `.yml`, and `.json` are supported). |
 
 ---
 
@@ -398,14 +405,15 @@ like `AddMinimalOpenApi`.
 
 ## 10. Adding a new parser (extensibility point)
 
-To support a new OpenAPI format (e.g. JSON):
+To support a new OpenAPI format, follow the same pattern used by the existing
+YAML and JSON parsers:
 
-1. Create a new project (e.g. `MinimalOpenAPI.Parser.Json`).
+1. Create a new project (e.g. `MinimalOpenAPI.Parser.Toml`).
 2. Reference `MinimalOpenAPI.Abstractions` and implement `IOpenApiParser`.
 3. In `MinimalOpenApiGenerator.SelectParser`, add the new extension(s):
 
    ```csharp
-   ".json" => new JsonOpenApiParser(),
+   ".toml" => new TomlOpenApiParser(),
    ```
 
 4. Add the new DLL as an `<Analyzer>` in `MinimalOpenAPI.targets` so Roslyn can
@@ -419,7 +427,7 @@ No changes to any other part of the generator are required.
 
 | Test project | What it tests |
 |---|---|
-| `MinimalOpenAPI.Generator.Tests` | Roslyn driver tests: a known `openapi.yaml` fixture is fed to the generator via `CSharpGeneratorDriver`; the emitted source is checked for expected class names, method signatures, and DI registrations. |
+| `MinimalOpenAPI.Generator.Tests` | Roslyn driver tests: known `openapi.yaml` and `openapi.json` fixtures are fed to the generator via `CSharpGeneratorDriver`; the emitted source is checked for expected class names, method signatures, and DI registrations. |
 | `MinimalOpenAPI.Runtime.Tests` | Unit tests for `ServiceCollectionExtensions` (registration callback wiring). |
 | `MinimalOpenAPI.IntegrationTests` | `WebApplicationFactory` tests that boot the sample Todo API end-to-end and make HTTP requests, verifying status codes and JSON payloads. |
 

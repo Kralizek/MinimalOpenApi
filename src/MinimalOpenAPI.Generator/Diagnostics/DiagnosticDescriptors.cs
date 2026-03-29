@@ -46,7 +46,7 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor UnsupportedFileExtension = new(
         id: "MOA005",
         title: "Unsupported OpenAPI file extension",
-        messageFormat: "No parser is available for the file extension '{0}' (file: '{1}'). Supported extensions are: .yaml, .yml.",
+        messageFormat: "No parser is available for the file extension '{0}' (file: '{1}'). Supported extensions are: .yaml, .yml, .json.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);

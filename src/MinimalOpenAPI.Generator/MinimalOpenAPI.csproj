@@ -46,6 +46,7 @@
     -->
     <ProjectReference Include="../MinimalOpenAPI.Abstractions/MinimalOpenAPI.Abstractions.csproj" />
     <ProjectReference Include="../MinimalOpenAPI.Parser.Yaml/MinimalOpenAPI.Parser.Yaml.csproj" />
+    <ProjectReference Include="../MinimalOpenAPI.Parser.Json/MinimalOpenAPI.Parser.Json.csproj" />
   </ItemGroup>
 
   <!-- ── net10.0 only: declare MinimalOpenAPI.Runtime as a NuGet dependency ── -->
@@ -86,6 +87,10 @@
           PackagePath="analyzers/dotnet/cs"
           Visible="false" />
     <None Include="$(BaseOutputPath)$(Configuration)\netstandard2.0\MinimalOpenAPI.Parser.Yaml.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+    <None Include="$(BaseOutputPath)$(Configuration)\netstandard2.0\MinimalOpenAPI.Parser.Json.dll"
           Pack="true"
           PackagePath="analyzers/dotnet/cs"
           Visible="false" />
