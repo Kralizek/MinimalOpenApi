@@ -2,7 +2,7 @@
 
 MinimalOpenAPI is a **contract-first** OpenAPI framework for ASP.NET Core Minimal APIs.
 
-Define your API surface in an OpenAPI (YAML) file. The Roslyn source generator reads it and automatically produces strongly-typed handler base classes, DTO records, DI registration, and endpoint mapping code. You only need to inherit the generated base class and fill in the business logic.
+Define your API surface in an OpenAPI (YAML or JSON) file. The Roslyn source generator reads it and automatically produces strongly-typed handler base classes, DTO records, DI registration, and endpoint mapping code. You only need to inherit the generated base class and fill in the business logic.
 
 For a deep-dive into the design, architecture, and internals see
 [docs/architecture.md](docs/architecture.md).
@@ -11,11 +11,11 @@ For a deep-dive into the design, architecture, and internals see
 
 ```
 openapi.yaml  ──►  [MinimalOpenAPI]  ──►  Generated C#
-                       (build time)          │
-                                             ├─ DTO records
-                                             ├─ Abstract handler base classes
-                                             ├─ DI registration
-                                             └─ Endpoint mapping
+openapi.json  ──►       (build time)          │
+                                              ├─ DTO records
+                                              ├─ Abstract handler base classes
+                                              ├─ DI registration
+                                              └─ Endpoint mapping
 ```
 
 ## Quick start
@@ -26,7 +26,7 @@ openapi.yaml  ──►  [MinimalOpenAPI]  ──►  Generated C#
 <!-- MyApp.csproj -->
 <ItemGroup>
   <PackageReference Include="MinimalOpenAPI" Version="*" />
-  <OpenApi Include="openapi.yaml" />
+  <OpenApi Include="openapi.yaml" />  <!-- or openapi.json -->
 </ItemGroup>
 ```
 
@@ -65,6 +65,7 @@ That's it — no manual route registration, no manual DI wiring.
 | [`MinimalOpenAPI.Runtime`](src/MinimalOpenAPI.Runtime) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Runtime)](https://www.nuget.org/packages/MinimalOpenAPI.Runtime) | ASP.NET Core runtime services (`AddMinimalOpenApi`, `MapEndpoints`). |
 | [`MinimalOpenAPI.Abstractions`](src/MinimalOpenAPI.Abstractions) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Abstractions)](https://www.nuget.org/packages/MinimalOpenAPI.Abstractions) | OpenAPI document model and parser abstractions. |
 | [`MinimalOpenAPI.Parser.Yaml`](src/MinimalOpenAPI.Parser.Yaml) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Parser.Yaml)](https://www.nuget.org/packages/MinimalOpenAPI.Parser.Yaml) | YAML parser for OpenAPI specs, built on YamlDotNet. |
+| [`MinimalOpenAPI.Parser.Json`](src/MinimalOpenAPI.Parser.Json) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Parser.Json)](https://www.nuget.org/packages/MinimalOpenAPI.Parser.Json) | JSON parser for OpenAPI specs, built on System.Text.Json. |
 
 ### Nightly builds
 
@@ -82,6 +83,7 @@ src/
   MinimalOpenAPI.Runtime/       ← runtime services
   MinimalOpenAPI.Abstractions/  ← document model & parser contracts
   MinimalOpenAPI.Parser.Yaml/   ← YAML parser implementation
+  MinimalOpenAPI.Parser.Json/   ← JSON parser implementation
 sample/
   MinimalOpenAPI.Sample.Api/    ← end-to-end example
 tests/
