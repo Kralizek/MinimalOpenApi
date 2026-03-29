@@ -20,7 +20,7 @@ internal static class EndpointMappingGenerator
         sb.AppendLine("using global::Microsoft.AspNetCore.Http;");
         sb.AppendLine("using global::Microsoft.Extensions.DependencyInjection;");
         sb.AppendLine();
-        sb.AppendLine($"namespace {rootNamespace}.Generated;");
+        sb.AppendLine($"namespace {rootNamespace}.Endpoints;");
         sb.AppendLine();
         sb.AppendLine("/// <summary>Generated endpoint mapper for MinimalOpenAPI (internal implementation detail).</summary>");
         sb.AppendLine("internal static class MinimalOpenApiGeneratedEndpointRouteBuilderExtensions");
@@ -52,10 +52,11 @@ internal static class EndpointMappingGenerator
         List<DiscoveredImplementation> customizers,
         string rootNamespace)
     {
-        var handlerClass = $"{rootNamespace}.Generated.{TypeMapper.HandlerClassName(operation.OperationId)}";
-        var customizerClass = $"{rootNamespace}.Generated.{TypeMapper.RegistrationClassName(operation.OperationId)}";
+        var contractsNs = $"{rootNamespace}.Contracts";
+        var handlerClass = $"{rootNamespace}.Endpoints.{TypeMapper.HandlerClassName(operation.OperationId)}";
+        var customizerClass = $"{rootNamespace}.Endpoints.{TypeMapper.RegistrationClassName(operation.OperationId)}";
         var constrainedRoute = TypeMapper.BuildConstrainedRoute(operation.Route, operation.Parameters);
-        var lambdaParams = BuildLambdaParams(operation, handlerClass);
+        var lambdaParams = BuildLambdaParams(operation, handlerClass, contractsNs);
         var handlerInvocation = BuildHandlerInvocation(operation);
         var httpMethod = TypeMapper.ToPascalCase(operation.HttpMethod.ToLowerInvariant());
         var varName = TypeMapper.ToCamelCase(TypeMapper.HandlerClassName(operation.OperationId));
@@ -98,7 +99,7 @@ internal static class EndpointMappingGenerator
         {
             var response = responses[i];
             var sep = i < responses.Count - 1 ? "" : ";";
-            var responseTypeName = response.Schema is not null ? TypeMapper.MapSchema(response.Schema) : null;
+            var responseTypeName = response.Schema is not null ? TypeMapper.MapSchema(response.Schema, contractsNamespace: contractsNs) : null;
             if (responseTypeName is not null && responseTypeName != "object")
             {
                 sb.AppendLine($"            .Produces<{responseTypeName}>(global::Microsoft.AspNetCore.Http.StatusCodes.Status{response.StatusCode}{GetStatusCodeName(response.StatusCode)}){sep}");
@@ -115,7 +116,7 @@ internal static class EndpointMappingGenerator
         }
     }
 
-    private static string BuildLambdaParams(OpenApiOperation operation, string handlerClass)
+    private static string BuildLambdaParams(OpenApiOperation operation, string handlerClass, string contractsNs)
     {
         var parts = new List<string>();
 
@@ -129,7 +130,7 @@ internal static class EndpointMappingGenerator
         }
 
         if (operation.RequestBody?.Schema is not null)
-            parts.Add($"{TypeMapper.MapSchema(operation.RequestBody.Schema)} request");
+            parts.Add($"{TypeMapper.MapSchema(operation.RequestBody.Schema, contractsNamespace: contractsNs)} request");
 
         parts.Add($"{handlerClass} handler");
         parts.Add("global::System.Threading.CancellationToken ct");

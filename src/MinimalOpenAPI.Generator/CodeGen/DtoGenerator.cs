@@ -20,7 +20,7 @@ internal static class DtoGenerator
         sb.AppendLine();
         sb.AppendLine("using global::System.Text.Json.Serialization;");
         sb.AppendLine();
-        sb.AppendLine($"namespace {rootNamespace}.Generated;");
+        sb.AppendLine($"namespace {rootNamespace}.Contracts;");
         sb.AppendLine();
 
         foreach (var kvp in schemas)

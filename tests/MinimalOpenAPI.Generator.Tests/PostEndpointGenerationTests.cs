@@ -16,9 +16,9 @@ public class PostEndpointGenerationTests
             userSource: CreateClientHandlerImpl,
             additionalFiles: AdditionalFiles);
 
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateClientEndpoint.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateClientEndpointBase.g.cs");
 
-        Assert.That(source, Does.Contain("public class CreateClientEndpoint"));
+        Assert.That(source, Does.Contain("public class CreateClientEndpointBase"));
         Assert.That(source, Does.Contain("public virtual"));
         Assert.That(source, Does.Contain("HandleAsync("));
         Assert.That(source, Does.Contain("NotImplementedException"));
@@ -31,10 +31,10 @@ public class PostEndpointGenerationTests
             userSource: CreateClientHandlerImpl,
             additionalFiles: AdditionalFiles);
 
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateClientEndpoint.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateClientEndpointBase.g.cs");
 
         Assert.That(source, Does.Contain("System.Guid tenantId"));
-        Assert.That(source, Does.Contain("CreateClientRequest request"));
+        Assert.That(source, Does.Contain("global::TestProject.Contracts.CreateClientRequest request"));
         Assert.That(source, Does.Contain("CancellationToken cancellationToken"));
     }
 
@@ -45,9 +45,9 @@ public class PostEndpointGenerationTests
             userSource: CreateClientHandlerImpl,
             additionalFiles: AdditionalFiles);
 
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateClientEndpoint.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateClientEndpointBase.g.cs");
 
-        Assert.That(source, Does.Contain("Created<Client>"));
+        Assert.That(source, Does.Contain("Created<global::TestProject.Contracts.Client>"));
         Assert.That(source, Does.Contain("BadRequest"));
     }
 
@@ -77,7 +77,7 @@ public class PostEndpointGenerationTests
 
         Assert.That(source, Does.Contain("MapPost("));
         Assert.That(source, Does.Contain("/tenants/{tenantId:guid}/clients"));
-        Assert.That(source, Does.Contain("CreateClientRequest request"));
+        Assert.That(source, Does.Contain("global::TestProject.Contracts.CreateClientRequest request"));
         Assert.That(source, Does.Contain("WithName(\"createClient\")"));
     }
 
@@ -130,7 +130,7 @@ public class PostEndpointGenerationTests
     }
 
     private const string CreateClientHandlerImpl = """
-        public class CreateClientHandler : CreateClientEndpoint
+        public class CreateClientHandler : CreateClientEndpointBase
         {
             public override System.Threading.Tasks.Task<object> Handle(
                 System.Guid tenantId, object request,

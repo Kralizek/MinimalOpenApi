@@ -125,6 +125,10 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
             if (doc is null) return;
 
+            // Promote any inline schemas in requestBody / responses to named component schemas
+            // so all downstream generators always work with named $ref references.
+            doc = SchemaExtractor.NormalizeDocument(doc);
+
             GenerateForDocument(spc, doc, ns, path, classes.ToArray());
         });
     }
@@ -198,7 +202,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     spc.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.MissingHandlerImplementation,
                         CreateOpenApiLocation(openApiFilePath),
-                        handlerBase));
+                        $"{rootNamespace}.Endpoints.{handlerBase}"));
                     break;
                 case 1:
                     handlers.Add(new DiscoveredImplementation

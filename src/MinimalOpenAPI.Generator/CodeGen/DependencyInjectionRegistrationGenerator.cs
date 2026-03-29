@@ -20,7 +20,7 @@ internal static class DependencyInjectionRegistrationGenerator
         sb.AppendLine();
         sb.AppendLine("using global::Microsoft.Extensions.DependencyInjection;");
         sb.AppendLine();
-        sb.AppendLine($"namespace {rootNamespace}.Generated;");
+        sb.AppendLine($"namespace {rootNamespace}.Endpoints;");
         sb.AppendLine();
         sb.AppendLine("/// <summary>Generated DI registration for MinimalOpenAPI handlers.</summary>");
         TypeMapper.AppendGeneratedAttributes(sb);
@@ -38,20 +38,20 @@ internal static class DependencyInjectionRegistrationGenerator
             if (handlerImpl is not null)
             {
                 // Register concrete implementation
-                sb.AppendLine($"        services.AddScoped<{rootNamespace}.Generated.{handlerBase}, {handlerImpl.FullName}>();");
+                sb.AppendLine($"        services.AddScoped<{rootNamespace}.Endpoints.{handlerBase}, {handlerImpl.FullName}>();");
             }
             else
             {
                 // No implementation found — register the base class so the endpoint resolves at runtime
                 // (it will throw NotImplementedException when invoked, matching the MOA001 warning)
-                sb.AppendLine($"        services.AddScoped<{rootNamespace}.Generated.{handlerBase}>();");
+                sb.AppendLine($"        services.AddScoped<{rootNamespace}.Endpoints.{handlerBase}>();");
             }
 
             var customizerBase = TypeMapper.RegistrationClassName(op.OperationId);
             var customizerImpl = customizers.FirstOrDefault(c => c.BaseName == customizerBase);
             if (customizerImpl is not null)
             {
-                sb.AppendLine($"        services.AddSingleton<{rootNamespace}.Generated.{customizerBase}, {customizerImpl.FullName}>();");
+                sb.AppendLine($"        services.AddSingleton<{rootNamespace}.Endpoints.{customizerBase}, {customizerImpl.FullName}>();");
             }
         }
 
@@ -76,7 +76,7 @@ internal static class DependencyInjectionRegistrationGenerator
         sb.AppendLine("        global::MinimalOpenAPI.ServiceCollectionExtensions");
         sb.AppendLine("            .RegisterGeneratedServices(services => services.AddGeneratedEndpoints());");
         sb.AppendLine($"        global::MinimalOpenAPI.ServiceCollectionExtensions.RegisterEndpointMapping(");
-        sb.AppendLine($"            (builder, prefix) => global::{rootNamespace}.Generated.MinimalOpenApiGeneratedEndpointRouteBuilderExtensions.MapEndpoints(builder, prefix));");
+        sb.AppendLine($"            (builder, prefix) => global::{rootNamespace}.Endpoints.MinimalOpenApiGeneratedEndpointRouteBuilderExtensions.MapEndpoints(builder, prefix));");
         sb.AppendLine("    }");
         sb.AppendLine("}");
         return sb.ToString();

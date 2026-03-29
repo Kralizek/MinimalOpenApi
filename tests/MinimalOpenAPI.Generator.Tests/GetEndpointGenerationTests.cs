@@ -16,9 +16,9 @@ public class GetEndpointGenerationTests
             userSource: GetClientHandlerImpl,
             additionalFiles: AdditionalFiles);
 
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpoint.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpointBase.g.cs");
 
-        Assert.That(source, Does.Contain("public class GetClientEndpoint"));
+        Assert.That(source, Does.Contain("public class GetClientEndpointBase"));
         Assert.That(source, Does.Contain("public virtual"));
         Assert.That(source, Does.Contain("HandleAsync("));
         Assert.That(source, Does.Contain("NotImplementedException"));
@@ -31,7 +31,7 @@ public class GetEndpointGenerationTests
             userSource: GetClientHandlerImpl,
             additionalFiles: AdditionalFiles);
 
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpoint.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpointBase.g.cs");
 
         Assert.That(source, Does.Contain("System.Guid tenantId"));
         Assert.That(source, Does.Contain("System.Guid clientId"));
@@ -47,10 +47,10 @@ public class GetEndpointGenerationTests
             userSource: GetClientHandlerImpl,
             additionalFiles: AdditionalFiles);
 
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpoint.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpointBase.g.cs");
 
         Assert.That(source, Does.Contain("Results<"));
-        Assert.That(source, Does.Contain("Ok<Client>"));
+        Assert.That(source, Does.Contain("Ok<global::TestProject.Contracts.Client>"));
         Assert.That(source, Does.Contain("NotFound>"));
     }
 
@@ -127,7 +127,7 @@ public class GetEndpointGenerationTests
         var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
 
         Assert.That(source, Does.Contain("AddGeneratedEndpoints("));
-        Assert.That(source, Does.Contain("GetClientEndpoint"));
+        Assert.That(source, Does.Contain("GetClientEndpointBase"));
         Assert.That(source, Does.Contain("GetClientHandler"));
         // ModuleInitializer must also register the endpoint mapping delegate.
         Assert.That(source, Does.Contain("RegisterEndpointMapping("));
@@ -144,6 +144,20 @@ public class GetEndpointGenerationTests
         Assert.That(result.Diagnostics, Has.Some.Matches<Microsoft.CodeAnalysis.Diagnostic>(d =>
             d.Id == "MOA001" &&
             d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Warning));
+    }
+
+    [Test]
+    public void MissingHandlerDiagnosticIncludesFullyQualifiedTypeName()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "",
+            additionalFiles: AdditionalFiles);
+
+        var moa001 = result.Diagnostics.FirstOrDefault(d => d.Id == "MOA001");
+        Assert.That(moa001, Is.Not.Null, "MOA001 should be emitted");
+        Assert.That(moa001!.GetMessage(),
+            Does.Contain("TestProject.Endpoints.GetClientEndpointBase"),
+            "MOA001 message must include the fully-qualified type name so users know exactly what to inherit from");
     }
 
     [Test]
@@ -166,13 +180,13 @@ public class GetEndpointGenerationTests
     public void ReportsDuplicateHandlerImplementationDiagnostic()
     {
         var userSource = """
-            public class HandlerA : GetClientEndpoint
+            public class HandlerA : GetClientEndpointBase
             {
                 public override System.Threading.Tasks.Task<object> Handle(
                     System.Guid tenantId, System.Guid clientId, bool? includeDeleted,
                     System.Threading.CancellationToken ct) => throw new System.NotImplementedException();
             }
-            public class HandlerB : GetClientEndpoint
+            public class HandlerB : GetClientEndpointBase
             {
                 public override System.Threading.Tasks.Task<object> Handle(
                     System.Guid tenantId, System.Guid clientId, bool? includeDeleted,
@@ -191,13 +205,13 @@ public class GetEndpointGenerationTests
     public void DuplicateHandlerDiagnosticHasOpenApiFileLocation()
     {
         var userSource = """
-            public class HandlerA : GetClientEndpoint
+            public class HandlerA : GetClientEndpointBase
             {
                 public override System.Threading.Tasks.Task<object> Handle(
                     System.Guid tenantId, System.Guid clientId, bool? includeDeleted,
                     System.Threading.CancellationToken ct) => throw new System.NotImplementedException();
             }
-            public class HandlerB : GetClientEndpoint
+            public class HandlerB : GetClientEndpointBase
             {
                 public override System.Threading.Tasks.Task<object> Handle(
                     System.Guid tenantId, System.Guid clientId, bool? includeDeleted,
@@ -220,7 +234,7 @@ public class GetEndpointGenerationTests
 
     // A minimal implementation for tests that need exactly one handler
     private const string GetClientHandlerImpl = """
-        public class GetClientHandler : GetClientEndpoint
+        public class GetClientHandler : GetClientEndpointBase
         {
             public override System.Threading.Tasks.Task<object> Handle(
                 System.Guid tenantId, System.Guid clientId, bool? includeDeleted,

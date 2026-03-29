@@ -14,16 +14,28 @@ internal static class TypeMapper
     public const string GeneratorVersion = "1.0.0";
 
     /// <summary>Maps an OpenAPI schema to the C# type name.</summary>
-    public static string MapSchema(OpenApiSchema schema, bool nullable = false)
+    /// <param name="schema">The schema to map.</param>
+    /// <param name="nullable">Whether the resulting type should be nullable.</param>
+    /// <param name="contractsNamespace">
+    /// When provided, <c>$ref</c> schema names are qualified as
+    /// <c>global::{contractsNamespace}.{Name}</c> so they resolve correctly from
+    /// outside the Contracts namespace (e.g. in handler bases and endpoint mappings).
+    /// </param>
+    public static string MapSchema(OpenApiSchema schema, bool nullable = false, string? contractsNamespace = null)
     {
         if (schema.Ref is not null)
         {
-            return nullable ? $"{schema.Ref}?" : schema.Ref;
+            var typeName = contractsNamespace is not null
+                ? $"global::{contractsNamespace}.{schema.Ref}"
+                : schema.Ref;
+            return nullable ? $"{typeName}?" : typeName;
         }
 
         if (schema.Type?.ToLowerInvariant() == "array")
         {
-            var itemType = schema.Items is not null ? MapSchema(schema.Items) : "object";
+            var itemType = schema.Items is not null
+                ? MapSchema(schema.Items, contractsNamespace: contractsNamespace)
+                : "object";
             var arrayType = $"{itemType}[]";
             return nullable ? $"{arrayType}?" : arrayType;
         }
@@ -49,9 +61,9 @@ internal static class TypeMapper
     }
 
     /// <summary>Maps an HTTP status code to the TypedResults type name.</summary>
-    public static string MapStatusCode(int statusCode, OpenApiSchema? schema)
+    public static string MapStatusCode(int statusCode, OpenApiSchema? schema, string? contractsNamespace = null)
     {
-        var responseType = schema is not null ? MapSchema(schema) : null;
+        var responseType = schema is not null ? MapSchema(schema, contractsNamespace: contractsNamespace) : null;
 
         if (responseType is not null && responseType != "object")
         {
@@ -82,11 +94,11 @@ internal static class TypeMapper
     }
 
     /// <summary>Builds the return type for a handler: Results&lt;T1, T2, ...&gt; or single type.</summary>
-    public static string BuildReturnType(List<OpenApiResponse> responses)
+    public static string BuildReturnType(List<OpenApiResponse> responses, string? contractsNamespace = null)
     {
         var types = responses
             .OrderBy(r => r.StatusCode)
-            .Select(r => MapStatusCode(r.StatusCode, r.Schema))
+            .Select(r => MapStatusCode(r.StatusCode, r.Schema, contractsNamespace))
             .Distinct()
             .ToList();
 
@@ -114,7 +126,7 @@ internal static class TypeMapper
 
     /// <summary>Returns the handler base class name for an operation.</summary>
     public static string HandlerClassName(string operationId) =>
-        ToPascalCase(operationId) + "Endpoint";
+        ToPascalCase(operationId) + "EndpointBase";
 
     /// <summary>Returns the registration customizer class name for an operation.</summary>
     public static string RegistrationClassName(string operationId) =>
