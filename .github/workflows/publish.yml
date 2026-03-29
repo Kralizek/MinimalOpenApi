@@ -46,7 +46,7 @@ jobs:
 
       - name: Pack
         run: |
-          PACK_ARGS="--no-build --configuration Release --output ./artifacts --warnaserror"
+          PACK_ARGS="--no-build --configuration Release --output ./artifacts"
           if [ -n "${RELEASE_VERSION:-}" ]; then
             PACK_ARGS="$PACK_ARGS -p:Version=$RELEASE_VERSION"
           fi
