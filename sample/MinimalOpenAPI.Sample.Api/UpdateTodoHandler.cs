@@ -11,10 +11,7 @@ public sealed class UpdateTodoHandler : UpdateTodoEndpointBase
 
     public UpdateTodoHandler(InMemoryTodoStore store) => _store = store;
 
-    public override Task<Results<Ok<Todo>, BadRequest, NotFound>> HandleAsync(
-        global::System.Guid id,
-        Todo request,
-        CancellationToken cancellationToken)
+    public override Task<Results<Ok<Todo>, BadRequest, NotFound>> HandleAsync(Guid id, Request request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Title))
             return Task.FromResult<Results<Ok<Todo>, BadRequest, NotFound>>(TypedResults.BadRequest());
@@ -23,6 +20,6 @@ public sealed class UpdateTodoHandler : UpdateTodoEndpointBase
             return Task.FromResult<Results<Ok<Todo>, BadRequest, NotFound>>(TypedResults.NotFound());
 
         var todo = new Todo { Id = id, Title = request.Title, Description = request.Description, IsComplete = request.IsComplete };
-        return Task.FromResult<Results<Ok<Todo>, BadRequest, NotFound>>(TypedResults.Ok(todo));
+        return Task.FromResult<Results<Ok<Todo>, BadRequest, NotFound>>(TypedResults.Ok(todo));        
     }
 }

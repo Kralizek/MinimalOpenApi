@@ -36,7 +36,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Todo'
+              type: object
+              required:
+                - title
+                - isComplete
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                  nullable: true
+                isComplete:
+                  type: boolean
       responses:
         "201":
           description: Created
@@ -87,7 +98,19 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Todo'
+              type: object
+              required:
+                - title
+                - isComplete
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                  nullable: true
+                isComplete:
+                  type: boolean
+
       responses:
         "200":
           description: OK
@@ -122,6 +145,7 @@ components:
     Todo:
       type: object
       required:
+        - id
         - title
         - isComplete
       properties:
