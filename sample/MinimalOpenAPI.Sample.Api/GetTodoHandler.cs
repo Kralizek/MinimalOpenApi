@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Http.HttpResults;
-using MinimalOpenAPI.Sample.Api.Generated;
+using MinimalOpenAPI.Sample.Api.Contracts;
+using MinimalOpenAPI.Sample.Api.Endpoints;
 
 namespace MinimalOpenAPI.Sample.Api;
 
 /// <summary>Returns the todo item with the specified identifier.</summary>
-public sealed class GetTodoHandler : GetTodoEndpoint
+public sealed class GetTodoHandler : GetTodoEndpointBase
 {
     private readonly InMemoryTodoStore _store;
 

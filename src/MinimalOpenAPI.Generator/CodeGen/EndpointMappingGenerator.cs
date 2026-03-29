@@ -53,10 +53,31 @@ internal static class EndpointMappingGenerator
         string rootNamespace)
     {
         var contractsNs = $"{rootNamespace}.Contracts";
+        // Fully-qualified name of the handler base class (e.g. "global::NS.Endpoints.CreateOrderEndpointBase").
+        var handlerFqn = $"global::{rootNamespace}.Endpoints.{TypeMapper.HandlerClassName(operation.OperationId)}";
         var handlerClass = $"{rootNamespace}.Endpoints.{TypeMapper.HandlerClassName(operation.OperationId)}";
         var customizerClass = $"{rootNamespace}.Endpoints.{TypeMapper.RegistrationClassName(operation.OperationId)}";
         var constrainedRoute = TypeMapper.BuildConstrainedRoute(operation.Route, operation.Parameters);
-        var lambdaParams = BuildLambdaParams(operation, handlerClass, contractsNs);
+
+        // Resolver: inline schema → FULLY-QUALIFIED nested type name for use outside the class.
+        InlineSchemaResolver inlineResolver = s =>
+        {
+            if (operation.RequestBody?.Schema is { } reqSchema
+                && ReferenceEquals(s, reqSchema)
+                && TypeMapper.IsInlineObject(reqSchema))
+                return $"{handlerFqn}.{TypeMapper.GetInlineRequestBodyTypeName()}";
+
+            foreach (var r in operation.Responses)
+            {
+                if (r.Schema is { } respSchema
+                    && ReferenceEquals(s, respSchema)
+                    && TypeMapper.IsInlineObject(respSchema))
+                    return $"{handlerFqn}.{TypeMapper.GetInlineResponseTypeName(r.StatusCode)}";
+            }
+            return null;
+        };
+
+        var lambdaParams = BuildLambdaParams(operation, handlerClass, contractsNs, inlineResolver);
         var handlerInvocation = BuildHandlerInvocation(operation);
         var httpMethod = TypeMapper.ToPascalCase(operation.HttpMethod.ToLowerInvariant());
         var varName = TypeMapper.ToCamelCase(TypeMapper.HandlerClassName(operation.OperationId));
@@ -99,7 +120,9 @@ internal static class EndpointMappingGenerator
         {
             var response = responses[i];
             var sep = i < responses.Count - 1 ? "" : ";";
-            var responseTypeName = response.Schema is not null ? TypeMapper.MapSchema(response.Schema, contractsNamespace: contractsNs) : null;
+            var responseTypeName = response.Schema is not null
+                ? TypeMapper.MapSchema(response.Schema, contractsNamespace: contractsNs, resolveInline: inlineResolver)
+                : null;
             if (responseTypeName is not null && responseTypeName != "object")
             {
                 sb.AppendLine($"            .Produces<{responseTypeName}>(global::Microsoft.AspNetCore.Http.StatusCodes.Status{response.StatusCode}{GetStatusCodeName(response.StatusCode)}){sep}");
@@ -116,7 +139,11 @@ internal static class EndpointMappingGenerator
         }
     }
 
-    private static string BuildLambdaParams(OpenApiOperation operation, string handlerClass, string contractsNs)
+    private static string BuildLambdaParams(
+        OpenApiOperation operation,
+        string handlerClass,
+        string contractsNs,
+        InlineSchemaResolver? inlineResolver = null)
     {
         var parts = new List<string>();
 
@@ -130,7 +157,7 @@ internal static class EndpointMappingGenerator
         }
 
         if (operation.RequestBody?.Schema is not null)
-            parts.Add($"{TypeMapper.MapSchema(operation.RequestBody.Schema, contractsNamespace: contractsNs)} request");
+            parts.Add($"{TypeMapper.MapSchema(operation.RequestBody.Schema, contractsNamespace: contractsNs, resolveInline: inlineResolver)} request");
 
         parts.Add($"{handlerClass} handler");
         parts.Add("global::System.Threading.CancellationToken ct");

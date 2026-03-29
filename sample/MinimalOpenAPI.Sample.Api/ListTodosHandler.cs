@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Http.HttpResults;
-using MinimalOpenAPI.Sample.Api.Generated;
+using MinimalOpenAPI.Sample.Api.Contracts;
+using MinimalOpenAPI.Sample.Api.Endpoints;
 
 namespace MinimalOpenAPI.Sample.Api;
 
 /// <summary>Lists all todo items, optionally filtered by completion status.</summary>
-public sealed class ListTodosHandler : ListTodosEndpoint
+public sealed class ListTodosHandler : ListTodosEndpointBase
 {
     private readonly InMemoryTodoStore _store;
 

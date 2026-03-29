@@ -73,16 +73,5 @@ internal static class DtoGenerator
         sb.AppendLine("}");
     }
 
-    private static string GetDefaultValue(string typeName) => typeName switch
-    {
-        "string" => "string.Empty",
-        "bool" => "false",
-        "int" => "0",
-        "long" => "0",
-        "float" => "0f",
-        "double" => "0.0",
-        "global::System.Guid" => "global::System.Guid.Empty",
-        "global::System.DateTimeOffset" => "default",
-        _ => "default!"
-    };
+    private static string GetDefaultValue(string typeName) => TypeMapper.GetDefaultValue(typeName);
 }

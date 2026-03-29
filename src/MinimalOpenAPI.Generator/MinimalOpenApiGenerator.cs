@@ -125,10 +125,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
             if (doc is null) return;
 
-            // Promote any inline schemas in requestBody / responses to named component schemas
-            // so all downstream generators always work with named $ref references.
-            doc = SchemaExtractor.NormalizeDocument(doc);
-
             GenerateForDocument(spc, doc, ns, path, classes.ToArray());
         });
     }

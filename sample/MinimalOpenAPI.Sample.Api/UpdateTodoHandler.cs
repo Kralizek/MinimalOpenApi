@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Http.HttpResults;
-using MinimalOpenAPI.Sample.Api.Generated;
+using MinimalOpenAPI.Sample.Api.Contracts;
+using MinimalOpenAPI.Sample.Api.Endpoints;
 
 namespace MinimalOpenAPI.Sample.Api;
 
 /// <summary>Updates an existing todo item.</summary>
-public sealed class UpdateTodoHandler : UpdateTodoEndpoint
+public sealed class UpdateTodoHandler : UpdateTodoEndpointBase
 {
     private readonly InMemoryTodoStore _store;
 

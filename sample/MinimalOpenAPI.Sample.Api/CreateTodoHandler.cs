@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Http.HttpResults;
-using MinimalOpenAPI.Sample.Api.Generated;
+using MinimalOpenAPI.Sample.Api.Contracts;
+using MinimalOpenAPI.Sample.Api.Endpoints;
 
 namespace MinimalOpenAPI.Sample.Api;
 
 /// <summary>Creates a new todo item.</summary>
-public sealed class CreateTodoHandler : CreateTodoEndpoint
+public sealed class CreateTodoHandler : CreateTodoEndpointBase
 {
     private readonly InMemoryTodoStore _store;
 

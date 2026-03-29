@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Http.HttpResults;
-using MinimalOpenAPI.Sample.Api.Generated;
+using MinimalOpenAPI.Sample.Api.Endpoints;
 
 namespace MinimalOpenAPI.Sample.Api;
 
 /// <summary>Deletes a todo item.</summary>
-public sealed class DeleteTodoHandler : DeleteTodoEndpoint
+public sealed class DeleteTodoHandler : DeleteTodoEndpointBase
 {
     private readonly InMemoryTodoStore _store;
 

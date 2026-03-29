@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using MinimalOpenAPI.Sample.Api.Generated;
+using MinimalOpenAPI.Sample.Api.Contracts;
 
 namespace MinimalOpenAPI.IntegrationTests;
 
