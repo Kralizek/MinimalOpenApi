@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+
 using MinimalOpenAPI.Sample.Api.Contracts;
 
 namespace MinimalOpenAPI.IntegrationTests;
@@ -145,4 +146,3 @@ public class EndpointIntegrationTests
         Assert.That(todos!.All(t => t.IsComplete), Is.True);
     }
 }
-

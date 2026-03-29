@@ -1,7 +1,8 @@
+using System.Text;
+
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
-using System.Text;
 
 namespace MinimalOpenAPI.Generator.Tests;
 

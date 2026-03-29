@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+
 using MinimalOpenAPI.Sample.Api.Contracts;
 using MinimalOpenAPI.Sample.Api.Endpoints;
 
@@ -20,6 +21,6 @@ public sealed class UpdateTodoHandler : UpdateTodoEndpointBase
             return Task.FromResult<Results<Ok<Todo>, BadRequest, NotFound>>(TypedResults.NotFound());
 
         var todo = new Todo { Id = id, Title = request.Title, Description = request.Description, IsComplete = request.IsComplete };
-        return Task.FromResult<Results<Ok<Todo>, BadRequest, NotFound>>(TypedResults.Ok(todo));        
+        return Task.FromResult<Results<Ok<Todo>, BadRequest, NotFound>>(TypedResults.Ok(todo));
     }
 }

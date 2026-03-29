@@ -1,6 +1,8 @@
+using System.Collections.Immutable;
+
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using System.Collections.Immutable;
+
 using MinimalOpenAPI.Generator;
 
 namespace MinimalOpenAPI.Generator.Tests;

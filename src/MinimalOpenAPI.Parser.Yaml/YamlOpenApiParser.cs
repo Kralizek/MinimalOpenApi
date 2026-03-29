@@ -1,5 +1,6 @@
 using MinimalOpenAPI.Abstractions;
 using MinimalOpenAPI.Abstractions.Models;
+
 using YamlDotNet.RepresentationModel;
 
 namespace MinimalOpenAPI.Parser.Yaml;

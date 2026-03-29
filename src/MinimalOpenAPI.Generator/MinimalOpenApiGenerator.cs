@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
+
 using MinimalOpenAPI.Abstractions;
 using MinimalOpenAPI.Abstractions.Models;
 using MinimalOpenAPI.Generator.CodeGen;

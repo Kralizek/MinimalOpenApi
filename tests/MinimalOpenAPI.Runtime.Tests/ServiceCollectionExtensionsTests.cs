@@ -1,5 +1,6 @@
-using MinimalOpenAPI;
 using Microsoft.AspNetCore.Builder;
+
+using MinimalOpenAPI;
 
 namespace MinimalOpenAPI.Runtime.Tests;
 
