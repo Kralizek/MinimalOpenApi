@@ -6,5 +6,6 @@
   ],
   "nuGetPackageVersion": {
     "semVer": 2
-  }
+  },
+  "buildMetadata": ""
 }
