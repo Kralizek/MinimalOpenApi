@@ -1,0 +1,118 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Multi-targeted intentionally:
+        netstandard2.0  — builds the Roslyn analyzer DLL (required by the Roslyn host)
+        net10.0         — only used so NuGet pack adds MinimalOpenAPI.Runtime as a
+                          nuspec <dependency> for net10.0 consumers; no output is packed
+                          from this TFM (IncludeBuildOutput=false covers both TFMs).
+    -->
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <LangVersion>latest</LangVersion>
+    <Description>Contract-first OpenAPI framework for ASP.NET Core. Includes the Roslyn source generator and a dependency on the runtime package.</Description>
+    <!-- Suppress NU5128: expected for Roslyn analyzer packages that set IncludeBuildOutput=false -->
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <!-- Pack the generator as an analyzer; no build output for either TFM -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <!-- ── Dependencies for ALL target frameworks ───────────────────────── -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="PolySharp" PrivateAssets="all" />
+    <!--
+      YamlDotNet: no PrivateAssets so it flows transitively via project-references
+      (e.g. the test project).  The None items below bundle the DLL into the package.
+    -->
+    <PackageReference Include="YamlDotNet" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      No PrivateAssets so these flow transitively via project-references.
+      Packing is handled by the None items below.
+    -->
+    <ProjectReference Include="../MinimalOpenAPI.Abstractions/MinimalOpenAPI.Abstractions.csproj" />
+    <ProjectReference Include="../MinimalOpenAPI.Parser.Yaml/MinimalOpenAPI.Parser.Yaml.csproj" />
+  </ItemGroup>
+
+  <!-- ── net10.0 only: declare MinimalOpenAPI.Runtime as a NuGet dependency ── -->
+  <!--
+    A netstandard2.0 project cannot directly reference a net10.0 project, so we
+    add the Runtime reference only under the net10.0 TFM.
+
+    NOTE: ReferenceOutputAssembly is intentionally left at its default (true) so
+    that NuGet pack will emit:
+        <dependency id="MinimalOpenAPI.Runtime" .../>
+    in the net10.0 dependency group.  Setting ReferenceOutputAssembly="false"
+    would cause NuGet to skip the dependency entirely.
+
+    The net10.0 build of the generator does compile against the Runtime, but:
+      - The generator code does not USE any Runtime APIs.
+      - IncludeBuildOutput=false ensures the Runtime DLL is never packed.
+    The sole visible effect is the NuGet dependency entry, which guarantees
+    that net10.0 consumers get MinimalOpenAPI.Runtime installed automatically.
+  -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <ProjectReference Include="../MinimalOpenAPI.Runtime/MinimalOpenAPI.Runtime.csproj" />
+  </ItemGroup>
+
+  <!-- ── Pack analyzer DLLs — always from the netstandard2.0 output ────── -->
+  <!--
+    The analyzer must be netstandard2.0 to run inside Roslyn's isolated ALC.
+    Paths are explicit (not using $(OutputPath)) because in a multi-targeted project
+    the outer pack pass has $(TargetFramework)="" and $(OutputPath) points to the
+    TFM-less base directory.  $(BaseOutputPath) is the standard SDK "bin\" property.
+  -->
+  <ItemGroup>
+    <None Include="$(BaseOutputPath)$(Configuration)\netstandard2.0\$(AssemblyName).dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+    <None Include="$(BaseOutputPath)$(Configuration)\netstandard2.0\MinimalOpenAPI.Abstractions.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+    <None Include="$(BaseOutputPath)$(Configuration)\netstandard2.0\MinimalOpenAPI.Parser.Yaml.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+    <None Include="$(BaseOutputPath)$(Configuration)\netstandard2.0\YamlDotNet.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+  </ItemGroup>
+
+  <!-- ── Pack the targets file (not TFM-specific) ─────────────────────── -->
+  <ItemGroup>
+    <None Include="buildTransitive\MinimalOpenAPI.targets"
+          Pack="true"
+          PackagePath="buildTransitive" />
+    <None Include="buildTransitive\MinimalOpenAPI.targets"
+          Pack="true"
+          PackagePath="build" />
+  </ItemGroup>
+
+  <!-- Copy YamlDotNet alongside the generator so the .targets file's
+       <Analyzer> item can find it in the project-reference dev scenario.
+       Only needed for netstandard2.0 (the TFM used by the analyzer). -->
+  <Target Name="CopyYamlDotNetToOutput" AfterTargets="Build"
+          Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <Copy SourceFiles="$(PkgYamlDotNet)\lib\netstandard2.0\YamlDotNet.dll"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>
