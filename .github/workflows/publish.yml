@@ -1,8 +1,7 @@
 name: Publish
 
 on:
-  push:
-    branches: [master]
+  workflow_dispatch:
   release:
     types: [published]
 
@@ -46,9 +45,9 @@ jobs:
           path: ./artifacts/*.nupkg
           if-no-files-found: error
 
-      # ── Nightly (push to main) ──────────────────────────────────────────────────
+      # ── Manual execution ────────────────────────────────────────────────────────
       - name: Push to GitHub Packages
-        if: github.event_name == 'push'
+        if: github.event_name == 'workflow_dispatch'
         run: |
           dotnet nuget push "./artifacts/*.nupkg" \
             --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
