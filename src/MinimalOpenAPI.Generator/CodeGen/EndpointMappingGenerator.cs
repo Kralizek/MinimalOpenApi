@@ -151,11 +151,8 @@ internal static class EndpointMappingGenerator
         foreach (var p in operation.Parameters.Where(p => p.In == ParameterLocation.Path))
             parts.Add($"{TypeMapper.MapSchema(p.Schema)} {TypeMapper.ToCamelCase(p.Name)}");
 
-        foreach (var p in operation.Parameters.Where(p => p.In == ParameterLocation.Query))
-        {
-            var type = TypeMapper.MapSchema(p.Schema, nullable: !p.Required);
-            parts.Add($"{type} {TypeMapper.ToCamelCase(p.Name)}");
-        }
+        if (operation.Parameters.Any(p => p.In != ParameterLocation.Path))
+            parts.Add($"[global::Microsoft.AspNetCore.Http.AsParameters] global::{handlerClass}.Parameters parameters");
 
         if (operation.RequestBody?.Schema is not null)
             parts.Add($"{TypeMapper.MapSchema(operation.RequestBody.Schema, contractsNamespace: contractsNs, resolveInline: inlineResolver)} request");
@@ -173,8 +170,8 @@ internal static class EndpointMappingGenerator
         foreach (var p in operation.Parameters.Where(p => p.In == ParameterLocation.Path))
             args.Add(TypeMapper.ToCamelCase(p.Name));
 
-        foreach (var p in operation.Parameters.Where(p => p.In == ParameterLocation.Query))
-            args.Add(TypeMapper.ToCamelCase(p.Name));
+        if (operation.Parameters.Any(p => p.In != ParameterLocation.Path))
+            args.Add("parameters");
 
         if (operation.RequestBody?.Schema is not null)
             args.Add("request");
