@@ -43,13 +43,13 @@ app.MapMinimalOpenApiEndpoints();
 **3 — Implement the generated handler base class:**
 
 ```csharp
-// GetItemHandler.cs
-public class GetItemHandler : GetItemEndpointBase   // generated base class
+// GetItemEndpoint.cs
+public class GetItemEndpoint(IItemStore store) : GetItemEndpointBase   // generated base class
 {
     public override async Task<Results<Ok<Item>, NotFound>> HandleAsync(
         Guid id, CancellationToken cancellationToken)
     {
-        var item = await _store.FindAsync(id, cancellationToken);
+        var item = await store.FindAsync(id, cancellationToken);
         return item is null ? TypedResults.NotFound() : TypedResults.Ok(item);
     }
 }
