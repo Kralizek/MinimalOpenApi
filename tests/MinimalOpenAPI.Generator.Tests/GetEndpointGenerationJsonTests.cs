@@ -64,8 +64,8 @@ public class GetEndpointGenerationJsonTests
         var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
 
         Assert.That(source, Does.Contain("public sealed record Client"));
-        Assert.That(source, Does.Contain("public global::System.Guid Id { get; init; }"));
-        Assert.That(source, Does.Contain("public string Name { get; init; }"));
+        Assert.That(source, Does.Contain("public required global::System.Guid Id { get; init; }"));
+        Assert.That(source, Does.Contain("public required string Name { get; init; }"));
         Assert.That(source, Does.Contain("public string? VatNumber { get; init; }"));
         Assert.That(source, Does.Contain("[JsonPropertyName(\"id\")]"));
         Assert.That(source, Does.Contain("[JsonPropertyName(\"name\")]"));
