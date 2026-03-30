@@ -18,7 +18,7 @@
     The targets file adds the generator as a Roslyn analyzer and also adds a
     ProjectReference to MinimalOpenAPI.Runtime so the runtime APIs are available.
   -->
-  <Import Project="../../src/MinimalOpenAPI.Generator/buildTransitive/MinimalOpenAPI.targets" />
+  <Import Project="../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
 
   <ItemGroup>
     <OpenApi Include="openapi.yaml" />

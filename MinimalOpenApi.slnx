@@ -5,7 +5,7 @@
   <Folder Name="/src/">
     <Project Path="src/MinimalOpenAPI.Runtime/MinimalOpenAPI.Runtime.csproj" />
     <Project Path="src/MinimalOpenAPI.Abstractions/MinimalOpenAPI.Abstractions.csproj" />
-    <Project Path="src/MinimalOpenAPI.Generator/MinimalOpenAPI.csproj" />
+    <Project Path="src/MinimalOpenAPI/MinimalOpenAPI.csproj" />
     <Project Path="src/MinimalOpenAPI.Parser.Yaml/MinimalOpenAPI.Parser.Yaml.csproj" />
     <Project Path="src/MinimalOpenAPI.Parser.Json/MinimalOpenAPI.Parser.Json.csproj" />
   </Folder>

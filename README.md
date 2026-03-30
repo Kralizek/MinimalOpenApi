@@ -61,7 +61,7 @@ That's it — no manual route registration, no manual DI wiring.
 
 | Package | NuGet | Description |
 |---------|-------|-------------|
-| [`MinimalOpenAPI`](src/MinimalOpenAPI.Generator) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI)](https://www.nuget.org/packages/MinimalOpenAPI) | **Start here.** Includes the Roslyn source generator and declares `MinimalOpenAPI.Runtime` as a dependency. |
+| [`MinimalOpenAPI`](src/MinimalOpenAPI) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI)](https://www.nuget.org/packages/MinimalOpenAPI) | **Start here.** Includes the Roslyn source generator and declares `MinimalOpenAPI.Runtime` as a dependency. |
 | [`MinimalOpenAPI.Runtime`](src/MinimalOpenAPI.Runtime) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Runtime)](https://www.nuget.org/packages/MinimalOpenAPI.Runtime) | ASP.NET Core runtime services (`AddMinimalOpenApi`, `MapMinimalOpenApiEndpoints`). |
 | [`MinimalOpenAPI.Abstractions`](src/MinimalOpenAPI.Abstractions) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Abstractions)](https://www.nuget.org/packages/MinimalOpenAPI.Abstractions) | OpenAPI document model and parser abstractions. |
 | [`MinimalOpenAPI.Parser.Yaml`](src/MinimalOpenAPI.Parser.Yaml) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Parser.Yaml)](https://www.nuget.org/packages/MinimalOpenAPI.Parser.Yaml) | YAML parser for OpenAPI specs, built on YamlDotNet. |
@@ -79,7 +79,7 @@ https://nuget.pkg.github.com/Kralizek/index.json
 
 ```
 src/
-  MinimalOpenAPI.Generator/     ← MinimalOpenAPI NuGet package (generator + runtime dep)
+  MinimalOpenAPI/               ← MinimalOpenAPI NuGet package (generator + runtime dep)
   MinimalOpenAPI.Runtime/       ← runtime services
   MinimalOpenAPI.Abstractions/  ← document model & parser contracts
   MinimalOpenAPI.Parser.Yaml/   ← YAML parser implementation
