@@ -37,16 +37,16 @@ openapi.json  ──►       (build time)          │
 builder.Services.AddMinimalOpenApi();
 
 var app = builder.Build();
-app.MapEndpoints();
+app.MapMinimalOpenApiEndpoints();
 ```
 
 **3 — Implement the generated handler base class:**
 
 ```csharp
 // GetItemHandler.cs
-public class GetItemHandler : GetItemEndpoint   // generated base class
+public class GetItemHandler : GetItemEndpointBase   // generated base class
 {
-    public override async Task<Results<Ok<Item>, NotFound>> Handle(
+    public override async Task<Results<Ok<Item>, NotFound>> HandleAsync(
         Guid id, CancellationToken cancellationToken)
     {
         var item = await _store.FindAsync(id, cancellationToken);
@@ -62,7 +62,7 @@ That's it — no manual route registration, no manual DI wiring.
 | Package | NuGet | Description |
 |---------|-------|-------------|
 | [`MinimalOpenAPI`](src/MinimalOpenAPI.Generator) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI)](https://www.nuget.org/packages/MinimalOpenAPI) | **Start here.** Includes the Roslyn source generator and declares `MinimalOpenAPI.Runtime` as a dependency. |
-| [`MinimalOpenAPI.Runtime`](src/MinimalOpenAPI.Runtime) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Runtime)](https://www.nuget.org/packages/MinimalOpenAPI.Runtime) | ASP.NET Core runtime services (`AddMinimalOpenApi`, `MapEndpoints`). |
+| [`MinimalOpenAPI.Runtime`](src/MinimalOpenAPI.Runtime) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Runtime)](https://www.nuget.org/packages/MinimalOpenAPI.Runtime) | ASP.NET Core runtime services (`AddMinimalOpenApi`, `MapMinimalOpenApiEndpoints`). |
 | [`MinimalOpenAPI.Abstractions`](src/MinimalOpenAPI.Abstractions) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Abstractions)](https://www.nuget.org/packages/MinimalOpenAPI.Abstractions) | OpenAPI document model and parser abstractions. |
 | [`MinimalOpenAPI.Parser.Yaml`](src/MinimalOpenAPI.Parser.Yaml) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Parser.Yaml)](https://www.nuget.org/packages/MinimalOpenAPI.Parser.Yaml) | YAML parser for OpenAPI specs, built on YamlDotNet. |
 | [`MinimalOpenAPI.Parser.Json`](src/MinimalOpenAPI.Parser.Json) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Parser.Json)](https://www.nuget.org/packages/MinimalOpenAPI.Parser.Json) | JSON parser for OpenAPI specs, built on System.Text.Json. |

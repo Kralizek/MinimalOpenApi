@@ -5,7 +5,7 @@ ASP.NET Core runtime services for the [MinimalOpenAPI](https://github.com/Kraliz
 This package provides the thin runtime layer that the source-generated code depends on:
 
 - `AddMinimalOpenApi(IServiceCollection)` — registers all source-generated endpoint handlers with the DI container.
-- `MapEndpoints(WebApplication)` — maps every generated operation to its route via Minimal APIs.
+- `MapMinimalOpenApiEndpoints(IEndpointRouteBuilder, string?)` — maps every generated operation to its route via Minimal APIs.
 
 In most cases you should reference [`MinimalOpenAPI`](https://www.nuget.org/packages/MinimalOpenAPI) instead,
 which includes both this package and the source generator in a single reference.

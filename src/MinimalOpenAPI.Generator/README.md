@@ -7,7 +7,7 @@ Adding this single package to your project gives you:
 | What you get | From |
 |---|---|
 | Roslyn source generator (build-time code generation) | Included in this package |
-| `AddMinimalOpenApi()` / `MapEndpoints()` | `MinimalOpenAPI.Runtime` (declared dependency) |
+| `AddMinimalOpenApi()` / `MapMinimalOpenApiEndpoints()` | `MinimalOpenAPI.Runtime` (declared dependency) |
 
 ## Usage
 
@@ -22,7 +22,7 @@ Adding this single package to your project gives you:
 ```csharp
 // Program.cs
 builder.Services.AddMinimalOpenApi();
-app.MapEndpoints();
+app.MapMinimalOpenApiEndpoints();
 ```
 
 Implement the generated abstract handler base class for each operation in your OpenAPI spec.
