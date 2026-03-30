@@ -100,27 +100,30 @@ Runtime startup
 
 ## 4. Package responsibilities
 
-### 4.1 `MinimalOpenAPI` (meta-package)
+### 4.1 `MinimalOpenAPI`
 
-NuGet entry point.  Has no C# code of its own.  Its sole purpose is to pull in:
+NuGet entry point and Roslyn source generator.  The project lives in
+`src/MinimalOpenAPI.Generator/` and is packed as the **`MinimalOpenAPI`**
+package (the package ID matches the `.csproj` filename `MinimalOpenAPI.csproj`).
 
-- `MinimalOpenAPI.Runtime` — runtime DI and routing APIs.
-- `MinimalOpenAPI.Generator` — Roslyn analyzer (source generator).
+The project is multi-targeted:
 
-Both are declared as `ProjectReference` items in the csproj (the generator with
-`ReferenceOutputAssembly="false"` so the meta-package does not link against the
-generator DLL).  When the meta-package is packed, NuGet converts both references
-into `<dependency>` entries in the `.nuspec`, so a consumer only needs:
+- `netstandard2.0` — builds the Roslyn analyzer DLL (required by the Roslyn host).
+- `net10.0` — no output is packed from this TFM; it exists solely so that the
+  `ProjectReference` to `MinimalOpenAPI.Runtime` is emitted as a NuGet
+  `<dependency>` in the `net10.0` dependency group, giving consumers the runtime
+  automatically.
+
+A consumer only needs:
 
 ```xml
 <PackageReference Include="MinimalOpenAPI" Version="*" />
 ```
 
-to receive the runtime *and* the generator automatically.  This is the same
-pattern used by packages like `NetEscapades.EnumGenerators`.
+to receive both the source generator *and* the runtime dependency automatically.
 
-It also ships `buildTransitive/MinimalOpenAPI.targets` which handles the MSBuild
-plumbing described in §5.
+The package also ships `buildTransitive/MinimalOpenAPI.targets` which handles the
+MSBuild plumbing described in §5.
 
 ### 4.2 `MinimalOpenAPI.Runtime`
 
@@ -154,12 +157,7 @@ app.MapMinimalOpenApiEndpoints();
 
 No `using {RootNamespace}.Generated;` is required.
 
-### 4.3 `MinimalOpenAPI.Generator`
-
-The Roslyn incremental source generator (§6).  Targets `netstandard2.0` as
-required by the Roslyn analyzer host.
-
-### 4.4 `MinimalOpenAPI.Abstractions`
+### 4.3 `MinimalOpenAPI.Abstractions`
 
 Defines the object model and the parser abstraction:
 
@@ -175,12 +173,12 @@ Defines the object model and the parser abstraction:
   references, `nullable`, `format`.
 - `IOpenApiParser` — `Task<OpenApiDocument> ParseAsync(string content, CancellationToken)`.
 
-### 4.5 `MinimalOpenAPI.Parser.Yaml`
+### 4.4 `MinimalOpenAPI.Parser.Yaml`
 
 Implements `IOpenApiParser` using **YamlDotNet**.  Supports OpenAPI 3.x YAML
 files.  The parser is stateless and can be instantiated once per file.
 
-### 4.6 `MinimalOpenAPI.Parser.Json`
+### 4.5 `MinimalOpenAPI.Parser.Json`
 
 Implements `IOpenApiParser` using **System.Text.Json**.  Supports OpenAPI 3.x JSON
 files.  The parser is stateless and can be instantiated once per file.
@@ -276,7 +274,7 @@ attributes to prevent them from appearing in coverage reports.
 
 ```csharp
 // generated
-public class GetTodoEndpoint
+public class GetTodoEndpointBase
 {
     public virtual Task<Results<Ok<Todo>, NotFound>> HandleAsync(
         Guid id,
@@ -285,7 +283,7 @@ public class GetTodoEndpoint
 }
 
 // user-written
-public sealed class GetTodoHandler : GetTodoEndpoint
+public sealed class GetTodoHandler : GetTodoEndpointBase
 {
     public override Task<Results<Ok<Todo>, NotFound>> HandleAsync(
         Guid id,
@@ -360,7 +358,7 @@ wraps multiple types in `Results<T1, T2, …>`.
   DTO property names.
 - `ToCamelCase` — first letter lowercased.  Used for C# parameter names in
   lambdas and `HandleAsync` signatures.
-- `HandlerClassName(operationId)` → `<PascalCase(operationId)>Endpoint`
+- `HandlerClassName(operationId)` → `<PascalCase(operationId)>EndpointBase`
 - `RegistrationClassName(operationId)` → `<PascalCase(operationId)>EndpointRegistration`
 
 ---
