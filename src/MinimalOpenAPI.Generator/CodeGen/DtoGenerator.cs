@@ -66,13 +66,10 @@ internal static class DtoGenerator
             }
             else
             {
-                var defaultValue = GetDefaultValue(typeName);
-                sb.AppendLine($"    public {typeName} {csharpName} {{ get; init; }} = {defaultValue};");
+                sb.AppendLine($"    public required {typeName} {csharpName} {{ get; init; }}");
             }
         }
 
         sb.AppendLine("}");
     }
-
-    private static string GetDefaultValue(string typeName) => TypeMapper.GetDefaultValue(typeName);
 }

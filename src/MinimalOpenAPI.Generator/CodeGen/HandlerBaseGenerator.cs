@@ -142,8 +142,7 @@ internal static class HandlerBaseGenerator
             }
             else
             {
-                var defaultValue = TypeMapper.GetDefaultValue(csharpTypeName);
-                sb.AppendLine($"        public {csharpTypeName} {csharpName} {{ get; init; }} = {defaultValue};");
+                sb.AppendLine($"        public required {csharpTypeName} {csharpName} {{ get; init; }}");
             }
         }
 

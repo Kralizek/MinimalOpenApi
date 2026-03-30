@@ -50,7 +50,7 @@ public class EndpointIntegrationTests
     [Test]
     public async Task CreateTodo_ThenGetTodo_ReturnsCreatedTodo()
     {
-        var createRequest = new { title = "Buy groceries", description = "Milk and eggs" };
+        var createRequest = new { title = "Buy groceries", description = "Milk and eggs", isComplete = false };
         var createResponse = await _client.PostAsJsonAsync("/todos", createRequest);
 
         Assert.That(createResponse.StatusCode, Is.EqualTo(HttpStatusCode.Created));
@@ -81,7 +81,7 @@ public class EndpointIntegrationTests
     public async Task UpdateTodo_WhenTodoExists_ReturnsUpdatedTodo()
     {
         // Create a todo first
-        var createRequest = new { title = "Initial title" };
+        var createRequest = new { title = "Initial title", isComplete = false };
         var createResponse = await _client.PostAsJsonAsync("/todos", createRequest);
         Assert.That(createResponse.StatusCode, Is.EqualTo(HttpStatusCode.Created));
 
@@ -112,7 +112,7 @@ public class EndpointIntegrationTests
     [Test]
     public async Task DeleteTodo_WhenTodoExists_Returns204()
     {
-        var createRequest = new { title = "To be deleted" };
+        var createRequest = new { title = "To be deleted", isComplete = false };
         var createResponse = await _client.PostAsJsonAsync("/todos", createRequest);
         var created = await createResponse.Content.ReadFromJsonAsync<Todo>();
 
@@ -133,8 +133,8 @@ public class EndpointIntegrationTests
     public async Task ListTodos_FilteredByIsComplete_ReturnsOnlyMatchingItems()
     {
         // Create one complete and one incomplete todo
-        await _client.PostAsJsonAsync("/todos", new { title = "List-filter-incomplete" });
-        var createResponse = await _client.PostAsJsonAsync("/todos", new { title = "List-filter-complete" });
+        await _client.PostAsJsonAsync("/todos", new { title = "List-filter-incomplete", isComplete = false });
+        var createResponse = await _client.PostAsJsonAsync("/todos", new { title = "List-filter-complete", isComplete = false });
         var created = await createResponse.Content.ReadFromJsonAsync<Todo>();
         await _client.PutAsJsonAsync($"/todos/{created!.Id}", new { title = "List-filter-complete", isComplete = true });
 
