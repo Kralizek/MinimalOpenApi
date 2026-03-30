@@ -34,25 +34,9 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release --warnaserror
 
-      # For release events, override the version with the tag name (e.g. v1.2.3 → 1.2.3).
-      # This produces a stable, suffix-free NuGet version regardless of the git height.
-      # For push-to-main events, Nerdbank.GitVersioning computes a pre-release version
-      # automatically (e.g. 1.0.0-preview.5), so no override is needed.
-      - name: Set release version
-        if: github.event_name == 'release'
-        run: |
-          tag="${{ github.event.release.tag_name }}"
-          echo "RELEASE_VERSION=${tag#v}" >> "$GITHUB_ENV"
-
       - name: Pack
         run: |
           PACK_ARGS="--no-build --configuration Release --output ./artifacts"
-          if [ -n "${RELEASE_VERSION:-}" ]; then
-            PACK_ARGS="$PACK_ARGS -p:Version=$RELEASE_VERSION"
-          fi
-          # Pack at solution level so project references between source projects
-          # are transformed into proper package dependencies in each .nupkg.
-          # Non-packable projects (sample, tests) are skipped automatically.
           dotnet pack $PACK_ARGS
 
       - name: Upload packages as workflow artifact
