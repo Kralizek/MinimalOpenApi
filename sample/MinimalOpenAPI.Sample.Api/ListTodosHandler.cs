@@ -13,10 +13,10 @@ public sealed class ListTodosHandler : ListTodosEndpointBase
     public ListTodosHandler(InMemoryTodoStore store) => _store = store;
 
     public override Task<Ok<Todo[]>> HandleAsync(
-        bool? isComplete,
+        ListTodosEndpointBase.Parameters parameters,
         CancellationToken cancellationToken)
     {
-        var items = _store.List(isComplete)
+        var items = _store.List(parameters.IsComplete)
             .Select(t => new Todo { Id = t.Id, Title = t.Title, Description = t.Description, IsComplete = t.IsComplete })
             .ToArray();
 

@@ -57,6 +57,16 @@ internal static class HandlerBaseGenerator
             sb.AppendLine();
         }
 
+        // Emit the Parameters nested record for non-path parameters (query, header, cookie).
+        var nonPathParams = operation.Parameters
+            .Where(p => p.In != ParameterLocation.Path)
+            .ToList();
+        if (nonPathParams.Count > 0)
+        {
+            AppendParametersRecord(sb, nonPathParams);
+            sb.AppendLine();
+        }
+
         sb.Append($"    public virtual global::System.Threading.Tasks.Task<{returnType}> HandleAsync(");
 
         for (var i = 0; i < parameters.Count; i++)
@@ -85,11 +95,10 @@ internal static class HandlerBaseGenerator
             list.Add($"{TypeMapper.MapSchema(p.Schema)} {TypeMapper.ToCamelCase(p.Name)}");
         }
 
-        // Query parameters
-        foreach (var p in operation.Parameters.Where(p => p.In == ParameterLocation.Query))
+        // Non-path parameters (query, header, cookie) wrapped in Parameters record
+        if (operation.Parameters.Any(p => p.In != ParameterLocation.Path))
         {
-            var type = TypeMapper.MapSchema(p.Schema, nullable: !p.Required);
-            list.Add($"{type} {TypeMapper.ToCamelCase(p.Name)}");
+            list.Add("Parameters parameters");
         }
 
         // Request body
@@ -140,4 +149,40 @@ internal static class HandlerBaseGenerator
 
         sb.AppendLine("    }");
     }
+
+    /// <summary>
+    /// Appends the nested <c>Parameters</c> sealed record aggregating all non-path parameters
+    /// (query, header and cookie) so they can be bound via <c>[AsParameters]</c> without
+    /// breaking existing handler implementations when new optional parameters are added.
+    /// </summary>
+    private static void AppendParametersRecord(StringBuilder sb, List<OpenApiParameter> parameters)
+    {
+        sb.AppendLine("    /// <summary>Aggregates all query, header and cookie parameters for this operation.</summary>");
+        TypeMapper.AppendGeneratedAttributes(sb, "    ");
+        sb.AppendLine("    public sealed record Parameters");
+        sb.AppendLine("    {");
+
+        foreach (var p in parameters)
+        {
+            var type = TypeMapper.MapSchema(p.Schema, nullable: !p.Required);
+            var propName = TypeMapper.ToPascalCase(p.Name);
+            var bindingAttr = GetBindingAttribute(p);
+            if (bindingAttr is not null)
+                sb.AppendLine($"        {bindingAttr}");
+            sb.AppendLine($"        public {type} {propName} {{ get; init; }}");
+        }
+
+        sb.AppendLine("    }");
+    }
+
+    private static string? GetBindingAttribute(OpenApiParameter p) => p.In switch
+    {
+        ParameterLocation.Query => $"[global::Microsoft.AspNetCore.Mvc.FromQuery(Name = \"{p.Name}\")]",
+        ParameterLocation.Header => $"[global::Microsoft.AspNetCore.Mvc.FromHeader(Name = \"{p.Name}\")]",
+        // Cookie parameters have no dedicated binding attribute in ASP.NET Core minimal APIs;
+        // they are included in the Parameters record without auto-binding so that the handler
+        // signature stays stable. Implementations can access cookie values via HttpContext.
+        ParameterLocation.Cookie => null,
+        _ => null
+    };
 }

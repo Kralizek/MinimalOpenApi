@@ -35,9 +35,35 @@ public class GetEndpointGenerationTests
 
         Assert.That(source, Does.Contain("System.Guid tenantId"));
         Assert.That(source, Does.Contain("System.Guid clientId"));
-        Assert.That(source, Does.Contain("bool? includeDeleted"));
+        Assert.That(source, Does.Contain("Parameters parameters"));
         Assert.That(source, Does.Contain("CancellationToken cancellationToken"));
         Assert.That(source, Does.Contain("HandleAsync("));
+    }
+
+    [Test]
+    public void GeneratesParametersNestedRecord()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: GetClientHandlerImpl,
+            additionalFiles: AdditionalFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("public sealed record Parameters"));
+        Assert.That(source, Does.Contain("[global::Microsoft.AspNetCore.Mvc.FromQuery(Name = \"includeDeleted\")]"));
+        Assert.That(source, Does.Contain("public bool? IncludeDeleted { get; init; }"));
+    }
+
+    [Test]
+    public void GeneratesEndpointMappingWithAsParameters()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: GetClientHandlerImpl,
+            additionalFiles: AdditionalFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "EndpointMapping.g.cs");
+
+        Assert.That(source, Does.Contain("[global::Microsoft.AspNetCore.Http.AsParameters] global::TestProject.Endpoints.GetClientEndpointBase.Parameters parameters"));
     }
 
     [Test]

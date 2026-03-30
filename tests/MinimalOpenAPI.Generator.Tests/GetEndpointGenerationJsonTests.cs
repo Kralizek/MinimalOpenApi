@@ -35,7 +35,7 @@ public class GetEndpointGenerationJsonTests
 
         Assert.That(source, Does.Contain("System.Guid tenantId"));
         Assert.That(source, Does.Contain("System.Guid clientId"));
-        Assert.That(source, Does.Contain("bool? includeDeleted"));
+        Assert.That(source, Does.Contain("Parameters parameters"));
         Assert.That(source, Does.Contain("CancellationToken cancellationToken"));
         Assert.That(source, Does.Contain("HandleAsync("));
     }
