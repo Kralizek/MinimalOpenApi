@@ -28,7 +28,7 @@ internal static class DtoGenerator
         {
             var name = kvp.Key;
             var schema = kvp.Value;
-            if (schema.Type != "object" && schema.Ref is null && schema.Properties.Count == 0)
+            if (schema.Type != "object" && schema.Reference is null && schema.Properties.Count == 0)
                 continue;
 
             GenerateRecord(sb, name, schema, schemas);
