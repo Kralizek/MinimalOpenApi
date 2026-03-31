@@ -1,0 +1,48 @@
+name: Smoke Test (package consumption)
+
+# Validates that the packed NuGet artifacts can be consumed by a clean downstream
+# project that uses <PackageReference> instead of project references.
+#
+# Steps:
+#   1. Build and pack the solution into artifacts/
+#   2. Restore the smoke-test consumer (uses artifacts/ as its NuGet source)
+#   3. Build the smoke-test consumer — exercises the source generator and runtime
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # MinVer needs the full tag history to compute the version
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore solution
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Pack packages into artifacts/
+        run: dotnet pack --no-build --configuration Release --output artifacts
+
+      - name: Restore smoke-test consumer
+        run: dotnet restore sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj
+
+      - name: Build smoke-test consumer
+        run: >
+          dotnet build sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj
+          --no-restore --configuration Release --warnaserror

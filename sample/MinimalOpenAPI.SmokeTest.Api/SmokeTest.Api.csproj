@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>MinimalOpenAPI.SmokeTest.Api</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    Consume MinimalOpenAPI as a NuGet package, not via a project reference.
+    This is the whole point of the smoke test: verify the packed artifact works
+    exactly as a real downstream consumer would experience it.
+
+    The floating version *-* resolves to the latest available version including
+    pre-release builds, which is what `dotnet pack` produces locally and in CI.
+    The only source for this package is the local-artifacts feed defined in
+    nuget.config, so it always picks up the just-packed artifact.
+
+    The MinimalOpenAPI package declares MinimalOpenAPI.Runtime as a dependency for
+    net10.0 consumers, so the runtime package is restored automatically.
+  -->
+  <ItemGroup>
+    <PackageReference Include="MinimalOpenAPI" Version="*-*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <OpenApi Include="openapi.yaml" />
+  </ItemGroup>
+
+</Project>

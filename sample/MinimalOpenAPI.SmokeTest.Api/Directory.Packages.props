@@ -1,0 +1,7 @@
+<Project>
+  <!--
+    Empty Directory.Packages.props that shadows the repo-root one.
+    This project does not use Central Package Management; versions are specified
+    directly in the PackageReference items in SmokeTest.Api.csproj.
+  -->
+</Project>
