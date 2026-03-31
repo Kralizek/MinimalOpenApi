@@ -44,6 +44,10 @@ The sample exposes a simple Todo API. It is a good way to verify end-to-end beha
 
 The repository includes an `.editorconfig`. Your IDE should pick it up automatically.
 
+## Automation and coding agents
+
+If you are an automated coding agent, also read [`AGENTS.md`](AGENTS.md) for the operational guide specific to this repository.
+
 ## Reporting issues
 
 Please use the issue templates in `.github/ISSUE_TEMPLATE/` when opening bugs or feature requests.
