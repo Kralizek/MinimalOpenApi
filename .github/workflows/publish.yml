@@ -35,7 +35,7 @@ jobs:
 
       - name: Pack
         run: |
-          PACK_ARGS="--no-build --configuration Release --output ./artifacts"
+          PACK_ARGS="--configuration Release --output ./artifacts"
           dotnet pack $PACK_ARGS
 
       - name: Upload packages as workflow artifact
