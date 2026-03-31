@@ -148,10 +148,10 @@ internal static class EndpointMappingGenerator
     {
         var parts = new List<string>();
 
-        foreach (var p in operation.Parameters.Where(p => p.In == ParameterLocation.Path))
+        foreach (var p in operation.Parameters.Where(p => p.Location == ParameterLocation.Path))
             parts.Add($"{TypeMapper.MapSchema(p.Schema)} {TypeMapper.ToCamelCase(p.Name)}");
 
-        if (operation.Parameters.Any(p => p.In != ParameterLocation.Path))
+        if (operation.Parameters.Any(p => p.Location != ParameterLocation.Path))
             parts.Add($"[global::Microsoft.AspNetCore.Http.AsParameters] global::{handlerClass}.Parameters parameters");
 
         if (operation.RequestBody?.Schema is not null)
@@ -167,10 +167,10 @@ internal static class EndpointMappingGenerator
     {
         var args = new List<string>();
 
-        foreach (var p in operation.Parameters.Where(p => p.In == ParameterLocation.Path))
+        foreach (var p in operation.Parameters.Where(p => p.Location == ParameterLocation.Path))
             args.Add(TypeMapper.ToCamelCase(p.Name));
 
-        if (operation.Parameters.Any(p => p.In != ParameterLocation.Path))
+        if (operation.Parameters.Any(p => p.Location != ParameterLocation.Path))
             args.Add("parameters");
 
         if (operation.RequestBody?.Schema is not null)

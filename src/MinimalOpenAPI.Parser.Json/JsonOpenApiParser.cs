@@ -11,6 +11,7 @@ namespace MinimalOpenAPI.Parser.Json;
 /// </summary>
 public sealed class JsonOpenApiParser : IOpenApiParser
 {
+    /// <inheritdoc/>
     public System.Threading.Tasks.Task<OpenApiDocument> ParseAsync(string content, System.Threading.CancellationToken cancellationToken = default)
     {
         var root = JsonNode.Parse(content)?.AsObject();
@@ -51,7 +52,7 @@ public sealed class JsonOpenApiParser : IOpenApiParser
     {
         var refValue = GetString(node, "$ref");
         if (refValue is not null)
-            return new OpenApiSchema { Ref = ResolveRef(refValue) };
+            return new OpenApiSchema { Reference = ResolveRef(refValue) };
 
         var properties = new Dictionary<string, OpenApiSchema>(StringComparer.Ordinal);
         var propsNode = GetObject(node, "properties");
@@ -170,7 +171,7 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             result.Add(new OpenApiParameter
             {
                 Name = GetString(paramNode, "name") ?? string.Empty,
-                In = location,
+                Location = location,
                 Required = GetBool(paramNode, "required"),
                 Schema = schemaNode is not null ? ExtractSchema(schemaNode) : new OpenApiSchema()
             });

@@ -10,6 +10,7 @@ namespace MinimalOpenAPI.Parser.Yaml;
 /// </summary>
 public sealed class YamlOpenApiParser : IOpenApiParser
 {
+    /// <inheritdoc/>
     public System.Threading.Tasks.Task<OpenApiDocument> ParseAsync(string content, System.Threading.CancellationToken cancellationToken = default)
     {
         var stream = new YamlStream();
@@ -52,7 +53,7 @@ public sealed class YamlOpenApiParser : IOpenApiParser
     {
         var refValue = GetString(node, "$ref");
         if (refValue is not null)
-            return new OpenApiSchema { Ref = ResolveRef(refValue) };
+            return new OpenApiSchema { Reference = ResolveRef(refValue) };
 
         var properties = new Dictionary<string, OpenApiSchema>(StringComparer.Ordinal);
         var propsNode = GetMapping(node, "properties");
@@ -162,7 +163,7 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             result.Add(new OpenApiParameter
             {
                 Name = GetString(paramNode, "name") ?? string.Empty,
-                In = location,
+                Location = location,
                 Required = GetBool(paramNode, "required"),
                 Schema = schemaNode is not null ? ExtractSchema(schemaNode) : new OpenApiSchema()
             });

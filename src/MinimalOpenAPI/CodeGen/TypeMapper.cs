@@ -28,7 +28,7 @@ internal static class TypeMapper
     /// i.e. it declares properties or an explicit <c>object</c> type, but has no <c>$ref</c>.
     /// </summary>
     public static bool IsInlineObject(OpenApiSchema schema)
-        => schema.Ref is null
+        => schema.Reference is null
             && (schema.Type?.ToLowerInvariant() == "object" || schema.Properties.Count > 0);
 
     /// <summary>Returns the nested record name used for an inline request-body schema.</summary>
@@ -84,11 +84,11 @@ internal static class TypeMapper
         string? contractsNamespace = null,
         InlineSchemaResolver? resolveInline = null)
     {
-        if (schema.Ref is not null)
+        if (schema.Reference is not null)
         {
             var typeName = contractsNamespace is not null
-                ? $"global::{contractsNamespace}.{schema.Ref}"
-                : schema.Ref;
+                ? $"global::{contractsNamespace}.{schema.Reference}"
+                : schema.Reference;
             return nullable ? $"{typeName}?" : typeName;
         }
 
@@ -224,7 +224,7 @@ internal static class TypeMapper
     public static string BuildConstrainedRoute(string route, List<OpenApiParameter> parameters)
     {
         var result = route;
-        foreach (var p in parameters.Where(p => p.In == ParameterLocation.Path))
+        foreach (var p in parameters.Where(p => p.Location == ParameterLocation.Path))
         {
             var constraint = GetRouteConstraint(p.Schema);
             if (constraint is not null)

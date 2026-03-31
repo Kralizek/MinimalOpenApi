@@ -59,7 +59,7 @@ internal static class HandlerBaseGenerator
 
         // Emit the Parameters nested record for non-path parameters (query, header, cookie).
         var nonPathParams = operation.Parameters
-            .Where(p => p.In != ParameterLocation.Path)
+            .Where(p => p.Location != ParameterLocation.Path)
             .ToList();
         if (nonPathParams.Count > 0)
         {
@@ -90,13 +90,13 @@ internal static class HandlerBaseGenerator
         var list = new List<string>();
 
         // Path parameters first
-        foreach (var p in operation.Parameters.Where(p => p.In == ParameterLocation.Path))
+        foreach (var p in operation.Parameters.Where(p => p.Location == ParameterLocation.Path))
         {
             list.Add($"{TypeMapper.MapSchema(p.Schema)} {TypeMapper.ToCamelCase(p.Name)}");
         }
 
         // Non-path parameters (query, header, cookie) wrapped in Parameters record
-        if (operation.Parameters.Any(p => p.In != ParameterLocation.Path))
+        if (operation.Parameters.Any(p => p.Location != ParameterLocation.Path))
         {
             list.Add("Parameters parameters");
         }
@@ -174,7 +174,7 @@ internal static class HandlerBaseGenerator
         sb.AppendLine("    }");
     }
 
-    private static string? GetBindingAttribute(OpenApiParameter p) => p.In switch
+    private static string? GetBindingAttribute(OpenApiParameter p) => p.Location switch
     {
         ParameterLocation.Query => $"[global::Microsoft.AspNetCore.Mvc.FromQuery(Name = \"{p.Name}\")]",
         ParameterLocation.Header => $"[global::Microsoft.AspNetCore.Mvc.FromHeader(Name = \"{p.Name}\")]",

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,7 @@ public static class ServiceCollectionExtensions
     /// Called by the source-generated <c>[ModuleInitializer]</c> to wire up the
     /// generated handler and customizer registrations before the app starts.
     /// </summary>
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public static void RegisterGeneratedServices(Action<IServiceCollection> registration)
     {
         _generatedRegistration = registration;
@@ -25,6 +27,7 @@ public static class ServiceCollectionExtensions
     /// Called by the source-generated <c>[ModuleInitializer]</c> to wire up the
     /// generated endpoint mapping before the app starts.
     /// </summary>
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public static void RegisterEndpointMapping(Func<IEndpointRouteBuilder, string?, RouteGroupBuilder> mapping)
     {
         _generatedEndpointMapping = mapping;

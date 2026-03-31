@@ -11,12 +11,22 @@ using MinimalOpenAPI.Parser.Yaml;
 
 namespace MinimalOpenAPI.Generator;
 
+/// <summary>
+/// Roslyn incremental source generator that reads OpenAPI specification files and emits
+/// strongly-typed DTOs, abstract handler base classes, registration customizer bases,
+/// DI registration extensions and endpoint mapping extensions for use with ASP.NET Core
+/// Minimal APIs.
+/// </summary>
 [Generator]
 public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 {
     private const string MetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiFile";
     private const string RootNamespaceKey = "build_property.RootNamespace";
 
+    /// <summary>
+    /// Registers the incremental generation pipeline with Roslyn.
+    /// This is called once by the compiler host; do not call it directly.
+    /// </summary>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // 1. Collect OpenAPI additional files
