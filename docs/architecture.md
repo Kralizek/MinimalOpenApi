@@ -283,7 +283,7 @@ public class GetTodoEndpointBase
 }
 
 // user-written
-public sealed class GetTodoHandler : GetTodoEndpointBase
+public sealed class GetTodoEndpoint : GetTodoEndpointBase
 {
     public override Task<Results<Ok<Todo>, NotFound>> HandleAsync(
         Guid id,

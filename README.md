@@ -2,7 +2,9 @@
 
 MinimalOpenAPI is a **contract-first** OpenAPI framework for ASP.NET Core Minimal APIs.
 
-> **Status:** pre-release (currently targeting 1.0). APIs are subject to change until a stable release is tagged. See [release maturity](#release-maturity) for details.
+## Status
+
+> Pre-release — currently targeting 1.0. APIs are subject to change until a stable release is tagged. See [release maturity](#release-maturity) for details.
 
 ---
 
@@ -67,9 +69,9 @@ You only write the business logic.
 
 Most consumers only need the top-level `MinimalOpenAPI` package. The remaining packages are split out for composability and are pulled in transitively.
 
-### Nightly builds
+### Pre-release packages
 
-Pre-release packages are published to the GitHub Packages NuGet feed after every push to `master`:
+Pre-release packages are published to the GitHub Packages NuGet feed on manual execution of the Publish workflow:
 
 ```
 https://nuget.pkg.github.com/Kralizek/index.json
@@ -88,7 +90,7 @@ dotnet add package MinimalOpenAPI
 Or manually in your `.csproj`:
 
 ```xml
-<PackageReference Include="MinimalOpenAPI" Version="1.0.0-beta.1" />
+<PackageReference Include="MinimalOpenAPI" Version="1.0.0-alpha" />
 ```
 
 ---
@@ -102,8 +104,8 @@ Or manually in your `.csproj`:
 ```xml
 <!-- MyApi.csproj -->
 <ItemGroup>
-  <PackageReference Include="MinimalOpenAPI" Version="1.0.0-beta.1" />
-  <OpenApi Include="openapi.yaml" />
+  <PackageReference Include="MinimalOpenAPI" Version="1.0.0-alpha" />
+  <OpenApi Include="openapi.yaml" />  <!-- or openapi.json -->
 </ItemGroup>
 ```
 
@@ -163,12 +165,12 @@ components:
 **4 — Implement the generated handler base class:**
 
 ```csharp
-// GetItemHandler.cs
+// GetItemEndpoint.cs
 using Microsoft.AspNetCore.Http.HttpResults;
 using MyApi.Contracts;
 using MyApi.Endpoints;
 
-public sealed class GetItemHandler(IItemRepository repo) : GetItemEndpointBase
+public sealed class GetItemEndpoint(IItemRepository repo) : GetItemEndpointBase
 {
     public override async Task<Results<Ok<Item>, NotFound>> HandleAsync(
         Guid id,
@@ -181,6 +183,44 @@ public sealed class GetItemHandler(IItemRepository repo) : GetItemEndpointBase
 ```
 
 That's it. No manual route registration, no manual DI wiring.
+
+### Inline request and response schemas
+
+When a request body or response schema is defined inline (without a `$ref`), the generator emits a nested record inside the handler base class instead of a top-level DTO. The record name is derived from context: `Request` for request bodies, and a status-code-based name for responses (`OkResponse`, `CreatedResponse`, etc.).
+
+For example, given this inline response spec:
+
+```yaml
+paths:
+  /items/count:
+    get:
+      operationId: getItemCount
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count]
+                properties:
+                  count:
+                    type: integer
+```
+
+The generator produces `GetItemCountEndpointBase.OkResponse`. The handler uses it directly:
+
+```csharp
+// GetItemCountEndpoint.cs
+public sealed class GetItemCountEndpoint(IItemRepository repo) : GetItemCountEndpointBase
+{
+    public override async Task<Ok<OkResponse>> HandleAsync(CancellationToken cancellationToken)
+    {
+        var count = await repo.CountAsync(cancellationToken);
+        return TypedResults.Ok(new OkResponse { Count = count });
+    }
+}
+```
 
 ---
 
@@ -265,8 +305,8 @@ paths:
 Non-path parameters (query, header, cookie) are grouped into a nested `Parameters` record decorated with `[AsParameters]`, keeping handler signatures clean.
 
 ```csharp
-// ListTodosHandler.cs
-public sealed class ListTodosHandler(ITodoStore store) : ListTodosEndpointBase
+// ListTodosEndpoint.cs
+public sealed class ListTodosEndpoint(ITodoStore store) : ListTodosEndpointBase
 {
     public override Task<Ok<Todo[]>> HandleAsync(
         ListTodosEndpointBase.Parameters parameters,  // generated; wraps isComplete
@@ -284,8 +324,8 @@ public sealed class ListTodosHandler(ITodoStore store) : ListTodosEndpointBase
 **Handler for `createTodo` — request body:**
 
 ```csharp
-// CreateTodoHandler.cs
-public sealed class CreateTodoHandler(ITodoStore store) : CreateTodoEndpointBase
+// CreateTodoEndpoint.cs
+public sealed class CreateTodoEndpoint(ITodoStore store) : CreateTodoEndpointBase
 {
     public override Task<Results<Created<Todo>, BadRequest>> HandleAsync(
         Request request,        // generated DTO — mirrors the requestBody schema
@@ -306,8 +346,8 @@ public sealed class CreateTodoHandler(ITodoStore store) : CreateTodoEndpointBase
 **Handler for `getTodo` — path parameter:**
 
 ```csharp
-// GetTodoHandler.cs
-public sealed class GetTodoHandler(ITodoStore store) : GetTodoEndpointBase
+// GetTodoEndpoint.cs
+public sealed class GetTodoEndpoint(ITodoStore store) : GetTodoEndpointBase
 {
     public override Task<Results<Ok<Todo>, NotFound>> HandleAsync(
         Guid id,                // path parameter; type inferred from schema format: uuid
@@ -325,9 +365,9 @@ public sealed class GetTodoHandler(ITodoStore store) : GetTodoEndpointBase
 
 ## Limitations and non-goals
 
-- **OpenAPI 3.0.x only.** OpenAPI 3.1.x documents may parse but are not explicitly tested. OpenAPI 2.0 (Swagger) is not supported.
+- **OpenAPI 3.0.x only.** OpenAPI 3.1.x support may be added in a future release. OpenAPI 2.0 (Swagger) is not supported.
 - **No runtime OpenAPI document serving.** MinimalOpenAPI does not expose a `/openapi.json` endpoint or integrate with Swashbuckle/Scalar. It generates code from the spec; serving the spec is a separate concern.
-- **`components/schemas` only.** Inline request body schemas are generated as anonymous `Request` records scoped to the operation. Schema composition keywords (`allOf`, `oneOf`, `anyOf`) are not yet supported.
+- **Schema composition not supported.** Keywords such as `allOf`, `oneOf`, and `anyOf` are not yet supported. Both `$ref` schemas and inline object schemas (for request bodies and responses) are fully supported.
 - **Single spec file per project.** Each `<OpenApi>` item produces generated code in the same namespace. Multiple spec files may conflict if they define the same operation IDs or schema names.
 - **No runtime validation.** The generated code uses ASP.NET Core's built-in model binding. It does not perform OpenAPI-level request validation (e.g. pattern, min/max constraints).
 - **No code-first path.** If you start from C# and want to generate an OpenAPI document, use Swashbuckle, NSwag, or Microsoft.AspNetCore.OpenApi instead.
@@ -341,7 +381,7 @@ public sealed class GetTodoHandler(ITodoStore store) : GetTodoEndpointBase
 The generator emits a warning when it cannot find a class that inherits from a generated `<OperationId>EndpointBase`. Add a concrete handler class:
 
 ```csharp
-public sealed class GetItemHandler : GetItemEndpointBase
+public sealed class GetItemEndpoint : GetItemEndpointBase
 {
     public override async Task<Results<Ok<Item>, NotFound>> HandleAsync(
         Guid id, CancellationToken cancellationToken)
