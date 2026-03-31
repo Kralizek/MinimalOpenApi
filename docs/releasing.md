@@ -53,6 +53,36 @@ Configuration in [`Directory.Build.props`](../Directory.Build.props):
 
 ---
 
+## Using the prepare-release workflow
+
+The [`prepare-release.yml`](../.github/workflows/prepare-release.yml) workflow automates the
+pre-tagging validation and preparation steps so you can focus on reviewing the release changes
+before you tag.
+
+### What it does
+
+1. Checks out the requested ref.
+2. Validates formatting, build, tests, and package consumption (smoke test).
+3. Confirms all required documentation files are present.
+4. Ensures `CHANGELOG.md` has a versioned section for the target version (adds a placeholder if absent).
+5. Pushes a `release/<version>` branch and opens (or updates) a pull request.
+
+### Running the workflow
+
+1. Go to **Actions → Prepare Release → Run workflow**.
+2. Fill in the inputs:
+   - **version** — the target version string (e.g. `1.0.0-beta.2`, `1.0.0-rc.1`, `1.0.0`).
+   - **release_kind** — `beta`, `rc`, or `stable`.
+   - **ref** — optional; defaults to the branch from which the workflow is dispatched.
+3. Click **Run workflow**.
+
+The workflow opens a pull request titled **Prepare release `<version>`**. Review it, fill in
+the actual release notes in the `## <version>` section of `CHANGELOG.md`, and merge it.
+
+After merging, continue with [Cutting a release](#cutting-a-release) from step 3 (tagging) onward.
+
+---
+
 ## Cutting a release
 
 ### 1. Update the changelog

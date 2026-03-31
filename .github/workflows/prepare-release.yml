@@ -1,0 +1,157 @@
+name: Prepare Release
+
+# Prepares a release pull request for review:
+#   1. Validates formatting, build, tests, and package consumption.
+#   2. Confirms all required documentation files are present.
+#   3. Ensures CHANGELOG.md has a versioned section for the target version.
+#   4. Opens (or updates) a pull request on a release/<version> branch.
+#
+# This workflow does NOT publish packages to NuGet or GitHub Packages.
+# Publishing is handled by publish.yml after the release PR is merged and tagged.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.0.0-beta.2, 1.0.0-rc.1, 1.0.0)'
+        required: true
+        type: string
+      release_kind:
+        description: 'Release kind'
+        required: true
+        type: choice
+        options:
+          - beta
+          - rc
+          - stable
+      ref:
+        description: 'Git ref to prepare from (branch, tag, or SHA; defaults to the triggered branch)'
+        required: false
+        type: string
+
+jobs:
+  prepare-release:
+    name: Prepare release ${{ inputs.version }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # push the release branch
+      pull-requests: write  # create or update the release PR
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0  # MinVer needs the full tag history to compute the version
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Verify formatting
+        run: dotnet format --verify-no-changes --no-restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release --warnaserror
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release
+
+      - name: Pack
+        run: dotnet pack --no-build --configuration Release --output artifacts
+
+      - name: Restore smoke-test consumer
+        run: dotnet restore sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj
+
+      - name: Build smoke-test consumer
+        run: >
+          dotnet build sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj
+          --no-restore --configuration Release --warnaserror
+
+      - name: Validate release documentation
+        run: |
+          missing=()
+          for f in README.md CONTRIBUTING.md SECURITY.md AGENTS.md docs/releasing.md; do
+            [ -f "$f" ] || missing+=("$f")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "ERROR: Missing required documentation files:"
+            printf '  %s\n' "${missing[@]}"
+            exit 1
+          fi
+          echo "All required documentation files are present."
+
+      - name: Update CHANGELOG.md
+        run: bash .github/scripts/update-changelog.sh "${{ inputs.version }}"
+
+      - name: Create or update release pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          RELEASE_KIND: ${{ inputs.release_kind }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          BRANCH="release/${VERSION}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create (or reset) the release branch at the current HEAD.
+          git checkout -B "$BRANCH"
+
+          # Stage CHANGELOG.md — it may have been updated by the previous step.
+          git add CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "No changes to commit — CHANGELOG.md was already up to date."
+          else
+            git commit -m "chore: prepare release ${VERSION}"
+          fi
+
+          # Force-push so re-running the workflow refreshes the branch.
+          git push --force origin "$BRANCH"
+
+          # Write the PR body to a temp file to avoid quoting issues.
+          cat > /tmp/pr-body.md << PRBODY
+          **Release kind:** \`${RELEASE_KIND}\`
+
+          ## Validations executed
+
+          - [x] Formatting verified (\`dotnet format --verify-no-changes\`)
+          - [x] Build passed with no warnings (\`dotnet build --warnaserror\`)
+          - [x] All tests passed (\`dotnet test\`)
+          - [x] NuGet packages packed successfully
+          - [x] Smoke-test consumer built successfully
+          - [x] Required documentation files verified
+          - [x] \`CHANGELOG.md\` contains a section for \`${VERSION}\`
+
+          ## Next steps
+
+          1. Review and update the \`## ${VERSION}\` section in \`CHANGELOG.md\` with the actual release notes.
+          2. Merge this PR into the default branch.
+          3. Tag the merge commit: \`git tag v${VERSION} && git push origin v${VERSION}\`
+          4. For a **stable release**: create a GitHub Release from the tag — the Publish workflow pushes to NuGet.org automatically.
+          5. For **beta / RC**: run the **Publish** workflow manually to push to GitHub Packages.
+
+          See [docs/releasing.md](../blob/${DEFAULT_BRANCH}/docs/releasing.md) for the full release process.
+          PRBODY
+
+          # Dedent the body (strip leading spaces added by YAML indentation).
+          sed -i 's/^          //' /tmp/pr-body.md
+
+          # Create a new PR, or update the existing one if this branch already has one.
+          PR_NUMBER=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number // empty')
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Updating existing PR #${PR_NUMBER} for branch ${BRANCH}..."
+            gh pr edit "$PR_NUMBER" \
+              --title "Prepare release ${VERSION}" \
+              --body-file /tmp/pr-body.md
+          else
+            echo "Creating PR for branch ${BRANCH}..."
+            gh pr create \
+              --head "$BRANCH" \
+              --title "Prepare release ${VERSION}" \
+              --body-file /tmp/pr-body.md
+          fi
