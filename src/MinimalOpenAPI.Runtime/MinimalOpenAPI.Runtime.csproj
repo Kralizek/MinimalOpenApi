@@ -5,8 +5,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
+    <PackageId>MinimalOpenAPI.Runtime</PackageId>
+    <Title>MinimalOpenAPI Runtime</Title>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>openapi;aspnetcore;runtime;contract-first</PackageTags>
     <RootNamespace>MinimalOpenAPI</RootNamespace>
     <Description>Lightweight runtime package for MinimalOpenAPI contract-first framework.</Description>
   </PropertyGroup>

@@ -5,8 +5,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
+    <PackageId>MinimalOpenAPI.Abstractions</PackageId>
+    <Title>MinimalOpenAPI Abstractions</Title>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>openapi;abstractions;contract-first</PackageTags>
     <RootNamespace>MinimalOpenAPI</RootNamespace>
     <Description>OpenAPI document model and parser abstractions for MinimalOpenAPI.</Description>
   </PropertyGroup>

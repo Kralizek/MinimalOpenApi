@@ -11,8 +11,11 @@
     <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <PackageId>MinimalOpenAPI</PackageId>
+    <Title>MinimalOpenAPI</Title>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>openapi;swagger;aspnetcore;source-generator;contract-first;roslyn</PackageTags>
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <LangVersion>latest</LangVersion>
