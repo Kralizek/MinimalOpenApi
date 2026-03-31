@@ -30,6 +30,7 @@ tests/
   MinimalOpenAPI.IntegrationTests/  ← WebApplicationFactory end-to-end tests
 sample/
   MinimalOpenAPI.Sample.Api/    ← full Todo CRUD example; use it to verify end-to-end behaviour
+  MinimalOpenAPI.SmokeTest.Api/ ← minimal consumer that builds against the packed NuGet artifact; validates the generator works as a real downstream project would experience it
 docs/
   architecture.md               ← internals, data flow, design decisions, extensibility
   releasing.md                  ← versioning (MinVer / Git tags) and release process
@@ -95,6 +96,17 @@ cd sample/MinimalOpenAPI.Sample.Api
 dotnet run
 ```
 
+For source-generator changes, also run the smoke test to confirm the packed artifact works as a real NuGet consumer:
+
+```bash
+# 1. Pack into the artifacts/ directory that the smoke-test reads from
+dotnet pack --configuration Release --output artifacts
+
+# 2. Restore and build the smoke-test consumer (exercises the generator end-to-end)
+dotnet restore sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj
+dotnet build sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj --no-restore --configuration Release --warnaserror
+```
+
 ---
 
 ## 6. Task-specific guidance
@@ -102,6 +114,7 @@ dotnet run
 ### Source generator changes
 - Cover the change with a new or updated generator test in `MinimalOpenAPI.Generator.Tests`.
 - Also run `MinimalOpenAPI.IntegrationTests` to catch end-to-end regressions.
+- Run the smoke test (pack + build `MinimalOpenAPI.SmokeTest.Api`) to confirm the packed NuGet artifact still works as a real downstream consumer would experience it.
 - Diagnostics live in `MinimalOpenAPI.Generator`; the codes are `MOA001`–`MOA005` (see `docs/architecture.md` §8).
 
 ### Runtime changes
