@@ -10,7 +10,7 @@ name: Smoke Test (package consumption)
 
 on:
   push:
-    branches: [ "**" ]
+    branches: [ "master" ]
   pull_request:
     branches: [ "**" ]
   workflow_dispatch:
