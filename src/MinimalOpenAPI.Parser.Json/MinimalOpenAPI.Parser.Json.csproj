@@ -5,8 +5,11 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
+    <PackageId>MinimalOpenAPI.Parser.Json</PackageId>
+    <Title>MinimalOpenAPI JSON Parser</Title>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>openapi;json;parser;contract-first</PackageTags>
     <RootNamespace>MinimalOpenAPI</RootNamespace>
     <Description>JSON-based OpenAPI parser for MinimalOpenAPI, built on System.Text.Json.</Description>
   </PropertyGroup>
