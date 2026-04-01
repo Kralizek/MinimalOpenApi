@@ -24,6 +24,8 @@ internal static class DtoGenerator
         sb.AppendLine($"namespace {rootNamespace}.Contracts;");
         sb.AppendLine();
 
+        var emitted = new HashSet<string>(StringComparer.Ordinal);
+
         foreach (var kvp in schemas)
         {
             var name = kvp.Key;
@@ -31,18 +33,60 @@ internal static class DtoGenerator
             if (schema.Type != "object" && schema.Reference is null && schema.Properties.Count == 0)
                 continue;
 
-            GenerateRecord(sb, name, schema, schemas);
-            sb.AppendLine();
+            EmitRecordTree(sb, name, schema, emitted);
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Recursively emits the record for <paramref name="schema"/> and all records for
+    /// its inline-object properties, ensuring each dependency is emitted before its parent.
+    /// The <paramref name="emitted"/> set provides cycle detection and deduplication:
+    /// inline object schemas cannot self-reference (they have no <c>$ref</c>), but the
+    /// derived name of an inline property could collide with another top-level schema name
+    /// already queued for emission, so we guard against emitting the same name twice.
+    /// </summary>
+    private static void EmitRecordTree(
+        StringBuilder sb,
+        string name,
+        OpenApiSchema schema,
+        HashSet<string> emitted)
+    {
+        if (!emitted.Add(name))
+            return; // already emitted or cycle guard
+
+        // Emit inline-object property types (dependencies) before the parent record.
+        foreach (var propKvp in schema.Properties)
+        {
+            if (TypeMapper.IsInlineObject(propKvp.Value))
+            {
+                var nestedName = name + TypeMapper.ToPascalCase(propKvp.Key);
+                EmitRecordTree(sb, nestedName, propKvp.Value, emitted);
+            }
+        }
+
+        // Build a resolver that maps each inline-object schema instance to its derived name.
+        var inlineMap = new Dictionary<OpenApiSchema, string>();
+        foreach (var propKvp in schema.Properties)
+        {
+            if (TypeMapper.IsInlineObject(propKvp.Value))
+                inlineMap[propKvp.Value] = name + TypeMapper.ToPascalCase(propKvp.Key);
+        }
+
+        InlineSchemaResolver? resolveInline = inlineMap.Count > 0
+            ? s => inlineMap.TryGetValue(s, out var n) ? n : null
+            : null;
+
+        GenerateRecord(sb, name, schema, resolveInline);
+        sb.AppendLine();
     }
 
     private static void GenerateRecord(
         StringBuilder sb,
         string name,
         OpenApiSchema schema,
-        Dictionary<string, OpenApiSchema> allSchemas)
+        InlineSchemaResolver? resolveInline = null)
     {
         sb.AppendLine($"/// <summary>Generated DTO for schema <c>{name}</c>.</summary>");
         TypeMapper.AppendGeneratedAttributes(sb);
@@ -55,7 +99,7 @@ internal static class DtoGenerator
             var propSchema = propKvp.Value;
             var isRequired = schema.Required.Contains(propName, StringComparer.OrdinalIgnoreCase);
             var nullable = propSchema.Nullable || !isRequired;
-            var typeName = TypeMapper.MapSchema(propSchema, nullable: nullable);
+            var typeName = TypeMapper.MapSchema(propSchema, nullable: nullable, resolveInline: resolveInline);
             var csharpName = TypeMapper.ToPascalCase(propName);
 
             sb.AppendLine($"    [JsonPropertyName(\"{propName}\")]");

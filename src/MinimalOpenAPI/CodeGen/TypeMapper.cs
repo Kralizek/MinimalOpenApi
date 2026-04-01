@@ -189,17 +189,45 @@ internal static class TypeMapper
     }
 
     /// <summary>Converts an operationId to a PascalCase class name suffix (e.g. "getClient" → "GetClient").</summary>
+    /// <remarks>
+    /// Handles camelCase, PascalCase, snake_case, and kebab-case inputs:
+    /// word boundaries are detected at <c>_</c>, <c>-</c>, and lower-to-upper transitions.
+    /// Each word segment is emitted with its first letter uppercased.
+    /// </remarks>
     public static string ToPascalCase(string name)
     {
         if (string.IsNullOrEmpty(name)) return name;
-        return char.ToUpperInvariant(name[0]) + name.Substring(1);
+
+        var sb = new System.Text.StringBuilder(name.Length);
+        bool capitalizeNext = true;
+
+        for (int i = 0; i < name.Length; i++)
+        {
+            var c = name[i];
+
+            if (c == '_' || c == '-')
+            {
+                capitalizeNext = true;
+                continue;
+            }
+
+            // Detect a camelCase / PascalCase word boundary: lower→upper transition.
+            if (i > 0 && char.IsUpper(c) && !char.IsUpper(name[i - 1]))
+                capitalizeNext = true;
+
+            sb.Append(capitalizeNext ? char.ToUpperInvariant(c) : c);
+            capitalizeNext = false;
+        }
+
+        return sb.ToString();
     }
 
     /// <summary>Converts a parameter name to a valid C# identifier (camelCase).</summary>
     public static string ToCamelCase(string name)
     {
-        if (string.IsNullOrEmpty(name)) return name;
-        return char.ToLowerInvariant(name[0]) + name.Substring(1);
+        var pascal = ToPascalCase(name);
+        if (string.IsNullOrEmpty(pascal)) return pascal;
+        return char.ToLowerInvariant(pascal[0]) + pascal.Substring(1);
     }
 
     /// <summary>Returns the handler base class name for an operation.</summary>
