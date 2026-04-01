@@ -194,14 +194,52 @@ project references `MinimalOpenAPI` by project reference (development scenario).
 
 Key targets:
 
-| Target | Runs before | Purpose |
-|--------|-------------|---------|
-| `AddMinimalOpenApiFilesToAdditionalFiles` | `GenerateMSBuildEditorConfigFileCore`, `CoreCompile` | Copies `<OpenApi>` items into `<AdditionalFiles>` with `MinimalOpenApiFile=true` metadata and exposes `RootNamespace` as a compiler-visible property. |
-| `AddMinimalOpenApiGeneratorDependencyAnalyzers` | `CoreCompile` | Adds `MinimalOpenAPI.Abstractions`, `MinimalOpenAPI.Parser.Yaml`, `MinimalOpenAPI.Parser.Json`, and `YamlDotNet` as `<Analyzer>` items so Roslyn can load them into its isolated `AssemblyLoadContext` alongside the generator DLL. |
+| Target | Hook | Purpose |
+|--------|------|---------|
+| `AddMinimalOpenApiFilesToAdditionalFiles` | `BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile"` | Copies `<OpenApi>` items into `<AdditionalFiles>` with `MinimalOpenApiFile=true` metadata and exposes `RootNamespace` as a compiler-visible property. |
+| `AddMinimalOpenApiGeneratorDependencyAnalyzers` | `BeforeTargets="CoreCompile"` | Adds `MinimalOpenAPI.Abstractions`, `MinimalOpenAPI.Parser.Yaml`, `MinimalOpenAPI.Parser.Json`, and `YamlDotNet` as `<Analyzer>` items so Roslyn can load them into its isolated `AssemblyLoadContext` alongside the generator DLL. |
+| `CopyMinimalOpenApiFilesToOutput` | `AfterTargets="Build"` | Copies every `<OpenApi Publish="true" />` file to `$(OutDir)openapi/<name>/schema.<ext>` so the spec is accessible at runtime via `AppContext.BaseDirectory`. Skips when no items are marked for publishing. |
+| `AddMinimalOpenApiFilesToPublishOutput` | `AfterTargets="ComputeFilesToPublish"` | Injects `ResolvedFileToPublish` items for every `<OpenApi Publish="true" />` file so `dotnet publish` includes the spec at `openapi/<name>/schema.<ext>` relative to the publish root. Skips when no items are marked for publishing. |
 
 The `<CompilerVisibleItemMetadata>` and `<CompilerVisibleProperty>` declarations
 make `MinimalOpenApiFile` and `RootNamespace` readable via
 `AnalyzerConfigOptionsProvider` inside the generator.
+
+### 5.1 Contract-package pattern (gRPC-style)
+
+An OpenAPI spec can be shipped inside a separate "contracts" NuGet package and
+consumed transparently — the same pattern used by gRPC `.proto` files.
+
+**In the contracts package** (`build/MyContracts.targets` or
+`buildTransitive/MyContracts.targets`):
+
+```xml
+<ItemGroup>
+  <!-- Path resolves relative to this targets file inside the NuGet cache. -->
+  <OpenApi Include="$(MSBuildThisFileDirectory)../content/api.yaml"
+           Publish="true" />
+</ItemGroup>
+```
+
+**In the consuming project** — no `<OpenApi>` declaration needed at all; the
+package contributes the item automatically on restore.  If the consuming project
+wants to opt into publishing without modifying the contracts package, it can
+update the metadata inside a target so the update runs after all static items
+from NuGet packages have been evaluated:
+
+```xml
+<Target Name="MarkAllOpenApiSpecsForPublish"
+        BeforeTargets="CopyMinimalOpenApiFilesToOutput">
+  <ItemGroup>
+    <OpenApi Update="@(OpenApi)" Publish="true" />
+  </ItemGroup>
+</Target>
+```
+
+The `CopyMinimalOpenApiFilesToOutput` and `AddMinimalOpenApiFilesToPublishOutput`
+targets process all `<OpenApi Publish="true" />` items regardless of origin
+(project file, contracts package, or any other imported `.targets` file).  File
+content is preserved byte-for-byte; YAML stays YAML, JSON stays JSON.
 
 ---
 

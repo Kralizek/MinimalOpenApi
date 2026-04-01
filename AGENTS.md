@@ -105,6 +105,11 @@ dotnet pack --configuration Release --output artifacts
 # 2. Restore and build the smoke-test consumer (exercises the generator end-to-end)
 dotnet restore sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj
 dotnet build sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj --no-restore --configuration Release --warnaserror
+
+# 3. Publish the smoke-test consumer (exercises the OpenAPI file publish targets)
+dotnet publish sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj --no-restore --configuration Release --output /tmp/smoketest-publish
+# Verify the spec file was published at the expected path:
+test -f /tmp/smoketest-publish/openapi/openapi/schema.yaml && echo "OpenAPI spec published OK"
 ```
 
 ---
