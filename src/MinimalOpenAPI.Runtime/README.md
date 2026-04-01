@@ -6,6 +6,7 @@ This package provides the thin runtime layer that the source-generated code depe
 
 - `AddMinimalOpenApi(IServiceCollection)` — registers all source-generated endpoint handlers with the DI container.
 - `MapMinimalOpenApiEndpoints(IEndpointRouteBuilder, string?)` — maps every generated operation to its route via Minimal APIs.
+- `MapOpenApiSchemas(IEndpointRouteBuilder, string?, string?)` — scans `openapi/schemas/` in the application base directory for spec files published via `<OpenApi Publish="true" />` and registers one `GET /openapi/schemas/{version}/{name}.{ext}` endpoint per file. Returns a `RouteGroupBuilder` for further configuration.
 
 In most cases you should reference [`MinimalOpenAPI`](https://www.nuget.org/packages/MinimalOpenAPI) instead,
 which includes both this package and the source generator in a single reference.
