@@ -48,6 +48,10 @@ paths:
                   nullable: true
                 isComplete:
                   type: boolean
+                dueDate:
+                  type: string
+                  format: date
+                  nullable: true
       responses:
         "201":
           description: Created
@@ -110,6 +114,10 @@ paths:
                   nullable: true
                 isComplete:
                   type: boolean
+                dueDate:
+                  type: string
+                  format: date
+                  nullable: true
 
       responses:
         "200":
@@ -160,3 +168,7 @@ components:
           nullable: true
         isComplete:
           type: boolean
+        dueDate:
+          type: string
+          format: date
+          nullable: true

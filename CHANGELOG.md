@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `docs/consumer-agents.md`: consumer-facing agent guide for coding agents integrating this library into downstream projects.
 
+### Changed
+
+- `format: date` string schemas now map to `global::System.DateOnly` instead of `string`. This provides compile-time safety for date-without-time fields on .NET 6+.
+
 ## 1.0.0
 
 _Placeholder — release notes will be added on publish._
