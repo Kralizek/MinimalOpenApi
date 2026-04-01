@@ -5,7 +5,7 @@ using MinimalOpenAPI.Abstractions.Models;
 namespace MinimalOpenAPI.Generator.CodeGen;
 
 /// <summary>
-/// Generates sealed record DTOs from OpenAPI component schemas.
+/// Generates sealed record DTOs and C# enums from OpenAPI component schemas.
 /// </summary>
 internal static class DtoGenerator
 {
@@ -26,10 +26,20 @@ internal static class DtoGenerator
 
         var emitted = new HashSet<string>(StringComparer.Ordinal);
 
+        // First pass: emit top-level enum schemas.
+        foreach (var kvp in schemas)
+        {
+            if (kvp.Value.Enum is not null)
+                GenerateEnum(sb, kvp.Key, kvp.Value, emitted);
+        }
+
+        // Second pass: emit object schemas as records (with recursive inline-object
+        // and inline-enum dependency emission handled inside EmitRecordTree).
         foreach (var kvp in schemas)
         {
             var name = kvp.Key;
             var schema = kvp.Value;
+            if (schema.Enum is not null) continue;
             if (schema.Type != "object" && schema.Reference is null && schema.Properties.Count == 0)
                 continue;
 
@@ -40,12 +50,9 @@ internal static class DtoGenerator
     }
 
     /// <summary>
-    /// Recursively emits the record for <paramref name="schema"/> and all records for
-    /// its inline-object properties, ensuring each dependency is emitted before its parent.
-    /// The <paramref name="emitted"/> set provides cycle detection and deduplication:
-    /// inline object schemas cannot self-reference (they have no <c>$ref</c>), but the
-    /// derived name of an inline property could collide with another top-level schema name
-    /// already queued for emission, so we guard against emitting the same name twice.
+    /// Recursively emits the record for <paramref name="schema"/> and all records (and enums)
+    /// for its inline properties, ensuring each dependency is emitted before its parent.
+    /// The <paramref name="emitted"/> set provides cycle detection and deduplication.
     /// </summary>
     private static void EmitRecordTree(
         StringBuilder sb,
@@ -55,6 +62,16 @@ internal static class DtoGenerator
     {
         if (!emitted.Add(name))
             return; // already emitted or cycle guard
+
+        // Emit inline enum property types (dependencies) before the parent record.
+        foreach (var propKvp in schema.Properties)
+        {
+            if (propKvp.Value.Enum is not null)
+            {
+                var inlineEnumName = name + TypeMapper.ToPascalCase(propKvp.Key);
+                GenerateEnum(sb, inlineEnumName, propKvp.Value, emitted);
+            }
+        }
 
         // Emit inline-object property types (dependencies) before the parent record.
         foreach (var propKvp in schema.Properties)
@@ -66,11 +83,11 @@ internal static class DtoGenerator
             }
         }
 
-        // Build a resolver that maps each inline-object schema instance to its derived name.
+        // Build a resolver that maps each inline schema instance to its derived name.
         var inlineMap = new Dictionary<OpenApiSchema, string>();
         foreach (var propKvp in schema.Properties)
         {
-            if (TypeMapper.IsInlineObject(propKvp.Value))
+            if (TypeMapper.IsInlineObject(propKvp.Value) || propKvp.Value.Enum is not null)
                 inlineMap[propKvp.Value] = name + TypeMapper.ToPascalCase(propKvp.Key);
         }
 
@@ -79,6 +96,33 @@ internal static class DtoGenerator
             : null;
 
         GenerateRecord(sb, name, schema, resolveInline);
+        sb.AppendLine();
+    }
+
+    private static void GenerateEnum(
+        StringBuilder sb,
+        string name,
+        OpenApiSchema schema,
+        HashSet<string> emitted)
+    {
+        if (!emitted.Add(name))
+            return; // already emitted
+
+        sb.AppendLine($"/// <summary>Generated enum for schema <c>{name}</c>.</summary>");
+        TypeMapper.AppendGeneratedAttributes(sb);
+        sb.AppendLine("[JsonConverter(typeof(JsonStringEnumConverter))]");
+        sb.AppendLine($"public enum {name}");
+        sb.AppendLine("{");
+
+        var values = schema.Enum!;
+        for (var i = 0; i < values.Count; i++)
+        {
+            var member = TypeMapper.ToEnumMemberName(values[i]);
+            sb.Append($"    {member}");
+            sb.AppendLine(i < values.Count - 1 ? "," : string.Empty);
+        }
+
+        sb.AppendLine("}");
         sb.AppendLine();
     }
 

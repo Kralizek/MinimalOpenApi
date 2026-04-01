@@ -446,6 +446,263 @@ internal static class OpenApiFixtures
         """;
 
     /// <summary>
+    /// A GET endpoint whose response DTO contains a top-level <c>enum</c> schema
+    /// and an object schema whose property references it via <c>$ref</c>.
+    /// </summary>
+    public const string GetOrderWithEnumYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /orders/{orderId}:
+            get:
+              operationId: getOrder
+              parameters:
+                - name: orderId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Order'
+                "404":
+                  description: Not found
+        components:
+          schemas:
+            OrderStatus:
+              type: string
+              enum:
+                - pending
+                - active
+                - cancelled
+            Order:
+              type: object
+              required:
+                - id
+                - status
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                status:
+                  $ref: '#/components/schemas/OrderStatus'
+        """;
+
+    /// <summary>
+    /// A GET endpoint whose response DTO has a property with an inline <c>enum</c> schema
+    /// (no top-level enum component schema).
+    /// </summary>
+    public const string GetProductWithInlineEnumYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /products/{productId}:
+            get:
+              operationId: getProduct
+              parameters:
+                - name: productId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Product'
+                "404":
+                  description: Not found
+        components:
+          schemas:
+            Product:
+              type: object
+              required:
+                - id
+                - category
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                category:
+                  type: string
+                  enum:
+                    - electronics
+                    - clothing
+                    - food
+        """;
+
+    /// <summary>
+    /// JSON variant of <see cref="GetOrderWithEnumYaml"/>.
+    /// </summary>
+    public const string GetOrderWithEnumJson = """
+        {
+          "openapi": "3.0.0",
+          "info": {
+            "title": "Test API",
+            "version": "1.0.0"
+          },
+          "paths": {
+            "/orders/{orderId}": {
+              "get": {
+                "operationId": "getOrder",
+                "parameters": [
+                  {
+                    "name": "orderId",
+                    "in": "path",
+                    "required": true,
+                    "schema": { "type": "string", "format": "uuid" }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "description": "OK",
+                    "content": {
+                      "application/json": {
+                        "schema": { "$ref": "#/components/schemas/Order" }
+                      }
+                    }
+                  },
+                  "404": { "description": "Not found" }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "OrderStatus": {
+                "type": "string",
+                "enum": ["pending", "active", "cancelled"]
+              },
+              "Order": {
+                "type": "object",
+                "required": ["id", "status"],
+                "properties": {
+                  "id": { "type": "string", "format": "uuid" },
+                  "status": { "$ref": "#/components/schemas/OrderStatus" }
+                }
+              }
+            }
+          }
+        }
+        """;
+
+    /// <summary>
+    /// JSON variant of <see cref="GetProductWithInlineEnumYaml"/>.
+    /// </summary>
+    public const string GetProductWithInlineEnumJson = """
+        {
+          "openapi": "3.0.0",
+          "info": {
+            "title": "Test API",
+            "version": "1.0.0"
+          },
+          "paths": {
+            "/products/{productId}": {
+              "get": {
+                "operationId": "getProduct",
+                "parameters": [
+                  {
+                    "name": "productId",
+                    "in": "path",
+                    "required": true,
+                    "schema": { "type": "string", "format": "uuid" }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "description": "OK",
+                    "content": {
+                      "application/json": {
+                        "schema": { "$ref": "#/components/schemas/Product" }
+                      }
+                    }
+                  },
+                  "404": { "description": "Not found" }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "Product": {
+                "type": "object",
+                "required": ["id", "category"],
+                "properties": {
+                  "id": { "type": "string", "format": "uuid" },
+                  "category": {
+                    "type": "string",
+                    "enum": ["electronics", "clothing", "food"]
+                  }
+                }
+              }
+            }
+          }
+        }
+        """;
+
+    /// <summary>
+    /// A GET endpoint whose response DTO has a top-level <c>enum</c> schema whose values
+    /// are bare integers (<c>0</c>, <c>1</c>, <c>2</c>) — not valid C# identifiers on their own.
+    /// </summary>
+    public const string GetOrderWithNumericEnumYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /orders/{orderId}:
+            get:
+              operationId: getOrder
+              parameters:
+                - name: orderId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Order'
+                "404":
+                  description: Not found
+        components:
+          schemas:
+            OrderPriority:
+              type: integer
+              enum:
+                - 0
+                - 1
+                - 2
+            Order:
+              type: object
+              required:
+                - id
+                - priority
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                priority:
+                  $ref: '#/components/schemas/OrderPriority'
+        """;
+
+    /// <summary>
     /// A GET endpoint whose response DTO (<c>Order</c>) contains an inline object property
     /// (<c>address</c>) that should be emitted as a top-level <c>OrderAddress</c> record.
     /// </summary>

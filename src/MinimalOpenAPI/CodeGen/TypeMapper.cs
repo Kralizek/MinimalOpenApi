@@ -109,6 +109,14 @@ internal static class TypeMapper
                 return nullable ? $"{resolved}?" : resolved;
         }
 
+        // Inline enum schema: ask the resolver for the generated enum type name.
+        if (schema.Enum is not null && resolveInline is not null)
+        {
+            var resolved = resolveInline(schema);
+            if (resolved is not null)
+                return nullable ? $"{resolved}?" : resolved;
+        }
+
         var baseType = (schema.Type?.ToLowerInvariant(), schema.Format?.ToLowerInvariant()) switch
         {
             ("string", "uuid") => "global::System.Guid",
@@ -186,6 +194,35 @@ internal static class TypeMapper
             1 => types[0],
             _ => $"global::Microsoft.AspNetCore.Http.HttpResults.Results<{string.Join(", ", types)}>"
         };
+    }
+
+    /// <summary>Converts an OpenAPI enum value to a valid C# enum member name (PascalCase).</summary>
+    /// <remarks>
+    /// Word separators (<c>-</c>, <c>_</c>, space, <c>.</c>) produce PascalCase segments.
+    /// Any remaining characters that are not valid in a C# identifier (letters, digits,
+    /// or underscores) are stripped.  If the result starts with a digit it is prefixed
+    /// with <c>Value</c> (e.g. <c>"0"</c> → <c>"Value0"</c>).  An empty or all-punctuation
+    /// value falls back to <c>"Empty"</c>.
+    /// </remarks>
+    public static string ToEnumMemberName(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return "Empty";
+
+        // Split on common word separators and join as PascalCase.
+        var parts = value.Split(new[] { '-', '_', ' ', '.' }, StringSplitOptions.RemoveEmptyEntries);
+        var joined = string.Concat(Array.ConvertAll(parts, ToPascalCase));
+
+        // Strip any character that is not a valid C# identifier character.
+        var name = new string(System.Array.FindAll(joined.ToCharArray(),
+            c => char.IsLetterOrDigit(c) || c == '_'));
+
+        if (string.IsNullOrEmpty(name)) return "Empty";
+
+        // C# identifiers cannot start with a digit; prefix with "Value" for readability.
+        if (char.IsDigit(name[0]))
+            return "Value" + name;
+
+        return name;
     }
 
     /// <summary>Converts an operationId to a PascalCase class name suffix (e.g. "getClient" → "GetClient").</summary>
