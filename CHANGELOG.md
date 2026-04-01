@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `docs/consumer-agents.md`: consumer-facing agent guide for coding agents integrating this library into downstream projects.
+- **Enum support**: the OpenAPI `enum` keyword on schema objects now generates a C# `enum` type decorated with `[JsonConverter(typeof(JsonStringEnumConverter))]`. Top-level schemas with `enum` produce a named enum in the `Contracts` namespace; inline enum schemas on object properties produce a derived enum named `{ContainingSchema}{PascalCase(PropertyName)}` (e.g. `Order.status` → `OrderStatus`). Both YAML and JSON formats are supported.
 
 ### Changed
 

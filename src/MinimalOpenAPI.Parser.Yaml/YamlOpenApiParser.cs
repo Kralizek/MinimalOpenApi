@@ -71,6 +71,15 @@ public sealed class YamlOpenApiParser : IOpenApiParser
                 required.Add(Scalar(item));
         }
 
+        List<string>? enumValues = null;
+        var enumNode = GetSequence(node, "enum");
+        if (enumNode is not null)
+        {
+            enumValues = new List<string>();
+            foreach (var item in enumNode.Children)
+                enumValues.Add(Scalar(item));
+        }
+
         return new OpenApiSchema
         {
             Type = GetString(node, "type"),
@@ -78,7 +87,8 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             Nullable = GetBool(node, "nullable"),
             Properties = properties,
             Required = required,
-            Items = ExtractItemsSchema(node)
+            Items = ExtractItemsSchema(node),
+            Enum = enumValues
         };
     }
 

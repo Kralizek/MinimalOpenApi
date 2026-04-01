@@ -5,7 +5,7 @@ using MinimalOpenAPI.Abstractions.Models;
 namespace MinimalOpenAPI.Generator.CodeGen;
 
 /// <summary>
-/// Generates sealed record DTOs from OpenAPI component schemas.
+/// Generates sealed record DTOs and C# enums from OpenAPI component schemas.
 /// </summary>
 internal static class DtoGenerator
 {
@@ -24,10 +24,40 @@ internal static class DtoGenerator
         sb.AppendLine($"namespace {rootNamespace}.Contracts;");
         sb.AppendLine();
 
+        // First pass: emit top-level enum schemas.
+        foreach (var kvp in schemas)
+        {
+            if (kvp.Value.Enum is not null)
+            {
+                GenerateEnum(sb, kvp.Key, kvp.Value);
+                sb.AppendLine();
+            }
+        }
+
+        // Second pass: emit inline enum types derived from object-schema properties.
+        foreach (var kvp in schemas)
+        {
+            var schema = kvp.Value;
+            if (schema.Enum is not null) continue;
+            if (schema.Type != "object" && schema.Properties.Count == 0) continue;
+
+            foreach (var propKvp in schema.Properties)
+            {
+                if (propKvp.Value.Enum is not null)
+                {
+                    var inlineEnumName = kvp.Key + TypeMapper.ToPascalCase(propKvp.Key);
+                    GenerateEnum(sb, inlineEnumName, propKvp.Value);
+                    sb.AppendLine();
+                }
+            }
+        }
+
+        // Third pass: emit object schemas as records.
         foreach (var kvp in schemas)
         {
             var name = kvp.Key;
             var schema = kvp.Value;
+            if (schema.Enum is not null) continue;
             if (schema.Type != "object" && schema.Reference is null && schema.Properties.Count == 0)
                 continue;
 
@@ -36,6 +66,25 @@ internal static class DtoGenerator
         }
 
         return sb.ToString();
+    }
+
+    private static void GenerateEnum(StringBuilder sb, string name, OpenApiSchema schema)
+    {
+        sb.AppendLine($"/// <summary>Generated enum for schema <c>{name}</c>.</summary>");
+        TypeMapper.AppendGeneratedAttributes(sb);
+        sb.AppendLine("[JsonConverter(typeof(JsonStringEnumConverter))]");
+        sb.AppendLine($"public enum {name}");
+        sb.AppendLine("{");
+
+        var values = schema.Enum!;
+        for (var i = 0; i < values.Count; i++)
+        {
+            var member = TypeMapper.ToEnumMemberName(values[i]);
+            sb.Append($"    {member}");
+            sb.AppendLine(i < values.Count - 1 ? "," : string.Empty);
+        }
+
+        sb.AppendLine("}");
     }
 
     private static void GenerateRecord(
@@ -55,7 +104,13 @@ internal static class DtoGenerator
             var propSchema = propKvp.Value;
             var isRequired = schema.Required.Contains(propName, StringComparer.OrdinalIgnoreCase);
             var nullable = propSchema.Nullable || !isRequired;
-            var typeName = TypeMapper.MapSchema(propSchema, nullable: nullable);
+
+            // For inline enum properties, resolve the derived enum type name.
+            InlineSchemaResolver? resolveInline = propSchema.Enum is not null
+                ? _ => name + TypeMapper.ToPascalCase(propName)
+                : null;
+
+            var typeName = TypeMapper.MapSchema(propSchema, nullable: nullable, resolveInline: resolveInline);
             var csharpName = TypeMapper.ToPascalCase(propName);
 
             sb.AppendLine($"    [JsonPropertyName(\"{propName}\")]");

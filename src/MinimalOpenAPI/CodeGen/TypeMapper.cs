@@ -109,6 +109,14 @@ internal static class TypeMapper
                 return nullable ? $"{resolved}?" : resolved;
         }
 
+        // Inline enum schema: ask the resolver for the generated enum type name.
+        if (schema.Enum is not null && resolveInline is not null)
+        {
+            var resolved = resolveInline(schema);
+            if (resolved is not null)
+                return nullable ? $"{resolved}?" : resolved;
+        }
+
         var baseType = (schema.Type?.ToLowerInvariant(), schema.Format?.ToLowerInvariant()) switch
         {
             ("string", "uuid") => "global::System.Guid",
@@ -186,6 +194,22 @@ internal static class TypeMapper
             1 => types[0],
             _ => $"global::Microsoft.AspNetCore.Http.HttpResults.Results<{string.Join(", ", types)}>"
         };
+    }
+
+    /// <summary>Converts an OpenAPI enum value to a valid C# enum member name (PascalCase).</summary>
+    public static string ToEnumMemberName(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return "_Empty";
+
+        // Split on common word separators and join as PascalCase.
+        var parts = value.Split(new[] { '-', '_', ' ', '.' }, StringSplitOptions.RemoveEmptyEntries);
+        var name = string.Concat(Array.ConvertAll(parts, ToPascalCase));
+
+        // Ensure the identifier starts with a letter or underscore.
+        if (name.Length > 0 && !char.IsLetter(name[0]) && name[0] != '_')
+            name = "_" + name;
+
+        return string.IsNullOrEmpty(name) ? "_Empty" : name;
     }
 
     /// <summary>Converts an operationId to a PascalCase class name suffix (e.g. "getClient" → "GetClient").</summary>

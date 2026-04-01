@@ -76,6 +76,18 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             }
         }
 
+        List<string>? enumValues = null;
+        var enumNode = GetArray(node, "enum");
+        if (enumNode is not null)
+        {
+            enumValues = new List<string>();
+            foreach (var item in enumNode)
+            {
+                if (item?.GetValue<string>() is { } s)
+                    enumValues.Add(s);
+            }
+        }
+
         return new OpenApiSchema
         {
             Type = GetString(node, "type"),
@@ -83,7 +95,8 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             Nullable = GetBool(node, "nullable"),
             Properties = properties,
             Required = required,
-            Items = ExtractItemsSchema(node)
+            Items = ExtractItemsSchema(node),
+            Enum = enumValues
         };
     }
 
