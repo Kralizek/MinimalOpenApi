@@ -556,4 +556,60 @@ internal static class OpenApiFixtures
                         city:
                           type: string
         """;
+
+    /// <summary>
+    /// A schema whose properties use snake_case and kebab-case naming,
+    /// verifying that generated C# identifiers are properly PascalCase.
+    /// </summary>
+    public const string GetInvoiceWithMixedCasePropertiesYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /invoices/{invoiceId}:
+            get:
+              operationId: getInvoice
+              parameters:
+                - name: invoiceId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Invoice'
+                "404":
+                  description: Not found
+        components:
+          schemas:
+            Invoice:
+              type: object
+              required:
+                - invoice_id
+                - billing_address
+              properties:
+                invoice_id:
+                  type: string
+                  format: uuid
+                billing_address:
+                  type: object
+                  required:
+                    - street_name
+                  properties:
+                    street_name:
+                      type: string
+                    zip_code:
+                      type: string
+                      nullable: true
+                due_date:
+                  type: string
+                  format: date
+                  nullable: true
+        """;
 }

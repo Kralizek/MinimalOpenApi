@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `docs/consumer-agents.md`: consumer-facing agent guide for coding agents integrating this library into downstream projects.
 - Inline object schemas in component DTO properties now generate named top-level records instead of falling back to `object`. A property `address` on a schema `Order` produces an `OrderAddress` record in the Contracts namespace. Recursive inline objects are handled with cycle detection.
+- `TypeMapper.ToPascalCase` now correctly handles snake_case (`billing_address` → `BillingAddress`), kebab-case (`due-date` → `DueDate`), camelCase (`billingAddress` → `BillingAddress`), and PascalCase inputs. This applies to all generated C# identifiers: DTO property names, nested record names, handler parameter names, and class names derived from operation IDs.
 
 ### Changed
 
