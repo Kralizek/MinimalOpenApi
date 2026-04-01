@@ -653,6 +653,56 @@ internal static class OpenApiFixtures
         """;
 
     /// <summary>
+    /// A GET endpoint whose response DTO has a top-level <c>enum</c> schema whose values
+    /// are bare integers (<c>0</c>, <c>1</c>, <c>2</c>) — not valid C# identifiers on their own.
+    /// </summary>
+    public const string GetOrderWithNumericEnumYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /orders/{orderId}:
+            get:
+              operationId: getOrder
+              parameters:
+                - name: orderId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Order'
+                "404":
+                  description: Not found
+        components:
+          schemas:
+            OrderPriority:
+              type: integer
+              enum:
+                - 0
+                - 1
+                - 2
+            Order:
+              type: object
+              required:
+                - id
+                - priority
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                priority:
+                  $ref: '#/components/schemas/OrderPriority'
+        """;
+
+    /// <summary>
     /// A GET endpoint whose response DTO (<c>Order</c>) contains an inline object property
     /// (<c>address</c>) that should be emitted as a top-level <c>OrderAddress</c> record.
     /// </summary>

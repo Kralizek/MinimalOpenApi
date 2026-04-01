@@ -210,4 +210,40 @@ public class EnumGenerationTests
         Assert.That(source, Does.Contain("public sealed record Product"));
         Assert.That(source, Does.Contain("public required ProductCategory Category { get; init; }"));
     }
+
+    // ── Numeric enum values ───────────────────────────────────────────────
+
+    [Test]
+    public void NumericEnumValues_GenerateValidCSharpMemberNames()
+    {
+        var additionalFiles = new[] { ("openapi.yaml", OpenApiFixtures.GetOrderWithNumericEnumYaml) };
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: string.Empty,
+            additionalFiles: additionalFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+        // Integer values 0, 1, 2 must be prefixed with "Value" to form valid C# identifiers.
+        Assert.That(source, Does.Contain("public enum OrderPriority"));
+        Assert.That(source, Does.Contain("Value0"));
+        Assert.That(source, Does.Contain("Value1"));
+        Assert.That(source, Does.Contain("Value2"));
+    }
+
+    [Test]
+    public void NumericEnumValues_DoNotProduceDigitLeadingIdentifier()
+    {
+        var additionalFiles = new[] { ("openapi.yaml", OpenApiFixtures.GetOrderWithNumericEnumYaml) };
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: string.Empty,
+            additionalFiles: additionalFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+        // Neither a bare digit nor an underscore-prefixed digit must appear as a member name.
+        Assert.That(source, Does.Not.Contain("    0,"));
+        Assert.That(source, Does.Not.Contain("    1,"));
+        Assert.That(source, Does.Not.Contain("    _0"));
+        Assert.That(source, Does.Not.Contain("    _1"));
+    }
 }
