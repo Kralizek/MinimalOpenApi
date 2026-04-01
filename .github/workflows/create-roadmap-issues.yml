@@ -1,0 +1,372 @@
+name: Create Roadmap Issues
+
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  create-labels-and-issues:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          create_label() {
+            local name="$1" color="$2" description="$3"
+            gh label create "$name" --color "$color" --description "$description" --repo "$REPO" --force
+          }
+
+          # Effort
+          create_label "effort: trivial"  "e4e669" "Less than half a day to implement"
+          create_label "effort: small"    "d4c5f9" "Half a day to one day"
+          create_label "effort: medium"   "7057ff" "Two to three days"
+          create_label "effort: large"    "3d2d8e" "A week or more"
+
+          # Priority
+          create_label "priority: critical" "b60205" "Must be done immediately"
+          create_label "priority: high"     "e11d48" "Important; schedule soon"
+          create_label "priority: medium"   "f97316" "Nice to have; next milestone"
+          create_label "priority: low"      "fde68a" "Backlog / design-first"
+
+          # Impact
+          create_label "impact: high"   "0075ca" "Improves many consumers"
+          create_label "impact: medium" "54aeff" "Improves some consumers"
+          create_label "impact: low"    "cae8ff" "Niche / rarely needed"
+
+          # Breaking change
+          create_label "breaking change" "b60205" "Introduces a breaking change for existing consumers"
+
+          # Area
+          create_label "area: generator"    "0e8a16" "Affects the Roslyn source generator"
+          create_label "area: parser"       "1d76db" "Affects YAML / JSON parsers"
+          create_label "area: runtime"      "006b75" "Affects the runtime / DI layer"
+          create_label "area: type-mapping" "e4e669" "Affects TypeMapper / schema-to-C# mapping"
+
+          # Status
+          create_label "status: design-first"     "ededed" "Needs design / RFC before implementation"
+          create_label "status: needs-discussion" "cccccc" "Open questions require community input"
+
+          # Kind
+          create_label "kind: enhancement" "a2eeef" "New feature or improvement"
+
+          echo "All labels created."
+
+      - name: Create issue -- Enum support
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE='feat: add enum support (OpenAPI `enum` keyword)'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
+          gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --label "kind: enhancement" \
+            --label "priority: high" \
+            --label "effort: medium" \
+            --label "impact: high" \
+            --label "area: generator" \
+            --label "area: parser" \
+            --label "area: type-mapping" \
+            --body-file ".github/issues/enum-support.md"
+
+      - name: Create issue -- Validation attributes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE='feat: emit validation attributes for constraint keywords (minLength, maxLength, pattern, minimum, maximum, minItems, maxItems)'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
+          gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --label "kind: enhancement" \
+            --label "priority: high" \
+            --label "effort: medium" \
+            --label "impact: high" \
+            --label "area: generator" \
+            --label "area: parser" \
+            --body-file ".github/issues/validation-attributes.md"
+
+      - name: Create issue -- deprecated → [Obsolete]
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE='feat: map `deprecated` OpenAPI keyword to `[Obsolete]` attribute'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
+          gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --label "kind: enhancement" \
+            --label "priority: medium" \
+            --label "effort: small" \
+            --label "impact: medium" \
+            --label "area: generator" \
+            --label "area: parser" \
+            --body-file ".github/issues/deprecated-obsolete.md"
+
+      - name: Create issue -- Nested inline object schemas
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE='feat: generate nested records for inline object schemas in DTO properties'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
+          gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --label "kind: enhancement" \
+            --label "priority: medium" \
+            --label "effort: medium" \
+            --label "impact: medium" \
+            --label "area: generator" \
+            --body-file ".github/issues/nested-inline-schemas.md"
+
+      - name: Create issue -- Parameter default values
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE='feat: emit property initialisers for parameter `default` values'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
+          gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --label "kind: enhancement" \
+            --label "priority: medium" \
+            --label "effort: small" \
+            --label "impact: medium" \
+            --label "area: generator" \
+            --label "area: parser" \
+            --body-file ".github/issues/parameter-defaults.md"
+
+      - name: Create issue -- additionalProperties → Dictionary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE='feat: map `additionalProperties` to `Dictionary<string, T>`'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
+          gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --label "kind: enhancement" \
+            --label "priority: medium" \
+            --label "effort: small" \
+            --label "impact: medium" \
+            --label "area: generator" \
+            --label "area: parser" \
+            --label "area: type-mapping" \
+            --body-file ".github/issues/additional-properties-dictionary.md"
+
+      - name: Create issue -- format:date → DateOnly
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE='feat: map `format: date` to `DateOnly` (opt-in)'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
+          gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --label "kind: enhancement" \
+            --label "priority: medium" \
+            --label "effort: trivial" \
+            --label "impact: medium" \
+            --label "area: type-mapping" \
+            --label "breaking change" \
+            --body-file ".github/issues/format-date-dateonly.md"
+
+      - name: Create issue -- format:email / format:uri annotations
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE='feat: emit `[EmailAddress]` / `[Url]` attributes for `format: email` / `format: uri`'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
+          gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --label "kind: enhancement" \
+            --label "priority: medium" \
+            --label "effort: small" \
+            --label "impact: medium" \
+            --label "area: generator" \
+            --label "area: type-mapping" \
+            --body-file ".github/issues/format-email-uri-annotations.md"
+
+      - name: Create issue -- allOf flattening
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE='feat: support `allOf` schema composition via property flattening'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
+          gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --label "kind: enhancement" \
+            --label "priority: low" \
+            --label "effort: large" \
+            --label "impact: high" \
+            --label "area: generator" \
+            --label "area: parser" \
+            --body-file ".github/issues/allof-flattening.md"
+
+      - name: Create issue -- readOnly/writeOnly filtering
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE='feat: respect `readOnly` / `writeOnly` when generating request vs response types'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
+          gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --label "kind: enhancement" \
+            --label "priority: low" \
+            --label "effort: small" \
+            --label "impact: low" \
+            --label "area: generator" \
+            --label "area: parser" \
+            --body-file ".github/issues/readonly-writeonly-filtering.md"
+
+      - name: Create issue -- Header parameter case-insensitive binding
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE='fix: treat header parameter names case-insensitively per HTTP spec'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
+          gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --label "kind: enhancement" \
+            --label "priority: low" \
+            --label "effort: small" \
+            --label "impact: low" \
+            --label "area: parser" \
+            --label "area: generator" \
+            --body-file ".github/issues/header-case-insensitive.md"
+
+      - name: Create issue -- Problem Details detection
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE='feat: detect `application/problem+json` responses and use built-in `ProblemDetails` type'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
+          gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --label "kind: enhancement" \
+            --label "priority: low" \
+            --label "effort: small" \
+            --label "impact: medium" \
+            --label "area: generator" \
+            --label "status: design-first" \
+            --label "status: needs-discussion" \
+            --body-file ".github/issues/problem-details-detection.md"
+
+      - name: Create issue -- oneOf / anyOf union types
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE='feat: support `oneOf` / `anyOf` schema composition (union types)'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
+          gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --label "kind: enhancement" \
+            --label "priority: low" \
+            --label "effort: large" \
+            --label "impact: medium" \
+            --label "area: generator" \
+            --label "area: parser" \
+            --label "status: design-first" \
+            --label "status: needs-discussion" \
+            --body-file ".github/issues/oneof-anyof-union-types.md"
+
+      - name: Create issue -- Security requirements → authorization
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE='feat: expose customisation hook for security requirements → ASP.NET Core authorization'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
+          gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --label "kind: enhancement" \
+            --label "priority: low" \
+            --label "effort: medium" \
+            --label "impact: medium" \
+            --label "area: generator" \
+            --label "area: runtime" \
+            --label "status: design-first" \
+            --label "status: needs-discussion" \
+            --body-file ".github/issues/security-requirements-authorization.md"
+
+      - name: Create issue -- Multiple OpenAPI specs per project
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE='feat: support multiple OpenAPI spec files per project with namespace isolation'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
+          gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --label "kind: enhancement" \
+            --label "priority: low" \
+            --label "effort: large" \
+            --label "impact: medium" \
+            --label "area: generator" \
+            --label "status: design-first" \
+            --label "status: needs-discussion" \
+            --body-file ".github/issues/multiple-specs-per-project.md"
+
+      - name: Summary
+        run: echo "All labels and issues created successfully."
