@@ -233,7 +233,7 @@ app.MapOpenApiSchemas();
 app.Run();
 ```
 
-At startup `MapOpenApiSchemas` scans `openapi/schemas/` in the application base directory, reads the `info.version` field from each file, and registers one endpoint per file at `GET /openapi/schemas/{version}/{name}.{ext}` — for example `/openapi/schemas/1.0.0/openapi.yaml`. When the version cannot be determined the version segment is omitted.
+At startup `MapOpenApiSchemas` scans `openapi/schemas/` in the application base directory, reads the `info.version` field from each file, and registers one endpoint per file at `GET /.openapi/schemas/{version}/{name}.{ext}` — for example `/.openapi/schemas/1.0.0/openapi.yaml`. When the version cannot be determined the version segment is omitted.
 
 The method returns a `RouteGroupBuilder`, so endpoints can be secured in one call:
 

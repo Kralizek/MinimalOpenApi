@@ -387,20 +387,20 @@ using MinimalOpenAPI;
 
 var app = builder.Build();
 app.MapMinimalOpenApiEndpoints();
-app.MapOpenApiSchemas();  // GET /openapi/schemas/{version}/{name}.{ext}
+app.MapOpenApiSchemas();  // GET /.openapi/schemas/{version}/{name}.{ext}
 app.Run();
 ```
 
 At startup `MapOpenApiSchemas` scans `openapi/schemas/` in the application base directory, extracts the `info.version` field from each file, and registers one endpoint per file. For a spec with `info.version: "1.0.0"` and filename `openapi.yaml` the endpoint is:
 
 ```
-GET /openapi/schemas/1.0.0/openapi.yaml
+GET /.openapi/schemas/1.0.0/openapi.yaml
 ```
 
 When `info.version` cannot be determined the version segment is omitted:
 
 ```
-GET /openapi/schemas/openapi.yaml
+GET /.openapi/schemas/openapi.yaml
 ```
 
 ### 3 — Securing schema endpoints:

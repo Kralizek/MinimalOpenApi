@@ -146,7 +146,7 @@ Contains a single class, `ServiceCollectionExtensions`, with five public methods
   `CopyMinimalOpenApiFilesToOutput` MSBuild target.  Extracts the `info.version`
   field from each file via lightweight regex and registers one
   `GET {prefix}/schemas/{version}/{name}.{ext}` Minimal API endpoint per file
-  (e.g. `/openapi/schemas/1.0.0/clients.yaml`).  When `info.version` cannot be
+  (e.g. `/.openapi/schemas/1.0.0/clients.yaml`).  When `info.version` cannot be
   determined the version segment is omitted: `{prefix}/schemas/{name}.{ext}`.
   Returns a `RouteGroupBuilder` for further configuration (e.g.
   `.RequireAuthorization()`).
@@ -263,13 +263,13 @@ specs:
 using MinimalOpenAPI;
 
 app.MapMinimalOpenApiEndpoints();
-app.MapOpenApiSchemas();  // serves GET /openapi/schemas/{version}/{name}.{ext}
+app.MapOpenApiSchemas();  // serves GET /.openapi/schemas/{version}/{name}.{ext}
 ```
 
 The `info.version` field is extracted from each file at startup using lightweight
 regex. A file with `version: "1.0.0"` is served at
-`/openapi/schemas/1.0.0/clients.yaml`; when the version cannot be determined the
-version segment is omitted: `/openapi/schemas/clients.yaml`.
+`/.openapi/schemas/1.0.0/clients.yaml`; when the version cannot be determined the
+version segment is omitted: `/.openapi/schemas/clients.yaml`.
 
 The method returns a `RouteGroupBuilder` so all schema endpoints can be secured
 or configured in one call:

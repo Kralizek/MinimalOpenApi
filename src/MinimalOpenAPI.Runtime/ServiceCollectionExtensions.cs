@@ -68,7 +68,7 @@ public static class ServiceCollectionExtensions
     /// Maps a GET endpoint for each <c>&lt;OpenApi Publish="true" /&gt;</c> spec file
     /// copied to the application base directory at build time, making each schema
     /// accessible at <c>{prefix}/schemas/{version}/{name}.{ext}</c>
-    /// (e.g. <c>/openapi/schemas/1.0.0/clients.yaml</c>).
+    /// (e.g. <c>/.openapi/schemas/1.0.0/clients.yaml</c>).
     /// When the <c>info.version</c> field cannot be determined the version segment is
     /// omitted and the endpoint is registered at <c>{prefix}/schemas/{name}.{ext}</c>.
     /// </summary>
@@ -83,7 +83,7 @@ public static class ServiceCollectionExtensions
     /// </remarks>
     /// <param name="builder">The endpoint route builder.</param>
     /// <param name="prefix">
-    /// Route prefix for all schema endpoints.  Defaults to <c>"/openapi"</c>.
+    /// Route prefix for all schema endpoints.  Defaults to <c>"/.openapi"</c>.
     /// </param>
     /// <param name="schemasDirectory">
     /// Absolute path to the directory that contains the spec files.
@@ -93,10 +93,10 @@ public static class ServiceCollectionExtensions
     /// <returns>A <see cref="RouteGroupBuilder"/> that can be further configured.</returns>
     public static RouteGroupBuilder MapOpenApiSchemas(
         this IEndpointRouteBuilder builder,
-        string? prefix = "/openapi",
+        string? prefix = "/.openapi",
         string? schemasDirectory = null)
     {
-        var group = builder.MapGroup(prefix ?? "/openapi");
+        var group = builder.MapGroup(prefix ?? "/.openapi");
         var directory = schemasDirectory ?? Path.Combine(AppContext.BaseDirectory, "openapi", "schemas");
 
         if (!Directory.Exists(directory))
