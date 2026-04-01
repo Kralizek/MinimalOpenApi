@@ -111,10 +111,10 @@
   <!--
     Copy <OpenApi Publish="true" /> files to the build output directory so
     they are available when running locally (e.g. dotnet run via AppContext.BaseDirectory).
-    Destination: $(OutDir)openapi/<filename>/schema.<extension>
+    Destination: $(OutDir)openapi/schemas/<filename>.<extension>
     Examples:
-      clients.yaml  →  <OutDir>/openapi/clients/schema.yaml
-      admin.json    →  <OutDir>/openapi/admin/schema.json
+      clients.yaml  →  <OutDir>/openapi/schemas/clients.yaml
+      admin.json    →  <OutDir>/openapi/schemas/admin.json
   -->
   <Target Name="CopyMinimalOpenApiFilesToOutput"
           AfterTargets="Build"
@@ -122,9 +122,9 @@
     <ItemGroup>
       <_MinimalOpenApiFilesToCopy Include="@(OpenApi)" Condition="'%(OpenApi.Publish)' == 'true'" />
     </ItemGroup>
-    <MakeDir Directories="@(_MinimalOpenApiFilesToCopy->'$(OutDir)openapi/%(Filename)')" />
+    <MakeDir Directories="$(OutDir)openapi/schemas" />
     <Copy SourceFiles="@(_MinimalOpenApiFilesToCopy)"
-          DestinationFiles="@(_MinimalOpenApiFilesToCopy->'$(OutDir)openapi/%(Filename)/schema%(Extension)')"
+          DestinationFiles="@(_MinimalOpenApiFilesToCopy->'$(OutDir)openapi/schemas/%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
   </Target>
 
@@ -133,7 +133,7 @@
     Hooks into AfterTargets="ComputeFilesToPublish" so items are injected
     into ResolvedFileToPublish after the SDK's standard publish computation
     and before CopyFilesToPublishDirectory copies everything to $(PublishDir).
-    Destination: openapi/<filename>/schema.<extension>  (relative to publish root)
+    Destination: openapi/schemas/<filename>.<extension>  (relative to publish root)
   -->
   <Target Name="AddMinimalOpenApiFilesToPublishOutput"
           AfterTargets="ComputeFilesToPublish"
@@ -141,7 +141,7 @@
     <ItemGroup>
       <_MinimalOpenApiFilesToPublish Include="@(OpenApi)" Condition="'%(OpenApi.Publish)' == 'true'" />
       <ResolvedFileToPublish Include="@(_MinimalOpenApiFilesToPublish)">
-        <RelativePath>openapi/%(Filename)/schema%(Extension)</RelativePath>
+        <RelativePath>openapi/schemas/%(Filename)%(Extension)</RelativePath>
         <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       </ResolvedFileToPublish>
     </ItemGroup>

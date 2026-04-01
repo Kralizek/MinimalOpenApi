@@ -115,14 +115,13 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
-    public void MapOpenApiSchemas_WithSchemaFile_RegistersEndpointForYaml()
+    public void MapOpenApiSchemas_WithYamlSchemaFile_WithVersion_RegistersEndpoint()
     {
         var tempDir = Directory.CreateTempSubdirectory().FullName;
         try
         {
-            var schemaDir = Path.Combine(tempDir, "myapi");
-            Directory.CreateDirectory(schemaDir);
-            File.WriteAllText(Path.Combine(schemaDir, "schema.yaml"), "openapi: '3.0.0'");
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: My API\n  version: '2.0.0'\npaths: {}");
 
             var app = WebApplication.CreateBuilder().Build();
 
@@ -141,14 +140,12 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
-    public void MapOpenApiSchemas_WithJsonSchemaFile_RegistersEndpointForJson()
+    public void MapOpenApiSchemas_WithYamlSchemaFile_WithoutVersion_RegistersEndpoint()
     {
         var tempDir = Directory.CreateTempSubdirectory().FullName;
         try
         {
-            var schemaDir = Path.Combine(tempDir, "myapi");
-            Directory.CreateDirectory(schemaDir);
-            File.WriteAllText(Path.Combine(schemaDir, "schema.json"), """{"openapi":"3.0.0"}""");
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"), "openapi: '3.0.0'");
 
             var app = WebApplication.CreateBuilder().Build();
 
@@ -164,19 +161,42 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
-    public void MapOpenApiSchemas_WithSchemaSubdirectoryButNoFile_ReturnsRouteGroupBuilder()
+    public void MapOpenApiSchemas_WithJsonSchemaFile_RegistersEndpoint()
     {
         var tempDir = Directory.CreateTempSubdirectory().FullName;
         try
         {
-            // Sub-directory exists but contains no schema.* file.
-            Directory.CreateDirectory(Path.Combine(tempDir, "empty"));
+            File.WriteAllText(Path.Combine(tempDir, "myapi.json"),
+                """{"openapi":"3.0.0","info":{"title":"My API","version":"1.0.0"}}""");
 
             var app = WebApplication.CreateBuilder().Build();
 
             var group = app.MapOpenApiSchemas(schemasDirectory: tempDir);
 
             Assert.That(group, Is.Not.Null);
+            Assert.That(((IEndpointRouteBuilder)group).DataSources, Is.Not.Empty);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_WithUnrecognisedExtension_SkipsFile()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            // A file with an unrecognised extension should be ignored.
+            File.WriteAllText(Path.Combine(tempDir, "myapi.txt"), "not an openapi spec");
+
+            var app = WebApplication.CreateBuilder().Build();
+
+            var group = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            Assert.That(group, Is.Not.Null);
+            Assert.That(((IEndpointRouteBuilder)group).DataSources, Is.Empty);
         }
         finally
         {
