@@ -444,4 +444,116 @@ internal static class OpenApiFixtures
           }
         }
         """;
+
+    /// <summary>
+    /// A GET endpoint whose response DTO (<c>Order</c>) contains an inline object property
+    /// (<c>address</c>) that should be emitted as a top-level <c>OrderAddress</c> record.
+    /// </summary>
+    public const string GetOrderWithNestedAddressYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /orders/{orderId}:
+            get:
+              operationId: getOrder
+              parameters:
+                - name: orderId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Order'
+                "404":
+                  description: Not found
+        components:
+          schemas:
+            Order:
+              type: object
+              required:
+                - id
+                - address
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                address:
+                  type: object
+                  required:
+                    - street
+                    - city
+                  properties:
+                    street:
+                      type: string
+                    city:
+                      type: string
+                note:
+                  type: string
+                  nullable: true
+        """;
+
+    /// <summary>
+    /// A schema where an inline-object property itself has an inline-object property,
+    /// verifying recursive nested record generation.
+    /// </summary>
+    public const string GetShipmentWithDeepNestingYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /shipments/{shipmentId}:
+            get:
+              operationId: getShipment
+              parameters:
+                - name: shipmentId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Shipment'
+                "404":
+                  description: Not found
+        components:
+          schemas:
+            Shipment:
+              type: object
+              required:
+                - id
+                - destination
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                destination:
+                  type: object
+                  required:
+                    - address
+                  properties:
+                    address:
+                      type: object
+                      required:
+                        - street
+                        - city
+                      properties:
+                        street:
+                          type: string
+                        city:
+                          type: string
+        """;
 }

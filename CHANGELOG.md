@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `docs/consumer-agents.md`: consumer-facing agent guide for coding agents integrating this library into downstream projects.
+- Inline object schemas in component DTO properties now generate named top-level records instead of falling back to `object`. A property `address` on a schema `Order` produces an `OrderAddress` record in the Contracts namespace. Recursive inline objects are handled with cycle detection.
 
 ### Changed
 
