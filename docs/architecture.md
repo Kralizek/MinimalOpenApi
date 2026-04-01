@@ -127,7 +127,7 @@ MSBuild plumbing described in §5.
 
 ### 4.2 `MinimalOpenAPI.Runtime`
 
-Contains a single class, `ServiceCollectionExtensions`, with four methods:
+Contains a single class, `ServiceCollectionExtensions`, with five public methods:
 
 - **`RegisterGeneratedServices(Action<IServiceCollection>)`** — called by the
   source-generated `[ModuleInitializer]` (§6.4) to register a callback that
@@ -140,19 +140,27 @@ Contains a single class, `ServiceCollectionExtensions`, with four methods:
 - **`MapMinimalOpenApiEndpoints(IEndpointRouteBuilder, string?)`** — called by
   the application in `Program.cs`.  Invokes the `RegisterEndpointMapping`
   callback.  Falls back to an empty route group if no generator has run.
+- **`MapOpenApiSchemas(IEndpointRouteBuilder, string? prefix, string? schemasDirectory)`** —
+  scans `AppContext.BaseDirectory/openapi` (or a custom directory) for schema
+  subdirectories created by the `CopyMinimalOpenApiFilesToOutput` MSBuild target
+  and registers one `GET {prefix}/{name}/schema.{ext}` Minimal API endpoint per
+  discovered file.  Returns a `RouteGroupBuilder` for further configuration (e.g.
+  adding `.RequireAuthorization()`).
 
 The indirection through static callback fields is what lets the *generated*
 code (which lives in a different conceptual layer from the runtime) hook into
 two single user-facing API calls without requiring reflection or a `using` for
 the generated namespace.
 
-Because `MapMinimalOpenApiEndpoints` is defined in the `MinimalOpenAPI` runtime
-namespace (the same one as `AddMinimalOpenApi`), users only need:
+Because `MapMinimalOpenApiEndpoints` and `MapOpenApiSchemas` are defined in the
+`MinimalOpenAPI` runtime namespace (the same one as `AddMinimalOpenApi`), users
+only need:
 
 ```csharp
 using MinimalOpenAPI;
 // ...
 app.MapMinimalOpenApiEndpoints();
+app.MapOpenApiSchemas();
 ```
 
 No `using {RootNamespace}.Generated;` is required.
@@ -240,6 +248,25 @@ The `CopyMinimalOpenApiFilesToOutput` and `AddMinimalOpenApiFilesToPublishOutput
 targets process all `<OpenApi Publish="true" />` items regardless of origin
 (project file, contracts package, or any other imported `.targets` file).  File
 content is preserved byte-for-byte; YAML stays YAML, JSON stays JSON.
+
+**Serving the spec via HTTP** — call `MapOpenApiSchemas()` in `Program.cs`.  At
+startup it scans `AppContext.BaseDirectory/openapi` for every subdirectory placed
+there by the MSBuild targets and registers one `GET` endpoint per schema — for
+both project-declared and contracts-package-contributed specs:
+
+```csharp
+using MinimalOpenAPI;
+
+app.MapMinimalOpenApiEndpoints();
+app.MapOpenApiSchemas();  // serves GET /openapi/{name}/schema.{ext}
+```
+
+The method returns a `RouteGroupBuilder` so all schema endpoints can be secured
+or configured in one call:
+
+```csharp
+app.MapOpenApiSchemas().RequireAuthorization("InternalOnly");
+```
 
 ---
 

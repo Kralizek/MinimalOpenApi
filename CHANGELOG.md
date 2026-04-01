@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `<OpenApi Publish="true" />` MSBuild metadata support: spec files marked with `Publish="true"` are copied to `openapi/<name>/schema.<extension>` in the build output directory (for local runs) and included at the same relative path in `dotnet publish` output. Files are preserved byte-for-byte with their original format (YAML stays YAML, JSON stays JSON).
+- `MapOpenApiSchemas()` extension method on `IEndpointRouteBuilder` in `MinimalOpenAPI.Runtime`: scans `AppContext.BaseDirectory/openapi` at startup and registers a `GET /openapi/{name}/schema.{ext}` Minimal API endpoint for every schema file placed there by the MSBuild targets. Works for specs declared directly in the project as well as specs contributed via a NuGet contracts package (gRPC-style). Returns a `RouteGroupBuilder` for further configuration (e.g. `.RequireAuthorization()`).
 
 ## 1.0.0
 

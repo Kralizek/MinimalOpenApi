@@ -19,4 +19,19 @@
     <ProjectReference Include="../../sample/MinimalOpenAPI.Sample.Api/Sample.Api.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--
+      Copy the sample app's OpenAPI spec to the integration test output directory,
+      mirroring the path that CopyMinimalOpenApiFilesToOutput places it for the sample
+      app itself (openapi/<name>/schema.<ext>).  This is necessary because
+      WebApplicationFactory runs the sample app in-process, where AppContext.BaseDirectory
+      points to the test project's bin directory rather than the sample app's bin directory,
+      so MapOpenApiSchemas() needs the file to be present here.
+    -->
+    <Content Include="../../sample/MinimalOpenAPI.Sample.Api/openapi.yaml">
+      <Link>openapi/openapi/schema.yaml</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
 
 using MinimalOpenAPI;
 
@@ -83,5 +84,103 @@ public class ServiceCollectionExtensionsTests
 
         Assert.That(invoked, Is.True);
         Assert.That(group, Is.Not.Null);
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_WhenDirectoryDoesNotExist_ReturnsRouteGroupBuilder()
+    {
+        var app = WebApplication.CreateBuilder().Build();
+
+        var group = app.MapOpenApiSchemas(schemasDirectory: Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()));
+
+        Assert.That(group, Is.Not.Null);
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_WhenDirectoryIsEmpty_ReturnsRouteGroupBuilder()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            var app = WebApplication.CreateBuilder().Build();
+
+            var group = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            Assert.That(group, Is.Not.Null);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_WithSchemaFile_RegistersEndpointForYaml()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            var schemaDir = Path.Combine(tempDir, "myapi");
+            Directory.CreateDirectory(schemaDir);
+            File.WriteAllText(Path.Combine(schemaDir, "schema.yaml"), "openapi: '3.0.0'");
+
+            var app = WebApplication.CreateBuilder().Build();
+
+            var group = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            Assert.That(group, Is.Not.Null);
+            // Verify an endpoint was registered in the group for the discovered schema file.
+            // HTTP-level assertions (status code, content-type, body) are covered by
+            // the integration test GetOpenApiSchema_ReturnsYamlWithCorrectContentType.
+            Assert.That(((IEndpointRouteBuilder)group).DataSources, Is.Not.Empty);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_WithJsonSchemaFile_RegistersEndpointForJson()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            var schemaDir = Path.Combine(tempDir, "myapi");
+            Directory.CreateDirectory(schemaDir);
+            File.WriteAllText(Path.Combine(schemaDir, "schema.json"), """{"openapi":"3.0.0"}""");
+
+            var app = WebApplication.CreateBuilder().Build();
+
+            var group = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            Assert.That(group, Is.Not.Null);
+            Assert.That(((IEndpointRouteBuilder)group).DataSources, Is.Not.Empty);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_WithSchemaSubdirectoryButNoFile_ReturnsRouteGroupBuilder()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            // Sub-directory exists but contains no schema.* file.
+            Directory.CreateDirectory(Path.Combine(tempDir, "empty"));
+
+            var app = WebApplication.CreateBuilder().Build();
+
+            var group = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            Assert.That(group, Is.Not.Null);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
     }
 }
