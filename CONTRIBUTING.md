@@ -48,6 +48,8 @@ The repository includes an `.editorconfig`. Your IDE should pick it up automatic
 
 If you are an automated coding agent, also read [`AGENTS.md`](AGENTS.md) for the operational guide specific to this repository.
 
+If you are using a coding agent to **consume** this library in another project, refer to [`docs/consumer-agents.md`](docs/consumer-agents.md) for the consumer-facing agent guide.
+
 ## Reporting issues
 
 Please use the issue templates in `.github/ISSUE_TEMPLATE/` when opening bugs or feature requests.

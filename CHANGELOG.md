@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `<OpenApi Publish="true" />` MSBuild metadata support: spec files marked with `Publish="true"` are copied to `openapi/<name>/schema.<extension>` in the build output directory (for local runs) and included at the same relative path in `dotnet publish` output. Files are preserved byte-for-byte with their original format (YAML stays YAML, JSON stays JSON).
-- `MapOpenApiSchemas()` extension method on `IEndpointRouteBuilder` in `MinimalOpenAPI.Runtime`: scans `AppContext.BaseDirectory/openapi` at startup and registers a `GET /openapi/{name}/schema.{ext}` Minimal API endpoint for every schema file placed there by the MSBuild targets. Works for specs declared directly in the project as well as specs contributed via a NuGet contracts package (gRPC-style). Returns a `RouteGroupBuilder` for further configuration (e.g. `.RequireAuthorization()`).
+- `docs/consumer-agents.md`: consumer-facing agent guide for coding agents integrating this library into downstream projects.
+- `<OpenApi Publish="true" />` MSBuild metadata support: spec files marked with `Publish="true"` are copied to a flat `openapi/schemas/<filename>.<ext>` directory in the build output (e.g. `openapi/schemas/clients.yaml`) and at the same relative path in `dotnet publish` output. Files are preserved byte-for-byte; YAML stays YAML, JSON stays JSON.
+- `MapOpenApiSchemas()` extension method on `IEndpointRouteBuilder` in `MinimalOpenAPI.Runtime`: scans `AppContext.BaseDirectory/openapi/schemas/` at startup and registers one `GET /openapi/schemas/{version}/{name}.{ext}` endpoint per schema file (e.g. `/openapi/schemas/1.0.0/clients.yaml`). The `info.version` field is extracted from each file via lightweight regex; when it cannot be determined the version segment is omitted. Works for specs declared directly in the project as well as specs contributed via a NuGet contracts package (gRPC-style). Returns a `RouteGroupBuilder` for further configuration (e.g. `.RequireAuthorization()`).
 
 ## 1.0.0
 
