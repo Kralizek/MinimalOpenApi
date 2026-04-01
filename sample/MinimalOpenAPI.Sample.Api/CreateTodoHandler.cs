@@ -17,8 +17,8 @@ public sealed class CreateTodoHandler : CreateTodoEndpointBase
         if (string.IsNullOrWhiteSpace(request.Title))
             return Task.FromResult<Results<Created<Todo>, BadRequest>>(TypedResults.BadRequest());
 
-        var id = _store.Add(request.Title, request.Description);
-        var todo = new Todo { Id = id, Title = request.Title, Description = request.Description, IsComplete = false };
+        var id = _store.Add(request.Title, request.Description, request.DueDate);
+        var todo = new Todo { Id = id, Title = request.Title, Description = request.Description, IsComplete = false, DueDate = request.DueDate };
 
         return Task.FromResult<Results<Created<Todo>, BadRequest>>(
             TypedResults.Created($"/todos/{id}", todo));

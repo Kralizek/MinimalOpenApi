@@ -26,4 +26,10 @@ public sealed class OpenApiSchema
 
     /// <summary>The set of property names that are required on this schema.</summary>
     public List<string> Required { get; init; } = new List<string>();
+
+    /// <summary>
+    /// The set of allowed values for this schema (OpenAPI <c>enum</c> keyword).
+    /// When non-<see langword="null"/>, the schema represents an enumeration.
+    /// </summary>
+    public List<string>? Enum { get; init; }
 }

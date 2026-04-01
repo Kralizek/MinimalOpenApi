@@ -21,7 +21,7 @@ public sealed class GetTodoHandler : GetTodoEndpointBase
         if (item is null)
             return Task.FromResult<Results<Ok<Todo>, NotFound>>(TypedResults.NotFound());
 
-        var todo = new Todo { Id = item.Value.Id, Title = item.Value.Title, Description = item.Value.Description, IsComplete = item.Value.IsComplete };
+        var todo = new Todo { Id = item.Value.Id, Title = item.Value.Title, Description = item.Value.Description, IsComplete = item.Value.IsComplete, DueDate = item.Value.DueDate };
         return Task.FromResult<Results<Ok<Todo>, NotFound>>(TypedResults.Ok(todo));
     }
 }

@@ -109,11 +109,19 @@ internal static class TypeMapper
                 return nullable ? $"{resolved}?" : resolved;
         }
 
+        // Inline enum schema: ask the resolver for the generated enum type name.
+        if (schema.Enum is not null && resolveInline is not null)
+        {
+            var resolved = resolveInline(schema);
+            if (resolved is not null)
+                return nullable ? $"{resolved}?" : resolved;
+        }
+
         var baseType = (schema.Type?.ToLowerInvariant(), schema.Format?.ToLowerInvariant()) switch
         {
             ("string", "uuid") => "global::System.Guid",
             ("string", "date-time") => "global::System.DateTimeOffset",
-            ("string", "date") => "string",
+            ("string", "date") => "global::System.DateOnly",
             ("string", _) => "string",
             ("integer", "int64") => "long",
             ("integer", _) => "int",
@@ -188,18 +196,75 @@ internal static class TypeMapper
         };
     }
 
+    /// <summary>Converts an OpenAPI enum value to a valid C# enum member name (PascalCase).</summary>
+    /// <remarks>
+    /// Word separators (<c>-</c>, <c>_</c>, space, <c>.</c>) produce PascalCase segments.
+    /// Any remaining characters that are not valid in a C# identifier (letters, digits,
+    /// or underscores) are stripped.  If the result starts with a digit it is prefixed
+    /// with <c>Value</c> (e.g. <c>"0"</c> → <c>"Value0"</c>).  An empty or all-punctuation
+    /// value falls back to <c>"Empty"</c>.
+    /// </remarks>
+    public static string ToEnumMemberName(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return "Empty";
+
+        // Split on common word separators and join as PascalCase.
+        var parts = value.Split(new[] { '-', '_', ' ', '.' }, StringSplitOptions.RemoveEmptyEntries);
+        var joined = string.Concat(Array.ConvertAll(parts, ToPascalCase));
+
+        // Strip any character that is not a valid C# identifier character.
+        var name = new string(System.Array.FindAll(joined.ToCharArray(),
+            c => char.IsLetterOrDigit(c) || c == '_'));
+
+        if (string.IsNullOrEmpty(name)) return "Empty";
+
+        // C# identifiers cannot start with a digit; prefix with "Value" for readability.
+        if (char.IsDigit(name[0]))
+            return "Value" + name;
+
+        return name;
+    }
+
     /// <summary>Converts an operationId to a PascalCase class name suffix (e.g. "getClient" → "GetClient").</summary>
+    /// <remarks>
+    /// Handles camelCase, PascalCase, snake_case, and kebab-case inputs:
+    /// word boundaries are detected at <c>_</c>, <c>-</c>, and lower-to-upper transitions.
+    /// Each word segment is emitted with its first letter uppercased.
+    /// </remarks>
     public static string ToPascalCase(string name)
     {
         if (string.IsNullOrEmpty(name)) return name;
-        return char.ToUpperInvariant(name[0]) + name.Substring(1);
+
+        var sb = new System.Text.StringBuilder(name.Length);
+        bool capitalizeNext = true;
+
+        for (int i = 0; i < name.Length; i++)
+        {
+            var c = name[i];
+
+            if (c == '_' || c == '-')
+            {
+                capitalizeNext = true;
+                continue;
+            }
+
+            // Detect a camelCase / PascalCase word boundary: lower→upper transition.
+            if (i > 0 && char.IsUpper(c) && !char.IsUpper(name[i - 1]))
+                capitalizeNext = true;
+
+            sb.Append(capitalizeNext ? char.ToUpperInvariant(c) : c);
+            capitalizeNext = false;
+        }
+
+        return sb.ToString();
     }
 
     /// <summary>Converts a parameter name to a valid C# identifier (camelCase).</summary>
     public static string ToCamelCase(string name)
     {
-        if (string.IsNullOrEmpty(name)) return name;
-        return char.ToLowerInvariant(name[0]) + name.Substring(1);
+        var pascal = ToPascalCase(name);
+        if (string.IsNullOrEmpty(pascal)) return pascal;
+        return char.ToLowerInvariant(pascal[0]) + pascal.Substring(1);
     }
 
     /// <summary>Returns the handler base class name for an operation.</summary>
