@@ -10,7 +10,7 @@ var app = builder.Build();
 
 app.MapMinimalOpenApiEndpoints();
 
-// Serve every <OpenApi Publish="true" /> spec at GET /openapi/{name}/schema.{ext}.
+// Serve every <OpenApi Publish="true" /> spec at GET /.openapi/schemas/{version}/{name}.{ext}.
 // The MinimalOpenAPI build targets copy those files to the application base directory
 // at build and publish time; MapOpenApiSchemas() discovers them and registers endpoints.
 app.MapOpenApiSchemas();
