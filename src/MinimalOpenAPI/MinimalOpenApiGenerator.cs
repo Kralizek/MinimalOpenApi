@@ -137,6 +137,15 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
             if (doc is null) return;
 
+            // Warn when the OpenAPI version is absent or not yet explicitly supported.
+            if (doc.OpenApiVersion == OpenApiVersion.Unknown)
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.UnknownOpenApiVersion,
+                    CreateOpenApiLocation(path),
+                    path));
+            }
+
             GenerateForDocument(spc, doc, ns, path, classes.ToArray());
         });
     }

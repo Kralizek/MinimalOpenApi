@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Multi-version OpenAPI support**: the system now detects the OpenAPI specification version from the top-level `openapi` field (e.g., `"3.0.0"`, `"3.1.0"`) and records it on `OpenApiDocument.OpenApiVersion` (values: `V3_0`, `V3_1`, `Unknown`).
+- **OpenAPI 3.1 schema normalisation**: both the YAML and JSON parsers now accept the JSON Schema 2020-12 array type syntax (`type: ["string", "null"]`) introduced in OpenAPI 3.1 and transparently normalise it to the internal `Nullable = true` representation, so generators and downstream code remain version-agnostic.
+- **`MOA006` diagnostic**: a new compile-time warning is emitted when the `openapi` version field is absent or unrecognised. Code generation still proceeds (best-effort), but the warning prompts the developer to verify their spec. Supported recognised values are `3.0.x` and `3.1.x`.
+
+### Added
+
 - `docs/consumer-agents.md`: consumer-facing agent guide for coding agents integrating this library into downstream projects.
 - `<OpenApi Publish="true" />` MSBuild metadata support: spec files marked with `Publish="true"` are copied to a flat `openapi/schemas/<filename>.<ext>` directory in the build output (e.g. `openapi/schemas/clients.yaml`) and at the same relative path in `dotnet publish` output. Files are preserved byte-for-byte; YAML stays YAML, JSON stays JSON.
 - `MapOpenApiSchemas()` extension method on `IEndpointRouteBuilder` in `MinimalOpenAPI.Runtime`: scans `AppContext.BaseDirectory/openapi/schemas/` at startup and registers one `GET /.openapi/schemas/{version}/{name}.{ext}` endpoint per schema file (e.g. `/.openapi/schemas/1.0.0/clients.yaml`). The `info.version` field is extracted from each file via lightweight regex; when it cannot be determined the version segment is omitted. Works for specs declared directly in the project as well as specs contributed via a NuGet contracts package (gRPC-style). Returns a `RouteGroupBuilder` for further configuration (e.g. `.RequireAuthorization()`).

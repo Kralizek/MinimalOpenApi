@@ -27,11 +27,27 @@ public sealed class YamlOpenApiParser : IOpenApiParser
     {
         return new OpenApiDocument
         {
+            OpenApiVersion = DetectVersion(GetString(root, "openapi")),
             Title = GetString(root, "info", "title") ?? string.Empty,
             Version = GetString(root, "info", "version") ?? "1.0.0",
             Schemas = ExtractSchemas(root),
             Operations = ExtractOperations(root)
         };
+    }
+
+    // ── Version detection ─────────────────────────────────────────────────
+
+    private static OpenApiVersion DetectVersion(string? versionString)
+    {
+        if (versionString is null) return OpenApiVersion.Unknown;
+
+        if (versionString.StartsWith("3.0.", StringComparison.OrdinalIgnoreCase) || versionString == "3.0")
+            return OpenApiVersion.V3_0;
+
+        if (versionString.StartsWith("3.1.", StringComparison.OrdinalIgnoreCase) || versionString == "3.1")
+            return OpenApiVersion.V3_1;
+
+        return OpenApiVersion.Unknown;
     }
 
     // ── Schemas ───────────────────────────────────────────────────────────
@@ -80,11 +96,16 @@ public sealed class YamlOpenApiParser : IOpenApiParser
                 enumValues.Add(Scalar(item));
         }
 
+        // OpenAPI 3.1 allows 'type' to be an array, e.g. ["string", "null"].
+        // Normalise to a single type string + Nullable flag so the rest of the
+        // pipeline can treat all versions uniformly.
+        var (resolvedType, nullableFromTypeArray) = GetTypeInfo(node);
+
         return new OpenApiSchema
         {
-            Type = GetString(node, "type"),
+            Type = resolvedType,
             Format = GetString(node, "format"),
-            Nullable = GetBool(node, "nullable"),
+            Nullable = GetBool(node, "nullable") || nullableFromTypeArray,
             Properties = properties,
             Required = required,
             Items = ExtractItemsSchema(node),
@@ -219,6 +240,35 @@ public sealed class YamlOpenApiParser : IOpenApiParser
     }
 
     // ── YamlDotNet helpers ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the resolved type name and whether the type array contained <c>"null"</c>.
+    /// Handles both a plain scalar <c>type: string</c> (3.0) and the JSON Schema 2020-12
+    /// array form <c>type: [string, "null"]</c> (3.1).
+    /// </summary>
+    private static (string? type, bool nullableFromTypeArray) GetTypeInfo(YamlMappingNode node)
+    {
+        if (!node.Children.TryGetValue(new YamlScalarNode("type"), out var typeNode))
+            return (null, false);
+
+        if (typeNode is YamlScalarNode scalar)
+            return (scalar.Value, false);
+
+        // OpenAPI 3.1 type array: e.g. [string, "null"]
+        if (typeNode is YamlSequenceNode sequence)
+        {
+            var types = new List<string>();
+            foreach (var child in sequence.Children)
+            {
+                if (child is YamlScalarNode s && s.Value is not null)
+                    types.Add(s.Value);
+            }
+            var hasNull = types.Remove("null");
+            return (types.Count > 0 ? types[0] : null, hasNull);
+        }
+
+        return (null, false);
+    }
 
     private static string? GetString(YamlMappingNode node, params string[] path)
     {

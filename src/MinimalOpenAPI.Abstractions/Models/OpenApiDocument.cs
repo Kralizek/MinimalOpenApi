@@ -3,6 +3,9 @@ namespace MinimalOpenAPI.Abstractions.Models;
 /// <summary>Represents a parsed OpenAPI document, containing all operations and shared schemas.</summary>
 public sealed class OpenApiDocument
 {
+    /// <summary>The OpenAPI specification version detected from the <c>openapi</c> field of the document.</summary>
+    public OpenApiVersion OpenApiVersion { get; init; } = OpenApiVersion.Unknown;
+
     /// <summary>The title of the API, taken from the <c>info.title</c> field.</summary>
     public string Title { get; init; } = string.Empty;
 

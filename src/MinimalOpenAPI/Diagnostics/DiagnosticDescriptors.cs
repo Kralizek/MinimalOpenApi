@@ -50,4 +50,13 @@ internal static class DiagnosticDescriptors
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    /// <summary>The OpenAPI document's <c>openapi</c> version field is absent or unrecognised.</summary>
+    public static readonly DiagnosticDescriptor UnknownOpenApiVersion = new(
+        id: "MOA006",
+        title: "Unknown OpenAPI version",
+        messageFormat: "The 'openapi' version field in '{0}' is absent or unrecognised. Supported versions are 3.0.x and 3.1.x. Code will still be generated but behaviour may be incorrect for unsupported versions.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
 }
