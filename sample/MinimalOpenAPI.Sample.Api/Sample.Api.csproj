@@ -21,7 +21,7 @@
   <Import Project="../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
 
   <ItemGroup>
-    <OpenApi Include="openapi.yaml" />
+    <OpenApi Include="openapi.yaml" Publish="true" />
   </ItemGroup>
 
 </Project>

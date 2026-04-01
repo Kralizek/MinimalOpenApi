@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- `<OpenApi Publish="true" />` MSBuild metadata support: spec files marked with `Publish="true"` are copied to `openapi/<name>/schema.<extension>` in the build output directory (for local runs) and included at the same relative path in `dotnet publish` output. Files are preserved byte-for-byte with their original format (YAML stays YAML, JSON stays JSON).
+
 ## 1.0.0
 
 _Placeholder — release notes will be added on publish._

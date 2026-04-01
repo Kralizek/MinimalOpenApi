@@ -17,6 +17,8 @@
       3. Add the generator's runtime dependencies as analyzers so Roslyn can
          load the generator DLL (dev scenario only).
       4. Add MinimalOpenAPI.Runtime as a compile reference (dev scenario only).
+      5. Copy <OpenApi Publish="true" /> files to the build output directory
+         and include them in dotnet publish output under openapi/<name>/schema.<ext>.
   -->
 
   <!-- ── OpenApi item type ────────────────────────────────────────────── -->
@@ -102,6 +104,46 @@
                 Condition="Exists('$(_MinimalOpenApiGenDir)MinimalOpenAPI.Parser.Json.dll')" />
       <Analyzer Include="$(_MinimalOpenApiGenDir)YamlDotNet.dll"
                 Condition="Exists('$(_MinimalOpenApiGenDir)YamlDotNet.dll')" />
+    </ItemGroup>
+  </Target>
+
+  <!-- ── OpenAPI file publishing ─────────────────────────────────────── -->
+  <!--
+    Copy <OpenApi Publish="true" /> files to the build output directory so
+    they are available when running locally (e.g. dotnet run via AppContext.BaseDirectory).
+    Destination: $(OutDir)openapi/<filename>/schema.<extension>
+    Examples:
+      clients.yaml  →  <OutDir>/openapi/clients/schema.yaml
+      admin.json    →  <OutDir>/openapi/admin/schema.json
+  -->
+  <Target Name="CopyMinimalOpenApiFilesToOutput"
+          AfterTargets="Build"
+          Condition="'@(OpenApi->WithMetadataValue('Publish', 'true'))' != ''">
+    <ItemGroup>
+      <_MinimalOpenApiFilesToCopy Include="@(OpenApi)" Condition="'%(OpenApi.Publish)' == 'true'" />
+    </ItemGroup>
+    <MakeDir Directories="@(_MinimalOpenApiFilesToCopy->'$(OutDir)openapi/%(Filename)')" />
+    <Copy SourceFiles="@(_MinimalOpenApiFilesToCopy)"
+          DestinationFiles="@(_MinimalOpenApiFilesToCopy->'$(OutDir)openapi/%(Filename)/schema%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!--
+    Include <OpenApi Publish="true" /> files in the dotnet publish output.
+    Hooks into AfterTargets="ComputeFilesToPublish" so items are injected
+    into ResolvedFileToPublish after the SDK's standard publish computation
+    and before CopyFilesToPublishDirectory copies everything to $(PublishDir).
+    Destination: openapi/<filename>/schema.<extension>  (relative to publish root)
+  -->
+  <Target Name="AddMinimalOpenApiFilesToPublishOutput"
+          AfterTargets="ComputeFilesToPublish"
+          Condition="'@(OpenApi->WithMetadataValue('Publish', 'true'))' != ''">
+    <ItemGroup>
+      <_MinimalOpenApiFilesToPublish Include="@(OpenApi)" Condition="'%(OpenApi.Publish)' == 'true'" />
+      <ResolvedFileToPublish Include="@(_MinimalOpenApiFilesToPublish)">
+        <RelativePath>openapi/%(Filename)/schema%(Extension)</RelativePath>
+        <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
     </ItemGroup>
   </Target>
 
