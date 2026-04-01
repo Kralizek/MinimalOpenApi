@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- `docs/consumer-agents.md`: consumer-facing agent guide for coding agents integrating this library into downstream projects.
+
 ## 1.0.0
 
 _Placeholder — release notes will be added on publish._
