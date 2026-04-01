@@ -11,6 +11,9 @@ jobs:
   create-labels-and-issues:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Create labels
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -23,49 +26,53 @@ jobs:
             gh label create "$name" --color "$color" --description "$description" --repo "$REPO" --force
           }
 
-          # ── Effort ────────────────────────────────────────────────────────────
+          # Effort
           create_label "effort: trivial"  "e4e669" "Less than half a day to implement"
           create_label "effort: small"    "d4c5f9" "Half a day to one day"
           create_label "effort: medium"   "7057ff" "Two to three days"
           create_label "effort: large"    "3d2d8e" "A week or more"
 
-          # ── Priority ─────────────────────────────────────────────────────────
+          # Priority
           create_label "priority: critical" "b60205" "Must be done immediately"
           create_label "priority: high"     "e11d48" "Important; schedule soon"
           create_label "priority: medium"   "f97316" "Nice to have; next milestone"
           create_label "priority: low"      "fde68a" "Backlog / design-first"
 
-          # ── Impact ───────────────────────────────────────────────────────────
+          # Impact
           create_label "impact: high"   "0075ca" "Improves many consumers"
           create_label "impact: medium" "54aeff" "Improves some consumers"
           create_label "impact: low"    "cae8ff" "Niche / rarely needed"
 
-          # ── Breaking change ───────────────────────────────────────────────────
+          # Breaking change
           create_label "breaking change" "b60205" "Introduces a breaking change for existing consumers"
 
-          # ── Area ─────────────────────────────────────────────────────────────
-          create_label "area: generator"  "0e8a16" "Affects the Roslyn source generator"
-          create_label "area: parser"     "1d76db" "Affects YAML / JSON parsers"
-          create_label "area: runtime"    "006b75" "Affects the runtime / DI layer"
+          # Area
+          create_label "area: generator"    "0e8a16" "Affects the Roslyn source generator"
+          create_label "area: parser"       "1d76db" "Affects YAML / JSON parsers"
+          create_label "area: runtime"      "006b75" "Affects the runtime / DI layer"
           create_label "area: type-mapping" "e4e669" "Affects TypeMapper / schema-to-C# mapping"
 
-          # ── Status ───────────────────────────────────────────────────────────
-          create_label "status: design-first" "ededed" "Needs design / RFC before implementation"
+          # Status
+          create_label "status: design-first"     "ededed" "Needs design / RFC before implementation"
           create_label "status: needs-discussion" "cccccc" "Open questions require community input"
 
-          # ── Kind ─────────────────────────────────────────────────────────────
+          # Kind
           create_label "kind: enhancement" "a2eeef" "New feature or improvement"
 
           echo "All labels created."
 
-      - name: Create issue — Enum support
+      - name: Create issue -- Enum support
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          TITLE='feat: add enum support (OpenAPI `enum` keyword)'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
           gh issue create \
             --repo "$REPO" \
-            --title "feat: add enum support (OpenAPI \`enum\` keyword)" \
+            --title "$TITLE" \
             --label "kind: enhancement" \
             --label "priority: high" \
             --label "effort: medium" \
@@ -73,258 +80,99 @@ jobs:
             --label "area: generator" \
             --label "area: parser" \
             --label "area: type-mapping" \
-            --body "$(cat <<'BODY'
-## Summary
+            --body-file ".github/issues/enum-support.md"
 
-Support the OpenAPI `enum` keyword on schema objects, generating a C# `enum` type for each enum schema.
-
-## Motivation
-
-OpenAPI `enum` is widely used to constrain field values to a finite set. Without support, those fields are currently typed as `string` or `int`, losing all type safety and IDE guidance.
-
-## Proposed implementation
-
-Documented in [`docs/schema-feature-roadmap.md` §4.1](docs/schema-feature-roadmap.md).
-
-1. Add `List<string>? Enum` to `OpenApiSchema`.
-2. Both parsers (YAML + JSON) read the `enum` array.
-3. `DtoGenerator` emits a C# `enum` (instead of a record) when `Enum` is non-null; applies `[JsonConverter(typeof(JsonStringEnumConverter))]`.
-4. `TypeMapper.MapSchema` maps an enum schema to the generated enum name when the schema has a `$ref`.
-5. **Inline enum schemas** on properties or parameters use a derived name: `{ContainingSchema}{PascalCase(PropertyName)}` (e.g. `Order.status` → `OrderStatus`).
-
-## Affected components
-
-- `MinimalOpenAPI.Abstractions` — `OpenApiSchema`
-- `MinimalOpenAPI.Parser.Yaml` / `.Parser.Json`
-- `MinimalOpenAPI` — `DtoGenerator`, `TypeMapper`
-
-## Notes
-
-- No external packages required — `System.Text.Json` ships `JsonStringEnumConverter`.
-- Inline enum naming convention must be stable; document it.
-- Cover with generator tests and integration tests.
-BODY
-)"
-
-      - name: Create issue — Validation attributes
+      - name: Create issue -- Validation attributes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          TITLE='feat: emit validation attributes for constraint keywords (minLength, maxLength, pattern, minimum, maximum, minItems, maxItems)'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
           gh issue create \
             --repo "$REPO" \
-            --title "feat: emit validation attributes for constraint keywords (minLength, maxLength, pattern, minimum, maximum, minItems, maxItems)" \
+            --title "$TITLE" \
             --label "kind: enhancement" \
             --label "priority: high" \
             --label "effort: medium" \
             --label "impact: high" \
             --label "area: generator" \
             --label "area: parser" \
-            --body "$(cat <<'BODY'
-## Summary
+            --body-file ".github/issues/validation-attributes.md"
 
-Map OpenAPI constraint keywords to `System.ComponentModel.DataAnnotations` attributes on generated DTO properties and `Parameters` record properties.
-
-| OpenAPI keyword | C# attribute |
-|---|---|
-| `minLength` / `maxLength` on `string` | `[StringLength]` / `[MinLength]` / `[MaxLength]` |
-| `pattern` | `[RegularExpression(pattern)]` |
-| `minimum` / `maximum` on `integer` / `number` | `[Range(min, max)]` |
-| `minItems` / `maxItems` on `array` | `[MinLength]` / `[MaxLength]` |
-
-## Motivation
-
-Constraint keywords are ubiquitous in real-world OpenAPI specs. Emitting the corresponding `DataAnnotations` attributes provides OpenAPI endpoint metadata and IDE-level hints, and integrates with filter-based validation if the consumer opts in.
-
-## Proposed implementation
-
-Documented in [`docs/schema-feature-roadmap.md` §4.2](docs/schema-feature-roadmap.md).
-
-1. Add nullable fields to `OpenApiSchema`: `int? MinLength`, `int? MaxLength`, `string? Pattern`, `double? Minimum`, `double? Maximum`, `int? MinItems`, `int? MaxItems`.
-2. Both parsers read these fields.
-3. Create a `ValidationAttributeEmitter` helper (or extend `TypeMapper`) to convert schema constraint fields to attribute strings.
-4. Apply in `DtoGenerator.GenerateRecord` and the `Parameters` record emitter in `HandlerBaseGenerator`.
-
-## Affected components
-
-- `MinimalOpenAPI.Abstractions` — `OpenApiSchema`
-- `MinimalOpenAPI.Parser.Yaml` / `.Parser.Json`
-- `MinimalOpenAPI` — `DtoGenerator`, `HandlerBaseGenerator`
-
-## Notes
-
-- ASP.NET Core Minimal APIs do **not** run `DataAnnotations` validation automatically. Document this clearly in generated XML comments.
-- No external packages required.
-BODY
-)"
-
-      - name: Create issue — deprecated → [Obsolete]
+      - name: Create issue -- deprecated → [Obsolete]
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          TITLE='feat: map `deprecated` OpenAPI keyword to `[Obsolete]` attribute'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
           gh issue create \
             --repo "$REPO" \
-            --title "feat: map \`deprecated\` OpenAPI keyword to \`[Obsolete]\` attribute" \
+            --title "$TITLE" \
             --label "kind: enhancement" \
             --label "priority: medium" \
             --label "effort: small" \
             --label "impact: medium" \
             --label "area: generator" \
             --label "area: parser" \
-            --body "$(cat <<'BODY'
-## Summary
+            --body-file ".github/issues/deprecated-obsolete.md"
 
-Map the `deprecated: true` keyword on operations, schema properties, and parameters to the C# `[Obsolete]` attribute in generated code.
-
-## Motivation
-
-`deprecated` is a low-cost signal for consumers: it gives compile-time warnings when calling or using deprecated operations/fields without changing any runtime behaviour.
-
-## Proposed implementation
-
-Documented in [`docs/schema-feature-roadmap.md` §4.3](docs/schema-feature-roadmap.md).
-
-1. Add `bool Deprecated` to `OpenApiSchema`, `OpenApiOperation`, `OpenApiParameter`.
-2. Both parsers read the `deprecated` boolean from each object.
-3. `DtoGenerator`: emit `[Obsolete]` before deprecated DTO record properties.
-4. `HandlerBaseGenerator`: emit `[Obsolete]` before the handler base class when `operation.Deprecated == true`; emit `[Obsolete]` before deprecated `Parameters` record properties.
-
-## Affected components
-
-- `MinimalOpenAPI.Abstractions` — `OpenApiSchema`, `OpenApiOperation`, `OpenApiParameter`
-- `MinimalOpenAPI.Parser.Yaml` / `.Parser.Json`
-- `MinimalOpenAPI` — `DtoGenerator`, `HandlerBaseGenerator`
-
-## Notes
-
-- Low implementation cost, high signal quality.
-- No runtime behaviour change.
-BODY
-)"
-
-      - name: Create issue — Nested inline object schemas
+      - name: Create issue -- Nested inline object schemas
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          TITLE='feat: generate nested records for inline object schemas in DTO properties'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
           gh issue create \
             --repo "$REPO" \
-            --title "feat: generate nested records for inline object schemas in DTO properties" \
+            --title "$TITLE" \
             --label "kind: enhancement" \
             --label "priority: medium" \
             --label "effort: medium" \
             --label "impact: medium" \
             --label "area: generator" \
-            --body "$(cat <<'BODY'
-## Summary
+            --body-file ".github/issues/nested-inline-schemas.md"
 
-When a component schema has a property whose schema is itself an inline object (no `$ref`), generate a named record for it instead of falling back to `object`.
-
-## Motivation
-
-Currently `TypeMapper.MapSchema` resolves inline object schemas as `object`, losing all type information. A spec like:
-
-```yaml
-components:
-  schemas:
-    Order:
-      type: object
-      properties:
-        address:
-          type: object
-          properties:
-            street: { type: string }
-            city:   { type: string }
-```
-
-should produce an `OrderAddress` record rather than `object Address`.
-
-## Proposed implementation
-
-Documented in [`docs/schema-feature-roadmap.md` §4.4](docs/schema-feature-roadmap.md).
-
-1. Pre-scan each record's properties for inline object schemas.
-2. Assign a derived name: `{RecordName}{PascalCase(PropertyName)}` emitted as a **top-level** record in the Contracts namespace.
-3. Emit nested types before the parent record.
-4. Pass a resolver delegate to `TypeMapper.MapSchema`.
-
-## Affected components
-
-- `MinimalOpenAPI` — `DtoGenerator`, `TypeMapper`
-
-## Notes
-
-- Must handle **recursive** inline objects with cycle detection.
-- Name conflicts (two sibling inline-object properties with the same derived name) need a documented resolution strategy.
-BODY
-)"
-
-      - name: Create issue — Parameter default values
+      - name: Create issue -- Parameter default values
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          TITLE='feat: emit property initialisers for parameter `default` values'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
           gh issue create \
             --repo "$REPO" \
-            --title "feat: emit property initialisers for parameter \`default\` values" \
+            --title "$TITLE" \
             --label "kind: enhancement" \
             --label "priority: medium" \
             --label "effort: small" \
             --label "impact: medium" \
             --label "area: generator" \
             --label "area: parser" \
-            --body "$(cat <<'BODY'
-## Summary
+            --body-file ".github/issues/parameter-defaults.md"
 
-Map the `default` keyword on parameter schemas to C# property initialisers in the generated `Parameters` record.
-
-## Motivation
-
-Pagination and filtering parameters almost always have sensible defaults (e.g. `pageSize: 20`). Without this feature, consumers must manually specify defaults in their handlers.
-
-## Example
-
-```yaml
-parameters:
-  - name: pageSize
-    in: query
-    schema:
-      type: integer
-      default: 20
-```
-
-Should generate:
-
-```csharp
-[FromQuery(Name = "pageSize")]
-public int PageSize { get; init; } = 20;
-```
-
-## Proposed implementation
-
-Documented in [`docs/schema-feature-roadmap.md` §4.5](docs/schema-feature-roadmap.md).
-
-1. Add `string? Default` to `OpenApiSchema` (stored as a raw string).
-2. Both parsers read the `default` field.
-3. The Parameters record emitter writes `= <CSharpLiteral(default)>` after the property type, using a `TypeMapper.GetDefaultValue` helper or similar.
-
-## Affected components
-
-- `MinimalOpenAPI.Abstractions` — `OpenApiSchema`
-- `MinimalOpenAPI.Parser.Yaml` / `.Parser.Json`
-- `MinimalOpenAPI` — `HandlerBaseGenerator`
-BODY
-)"
-
-      - name: Create issue — additionalProperties → Dictionary
+      - name: Create issue -- additionalProperties → Dictionary
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          TITLE='feat: map `additionalProperties` to `Dictionary<string, T>`'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
           gh issue create \
             --repo "$REPO" \
-            --title "feat: map \`additionalProperties\` to \`Dictionary<string, T>\`" \
+            --title "$TITLE" \
             --label "kind: enhancement" \
             --label "priority: medium" \
             --label "effort: small" \
@@ -332,281 +180,120 @@ BODY
             --label "area: generator" \
             --label "area: parser" \
             --label "area: type-mapping" \
-            --body "$(cat <<'BODY'
-## Summary
+            --body-file ".github/issues/additional-properties-dictionary.md"
 
-When a schema uses `additionalProperties: { schema }`, map it to `Dictionary<string, T>` where `T` is the value schema type.
-
-## Motivation
-
-Free-form map/dictionary objects are common in APIs for labels, metadata, and extension fields. Without support, these are emitted as `object`, losing type information.
-
-## Example
-
-```yaml
-labels:
-  type: object
-  additionalProperties:
-    type: string
-```
-
-Should generate: `Dictionary<string, string> Labels`.
-
-## Proposed implementation
-
-Documented in [`docs/schema-feature-roadmap.md` §4.6](docs/schema-feature-roadmap.md).
-
-1. Add `OpenApiSchema? AdditionalProperties` to `OpenApiSchema`.
-2. Both parsers read `additionalProperties`.
-3. `TypeMapper.MapSchema`: when `AdditionalProperties` is set and `Properties` is empty, map to `Dictionary<string, {MapSchema(AdditionalProperties)}>`.
-4. `DtoGenerator`: treat such schemas as dictionary properties.
-
-## Affected components
-
-- `MinimalOpenAPI.Abstractions` — `OpenApiSchema`
-- `MinimalOpenAPI.Parser.Yaml` / `.Parser.Json`
-- `MinimalOpenAPI` — `DtoGenerator`, `TypeMapper`
-
-## Notes
-
-- `additionalProperties: true` (allow any) is ambiguous and should be ignored (fall back to `object`).
-- Only `additionalProperties: { typed schema }` can be deterministically mapped.
-BODY
-)"
-
-      - name: Create issue — format:date → DateOnly
+      - name: Create issue -- format:date → DateOnly
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          TITLE='feat: map `format: date` to `DateOnly` (opt-in)'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
           gh issue create \
             --repo "$REPO" \
-            --title "feat: map \`format: date\` to \`DateOnly\` (opt-in)" \
+            --title "$TITLE" \
             --label "kind: enhancement" \
             --label "priority: medium" \
             --label "effort: trivial" \
             --label "impact: medium" \
             --label "area: type-mapping" \
             --label "breaking change" \
-            --body "$(cat <<'BODY'
-## Summary
+            --body-file ".github/issues/format-date-dateonly.md"
 
-Map `format: date` string schemas to `DateOnly` instead of `string`, gated behind an opt-in MSBuild property to avoid breaking existing consumers.
-
-## Motivation
-
-`format: date` (date without time) maps perfectly to `DateOnly` (.NET 6+), which ASP.NET Core 10 fully supports for model binding. Keeping it as `string` loses compile-time safety.
-
-## Proposed change
-
-In `TypeMapper.MapSchema`:
-
-```csharp
-// Before
-("string", "date") => "string"
-
-// After (when opt-in is active)
-("string", "date") => "global::System.DateOnly"
-```
-
-Gate the change behind a new MSBuild property:
-
-```xml
-<OpenApiUseDateOnly>true</OpenApiUseDateOnly>
-```
-
-## Affected components
-
-- `MinimalOpenAPI` — `TypeMapper`
-- `MinimalOpenAPI` — `.targets` file (read MSBuild property, pass to generator)
-
-## ⚠️ Breaking change
-
-This is a **breaking change** for consumers who currently rely on `string` for date fields. The opt-in MSBuild property ensures it cannot be activated silently. A clear migration note must accompany the release.
-
-## Notes
-
-Documented in [`docs/schema-feature-roadmap.md` §4.8](docs/schema-feature-roadmap.md).
-BODY
-)"
-
-      - name: Create issue — format:email / format:uri annotations
+      - name: Create issue -- format:email / format:uri annotations
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          TITLE='feat: emit `[EmailAddress]` / `[Url]` attributes for `format: email` / `format: uri`'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
           gh issue create \
             --repo "$REPO" \
-            --title "feat: emit \`[EmailAddress]\` / \`[Url]\` attributes for \`format: email\` / \`format: uri\`" \
+            --title "$TITLE" \
             --label "kind: enhancement" \
             --label "priority: medium" \
             --label "effort: small" \
             --label "impact: medium" \
             --label "area: generator" \
             --label "area: type-mapping" \
-            --body "$(cat <<'BODY'
-## Summary
+            --body-file ".github/issues/format-email-uri-annotations.md"
 
-For `string` schemas with `format: email` or `format: uri`, emit `[EmailAddress]` or `[Url]` data annotation attributes respectively, without changing the C# property type.
-
-## Motivation
-
-These formats are semantic constraints that can be validated with built-in `DataAnnotations` attributes. Adding them costs almost nothing but improves validation metadata and IDE hints.
-
-## Proposed change
-
-Extend the annotation-emitting logic (introduced in the constraint-validation-attributes issue) in `DtoGenerator` and `HandlerBaseGenerator`:
-
-- `("string", "email")` → emit `[EmailAddress]` attribute (type stays `string`)
-- `("string", "uri")` → emit `[Url]` attribute (type stays `string`)
-
-## Affected components
-
-- `MinimalOpenAPI` — `DtoGenerator`, `HandlerBaseGenerator`
-
-## Notes
-
-- **Non-breaking**: C# property type is unchanged.
-- Documented in [`docs/schema-feature-roadmap.md` §4.8](docs/schema-feature-roadmap.md).
-- Best implemented together with or after the constraint-validation-attributes feature.
-BODY
-)"
-
-      - name: Create issue — allOf flattening
+      - name: Create issue -- allOf flattening
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          TITLE='feat: support `allOf` schema composition via property flattening'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
           gh issue create \
             --repo "$REPO" \
-            --title "feat: support \`allOf\` schema composition via property flattening" \
+            --title "$TITLE" \
             --label "kind: enhancement" \
             --label "priority: low" \
             --label "effort: large" \
             --label "impact: high" \
             --label "area: generator" \
             --label "area: parser" \
-            --body "$(cat <<'BODY'
-## Summary
+            --body-file ".github/issues/allof-flattening.md"
 
-Support the `allOf` composition keyword by flattening properties from all subschemas into a single generated record.
-
-## Motivation
-
-`allOf` is the primary inheritance mechanism in OpenAPI 3.0 specs. Many real-world APIs use it to compose a base schema with additional properties. Without support, such schemas produce empty or incomplete records.
-
-## Proposed implementation
-
-Documented in [`docs/schema-feature-roadmap.md` §4.7](docs/schema-feature-roadmap.md).
-
-1. Add `List<OpenApiSchema> AllOf` to `OpenApiSchema`.
-2. Both parsers resolve each subschema in `allOf` (may be `$ref` or inline).
-3. `DtoGenerator`: when `schema.AllOf.Count > 0`, collect and merge all properties from all subschemas into a single record. Union the `required` lists.
-4. Resolve `$ref` subschemas by looking up `allSchemas`.
-5. **Conflict handling**: if two subschemas declare a property with the same name and incompatible types, emit a diagnostic warning (`MOA006` proposed) and fall back to `object` for the conflicting property.
-
-## Affected components
-
-- `MinimalOpenAPI.Abstractions` — `OpenApiSchema`
-- `MinimalOpenAPI.Parser.Yaml` / `.Parser.Json`
-- `MinimalOpenAPI` — `DtoGenerator`
-
-## Notes
-
-- This is a large effort; implement `allOf` first before tackling `oneOf`/`anyOf`.
-- A new diagnostic code `MOA006` may be needed for conflict warnings.
-BODY
-)"
-
-      - name: Create issue — readOnly/writeOnly filtering
+      - name: Create issue -- readOnly/writeOnly filtering
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          TITLE='feat: respect `readOnly` / `writeOnly` when generating request vs response types'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
           gh issue create \
             --repo "$REPO" \
-            --title "feat: respect \`readOnly\` / \`writeOnly\` when generating request vs response types" \
+            --title "$TITLE" \
             --label "kind: enhancement" \
             --label "priority: low" \
             --label "effort: small" \
             --label "impact: low" \
             --label "area: generator" \
             --label "area: parser" \
-            --body "$(cat <<'BODY'
-## Summary
+            --body-file ".github/issues/readonly-writeonly-filtering.md"
 
-Honour `readOnly` and `writeOnly` on schema properties when generating request/response DTO records: omit `readOnly` properties from request records and omit `writeOnly` properties from response records.
-
-## Motivation
-
-MinimalOpenAPI already generates separate types for request and response bodies. Respecting `readOnly`/`writeOnly` prevents consumers from accidentally setting server-computed fields (e.g. `id`, `createdAt`) in request payloads.
-
-## Proposed implementation
-
-1. Add `bool ReadOnly` and `bool WriteOnly` to `OpenApiSchema`.
-2. Both parsers read these fields.
-3. Generators filter properties when building request vs response records: skip `readOnly` properties in request records; skip `writeOnly` properties in response records.
-
-## Affected components
-
-- `MinimalOpenAPI.Abstractions` — `OpenApiSchema`
-- `MinimalOpenAPI.Parser.Yaml` / `.Parser.Json`
-- `MinimalOpenAPI` — `DtoGenerator`
-
-## Notes
-
-- `readOnly`/`writeOnly` are **advisory** in OpenAPI 3.0; ignoring them is technically conformant. Implement on consumer demand.
-- Documented in [`docs/schema-feature-roadmap.md` §2.2.G](docs/schema-feature-roadmap.md).
-BODY
-)"
-
-      - name: Create issue — Header parameter case-insensitive binding
+      - name: Create issue -- Header parameter case-insensitive binding
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          TITLE='fix: treat header parameter names case-insensitively per HTTP spec'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
           gh issue create \
             --repo "$REPO" \
-            --title "fix: treat header parameter names case-insensitively per HTTP spec" \
+            --title "$TITLE" \
             --label "kind: enhancement" \
             --label "priority: low" \
             --label "effort: small" \
             --label "impact: low" \
             --label "area: parser" \
             --label "area: generator" \
-            --body "$(cat <<'BODY'
-## Summary
+            --body-file ".github/issues/header-case-insensitive.md"
 
-Header parameters already appear in the generated `Parameters` record with `[FromHeader]`. The gap is that the parser does not currently treat header names in a case-insensitive way as the HTTP specification requires, and the route constraint builder ignores them.
-
-## Motivation
-
-HTTP header names are case-insensitive (RFC 7230). Inconsistent casing in the OpenAPI spec vs the generated `[FromHeader(Name = ...)]` attribute can cause silent binding failures at runtime.
-
-## Proposed fix
-
-- Normalise header parameter names to their canonical casing when reading from the spec.
-- Ensure `[FromHeader(Name = "...")]` uses the exact case from the spec but ASP.NET Core binding is always case-insensitive.
-
-## Affected components
-
-- `MinimalOpenAPI.Parser.Yaml` / `.Parser.Json`
-- `MinimalOpenAPI` — `HandlerBaseGenerator`
-
-## Notes
-
-This is a refinement rather than a new feature. Documented in [`docs/schema-feature-roadmap.md` §2.2.H](docs/schema-feature-roadmap.md).
-BODY
-)"
-
-      - name: Create issue — Problem Details detection
+      - name: Create issue -- Problem Details detection
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          TITLE='feat: detect `application/problem+json` responses and use built-in `ProblemDetails` type'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
           gh issue create \
             --repo "$REPO" \
-            --title "feat: detect \`application/problem+json\` responses and use built-in \`ProblemDetails\` type" \
+            --title "$TITLE" \
             --label "kind: enhancement" \
             --label "priority: low" \
             --label "effort: small" \
@@ -614,38 +301,20 @@ BODY
             --label "area: generator" \
             --label "status: design-first" \
             --label "status: needs-discussion" \
-            --body "$(cat <<'BODY'
-## Summary
+            --body-file ".github/issues/problem-details-detection.md"
 
-When a response declares `content: application/problem+json`, substitute `Microsoft.AspNetCore.Http.ProblemDetails` as the response schema type instead of emitting a custom DTO.
-
-## Motivation
-
-`application/problem+json` (RFC 7807 / RFC 9457) conventionally maps to `ProblemDetails`, which is built into ASP.NET Core. Emitting a custom error DTO for every error response clutters the generated Contracts namespace.
-
-## Design questions (must be resolved before implementation)
-
-1. **Automatic vs opt-in detection**: should this be opt-in (consumer adds a marker) or automatic (detect `application/problem+json` content type)? Automatic keeps the consumer experience simple but may surprise consumers with custom problem-details extension schemas.
-2. Should the generator emit a warning when it detects `application/problem+json` and applies the substitution?
-
-## Affected components
-
-- `MinimalOpenAPI` — `DtoGenerator`, `HandlerBaseGenerator`
-
-## Notes
-
-Documented in [`docs/schema-feature-roadmap.md` §2.4.M](docs/schema-feature-roadmap.md). **Design must be agreed before implementation begins.**
-BODY
-)"
-
-      - name: Create issue — oneOf / anyOf union types
+      - name: Create issue -- oneOf / anyOf union types
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          TITLE='feat: support `oneOf` / `anyOf` schema composition (union types)'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
           gh issue create \
             --repo "$REPO" \
-            --title "feat: support \`oneOf\` / \`anyOf\` schema composition (union types)" \
+            --title "$TITLE" \
             --label "kind: enhancement" \
             --label "priority: low" \
             --label "effort: large" \
@@ -654,37 +323,20 @@ BODY
             --label "area: parser" \
             --label "status: design-first" \
             --label "status: needs-discussion" \
-            --body "$(cat <<'BODY'
-## Summary
+            --body-file ".github/issues/oneof-anyof-union-types.md"
 
-Support the `oneOf` and `anyOf` composition keywords for discriminated and open union schemas.
-
-## Motivation
-
-`oneOf`/`anyOf` are used to model polymorphic payloads (e.g. different event types, heterogeneous response bodies). Without support, these schemas produce `object`, losing all type safety.
-
-## Design options (must be chosen before implementation)
-
-1. **Base record + derived records** — mirrors the JSON Schema intent but C# records do not naturally support polymorphism without `abstract`.
-2. **`[JsonDerivedType]`** (System.Text.Json 7+) — works for deserialization but requires a discriminator field in the spec.
-3. **Fall back to `object`** — safe but loses type information.
-
-## Notes
-
-- Implement `allOf` flattening first (#see allOf issue); `oneOf`/`anyOf` is a larger, separate effort.
-- This issue tracks **design and implementation** of `oneOf`/`anyOf` support.
-- Documented in [`docs/schema-feature-roadmap.md` §2.4.K](docs/schema-feature-roadmap.md). **Design must be agreed before implementation begins.**
-BODY
-)"
-
-      - name: Create issue — Security requirements → authorization
+      - name: Create issue -- Security requirements → authorization
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          TITLE='feat: expose customisation hook for security requirements → ASP.NET Core authorization'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
           gh issue create \
             --repo "$REPO" \
-            --title "feat: expose customisation hook for security requirements → ASP.NET Core authorization" \
+            --title "$TITLE" \
             --label "kind: enhancement" \
             --label "priority: low" \
             --label "effort: medium" \
@@ -693,40 +345,20 @@ BODY
             --label "area: runtime" \
             --label "status: design-first" \
             --label "status: needs-discussion" \
-            --body "$(cat <<'BODY'
-## Summary
+            --body-file ".github/issues/security-requirements-authorization.md"
 
-Expose a customisation hook that lets consumers map OpenAPI `security` requirements to ASP.NET Core authorization (e.g. `.RequireAuthorization(policyName)`), without auto-generating hard-coded `[Authorize]` attributes.
-
-## Motivation
-
-Many real-world specs declare security requirements per operation. Consumers need a way to enforce these requirements in generated endpoint registrations without hand-editing generated code.
-
-## Design options (must be chosen before implementation)
-
-1. Always emit `.RequireAuthorization()` when any security requirement is present (coarse-grained, simple but imprecise).
-2. Emit `.RequireAuthorization(schemeName)` and require the consumer to configure a matching policy (fine-grained but fragile without spec conventions).
-3. **Preferred**: expose a customisation hook via `EndpointRegistration` — keep the library policy-agnostic and let the consumer wire up authorization logic.
-
-## Affected components
-
-- `MinimalOpenAPI` — `EndpointMappingGenerator`
-- `MinimalOpenAPI.Runtime` — `MapMinimalOpenApiEndpoints`
-
-## Notes
-
-Documented in [`docs/schema-feature-roadmap.md` §2.4.L](docs/schema-feature-roadmap.md). **Design must be agreed before implementation begins.**
-BODY
-)"
-
-      - name: Create issue — Multiple OpenAPI specs per project
+      - name: Create issue -- Multiple OpenAPI specs per project
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          TITLE='feat: support multiple OpenAPI spec files per project with namespace isolation'
+          if gh issue list --repo "$REPO" --search "$TITLE in:title" --json title -q '.[].title' | grep -qF "$TITLE"; then
+            echo "Issue already exists, skipping."; exit 0
+          fi
           gh issue create \
             --repo "$REPO" \
-            --title "feat: support multiple OpenAPI spec files per project with namespace isolation" \
+            --title "$TITLE" \
             --label "kind: enhancement" \
             --label "priority: low" \
             --label "effort: large" \
@@ -734,35 +366,7 @@ BODY
             --label "area: generator" \
             --label "status: design-first" \
             --label "status: needs-discussion" \
-            --body "$(cat <<'BODY'
-## Summary
-
-Allow multiple `<OpenApi>` items per project by generating isolated namespaces for each spec, preventing type name collisions.
-
-## Motivation
-
-Some projects integrate two or more external APIs (e.g. a payment API and a shipping API) or serve multiple API versions from one project. Today only one spec is supported per project; adding a second causes type name collisions.
-
-## Proposed design (requires discussion)
-
-Introduce namespace isolation per spec:
-
-- `{RootNamespace}.{SpecName}.Contracts` for DTOs
-- `{RootNamespace}.{SpecName}.Endpoints` for handlers and registrations
-
-where `SpecName` is derived from the spec file name or an explicit MSBuild item metadata attribute.
-
-## Affected components
-
-- `MinimalOpenAPI` — source generator (namespace allocation, spec selection)
-- `MinimalOpenAPI.Runtime` — `MapMinimalOpenApiEndpoints`
-- `MinimalOpenAPI` — `.targets` file (multi-item support)
-
-## Notes
-
-Documented in [`docs/schema-feature-roadmap.md` §2.4.N](docs/schema-feature-roadmap.md). **Design must be agreed before implementation begins.**
-BODY
-)"
+            --body-file ".github/issues/multiple-specs-per-project.md"
 
       - name: Summary
         run: echo "All labels and issues created successfully."
