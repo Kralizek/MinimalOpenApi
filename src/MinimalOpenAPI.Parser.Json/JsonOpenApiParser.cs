@@ -25,7 +25,7 @@ public sealed class JsonOpenApiParser : IOpenApiParser
     {
         return new OpenApiDocument
         {
-            OpenApiVersion = DetectVersion(GetString(root, "openapi")),
+            OpenApiVersion = ParseVersion(GetString(root, "openapi")),
             Title = GetString(root, "info", "title") ?? string.Empty,
             Version = GetString(root, "info", "version") ?? "1.0.0",
             Schemas = ExtractSchemas(root),
@@ -35,17 +35,10 @@ public sealed class JsonOpenApiParser : IOpenApiParser
 
     // ── Version detection ─────────────────────────────────────────────────
 
-    private static OpenApiVersion DetectVersion(string? versionString)
+    private static Version? ParseVersion(string? versionString)
     {
-        if (versionString is null) return OpenApiVersion.Unknown;
-
-        if (versionString.StartsWith("3.0.", StringComparison.OrdinalIgnoreCase) || versionString == "3.0")
-            return OpenApiVersion.V3_0;
-
-        if (versionString.StartsWith("3.1.", StringComparison.OrdinalIgnoreCase) || versionString == "3.1")
-            return OpenApiVersion.V3_1;
-
-        return OpenApiVersion.Unknown;
+        if (versionString is null) return null;
+        return Version.TryParse(versionString, out var v) ? v : null;
     }
 
     // ── Schemas ───────────────────────────────────────────────────────────

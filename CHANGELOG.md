@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Multi-version OpenAPI support**: the system now detects the OpenAPI specification version from the top-level `openapi` field (e.g., `"3.0.0"`, `"3.1.0"`) and records it on `OpenApiDocument.OpenApiVersion` (values: `V3_0`, `V3_1`, `Unknown`).
+- **Multi-version OpenAPI support**: the system now stores the raw OpenAPI specification version from the top-level `openapi` field as a nullable `System.Version` on `OpenApiDocument.OpenApiVersion` (`null` when the field is absent or cannot be parsed). Any valid version string — including future ones such as `4.0.0` or `15.2.1` — is accepted and stored verbatim; callers compare `Major`/`Minor` against `KnownOpenApiVersions.V3_0` and `KnownOpenApiVersions.V3_1` to branch on supported versions.
 - **OpenAPI 3.1 schema normalisation**: both the YAML and JSON parsers now accept the JSON Schema 2020-12 array type syntax (`type: ["string", "null"]`) introduced in OpenAPI 3.1 and transparently normalise it to the internal `Nullable = true` representation, so generators and downstream code remain version-agnostic.
 - **`MOA006` diagnostic**: a new compile-time warning is emitted when the `openapi` version field is absent or unrecognised. Code generation still proceeds (best-effort), but the warning prompts the developer to verify their spec. Supported recognised values are `3.0.x` and `3.1.x`.
 

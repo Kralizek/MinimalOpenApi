@@ -138,7 +138,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             if (doc is null) return;
 
             // Warn when the OpenAPI version is absent or not yet explicitly supported.
-            if (doc.OpenApiVersion == OpenApiVersion.Unknown)
+            if (!IsKnownVersion(doc.OpenApiVersion))
             {
                 spc.ReportDiagnostic(Diagnostic.Create(
                     DiagnosticDescriptors.UnknownOpenApiVersion,
@@ -149,6 +149,22 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             GenerateForDocument(spc, doc, ns, path, classes.ToArray());
         });
     }
+
+    private static readonly Version[] _knownVersions =
+    [
+        KnownOpenApiVersions.V3_0,
+        KnownOpenApiVersions.V3_1,
+    ];
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="version"/> matches the major/minor of any
+    /// entry in <see cref="KnownOpenApiVersions"/>, accepting any patch/build suffix (e.g. 3.0.3 is
+    /// considered a known 3.0 version).  Returns <see langword="false"/> for <see langword="null"/> or
+    /// any version whose major.minor is not explicitly listed.
+    /// </summary>
+    private static bool IsKnownVersion(Version? version) =>
+        version is not null &&
+        Array.Exists(_knownVersions, kv => kv.Major == version.Major && kv.Minor == version.Minor);
 
     /// <summary>
     /// Returns the appropriate parser for the given file path based on its extension,

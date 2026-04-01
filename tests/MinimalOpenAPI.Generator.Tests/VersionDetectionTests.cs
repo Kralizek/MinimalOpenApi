@@ -23,7 +23,7 @@ public class VersionDetectionTests
 
         var doc = await new YamlOpenApiParser().ParseAsync(yaml);
 
-        Assert.That(doc.OpenApiVersion, Is.EqualTo(OpenApiVersion.V3_0));
+        Assert.That(doc.OpenApiVersion, Is.EqualTo(new Version(3, 0, 0)));
     }
 
     [Test]
@@ -39,11 +39,11 @@ public class VersionDetectionTests
 
         var doc = await new YamlOpenApiParser().ParseAsync(yaml);
 
-        Assert.That(doc.OpenApiVersion, Is.EqualTo(OpenApiVersion.V3_1));
+        Assert.That(doc.OpenApiVersion, Is.EqualTo(new Version(3, 1, 0)));
     }
 
     [Test]
-    public async Task YamlParser_Returns_Unknown_When_Version_Absent()
+    public async Task YamlParser_Returns_Null_When_Version_Absent()
     {
         const string yaml = """
             info:
@@ -54,11 +54,11 @@ public class VersionDetectionTests
 
         var doc = await new YamlOpenApiParser().ParseAsync(yaml);
 
-        Assert.That(doc.OpenApiVersion, Is.EqualTo(OpenApiVersion.Unknown));
+        Assert.That(doc.OpenApiVersion, Is.Null);
     }
 
     [Test]
-    public async Task YamlParser_Returns_Unknown_For_Unrecognised_Version()
+    public async Task YamlParser_Returns_Parsed_Version_For_Unrecognised_Version()
     {
         const string yaml = """
             openapi: "4.0.0"
@@ -70,7 +70,8 @@ public class VersionDetectionTests
 
         var doc = await new YamlOpenApiParser().ParseAsync(yaml);
 
-        Assert.That(doc.OpenApiVersion, Is.EqualTo(OpenApiVersion.Unknown));
+        // Version is parsed and stored even when not explicitly supported
+        Assert.That(doc.OpenApiVersion, Is.EqualTo(new Version(4, 0, 0)));
     }
 
     [Test]
@@ -145,7 +146,7 @@ public class VersionDetectionTests
 
         var doc = await new JsonOpenApiParser().ParseAsync(json);
 
-        Assert.That(doc.OpenApiVersion, Is.EqualTo(OpenApiVersion.V3_0));
+        Assert.That(doc.OpenApiVersion, Is.EqualTo(new Version(3, 0, 0)));
     }
 
     [Test]
@@ -161,11 +162,11 @@ public class VersionDetectionTests
 
         var doc = await new JsonOpenApiParser().ParseAsync(json);
 
-        Assert.That(doc.OpenApiVersion, Is.EqualTo(OpenApiVersion.V3_1));
+        Assert.That(doc.OpenApiVersion, Is.EqualTo(new Version(3, 1, 0)));
     }
 
     [Test]
-    public async Task JsonParser_Returns_Unknown_When_Version_Absent()
+    public async Task JsonParser_Returns_Null_When_Version_Absent()
     {
         const string json = """
             {
@@ -176,11 +177,11 @@ public class VersionDetectionTests
 
         var doc = await new JsonOpenApiParser().ParseAsync(json);
 
-        Assert.That(doc.OpenApiVersion, Is.EqualTo(OpenApiVersion.Unknown));
+        Assert.That(doc.OpenApiVersion, Is.Null);
     }
 
     [Test]
-    public async Task JsonParser_Returns_Unknown_For_Unrecognised_Version()
+    public async Task JsonParser_Returns_Parsed_Version_For_Unrecognised_Version()
     {
         const string json = """
             {
@@ -192,7 +193,8 @@ public class VersionDetectionTests
 
         var doc = await new JsonOpenApiParser().ParseAsync(json);
 
-        Assert.That(doc.OpenApiVersion, Is.EqualTo(OpenApiVersion.Unknown));
+        // Version is parsed and stored even when not explicitly supported
+        Assert.That(doc.OpenApiVersion, Is.EqualTo(new Version(4, 0, 0)));
     }
 
     [Test]
@@ -279,6 +281,32 @@ public class VersionDetectionTests
         var diagnostics = result.Diagnostics;
         Assert.That(diagnostics.Any(d => d.Id == "MOA006"), Is.True,
             "Expected MOA006 warning for missing openapi version field");
+    }
+
+    [Test]
+    public void Generator_Emits_MOA006_For_Unrecognised_Version()
+    {
+        const string yaml = """
+            openapi: "4.0.0"
+            info:
+              title: Test
+              version: "1.0"
+            paths:
+              /ping:
+                get:
+                  operationId: ping
+                  responses:
+                    "200":
+                      description: OK
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.yaml", yaml)]);
+
+        var diagnostics = result.Diagnostics;
+        Assert.That(diagnostics.Any(d => d.Id == "MOA006"), Is.True,
+            "Expected MOA006 warning for unrecognised openapi version");
     }
 
     [Test]
