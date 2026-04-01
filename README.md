@@ -446,6 +446,8 @@ docs/
 
 For a deep-dive into the design, architecture, and internals see [docs/architecture.md](docs/architecture.md).
 
+For guidance on how coding agents (e.g. GitHub Copilot) should use this library in consumer projects, see [docs/consumer-agents.md](docs/consumer-agents.md).
+
 ---
 
 ## Contributing
