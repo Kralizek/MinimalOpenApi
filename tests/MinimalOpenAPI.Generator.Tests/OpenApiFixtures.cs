@@ -291,6 +291,108 @@ internal static class OpenApiFixtures
         """;
 
     /// <summary>
+    /// A GET endpoint whose response DTO contains a <c>format: date</c> field,
+    /// which should map to <c>global::System.DateOnly</c>.
+    /// </summary>
+    public const string GetEventYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /events/{eventId}:
+            get:
+              operationId: getEvent
+              parameters:
+                - name: eventId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Event'
+                "404":
+                  description: Not found
+        components:
+          schemas:
+            Event:
+              type: object
+              required:
+                - id
+                - date
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                date:
+                  type: string
+                  format: date
+                notes:
+                  type: string
+                  format: date
+                  nullable: true
+        """;
+
+    /// <summary>
+    /// A GET endpoint whose response DTO contains a <c>format: date</c> field,
+    /// which should map to <c>global::System.DateOnly</c> (JSON variant).
+    /// </summary>
+    public const string GetEventJson = """
+        {
+          "openapi": "3.0.0",
+          "info": {
+            "title": "Test API",
+            "version": "1.0.0"
+          },
+          "paths": {
+            "/events/{eventId}": {
+              "get": {
+                "operationId": "getEvent",
+                "parameters": [
+                  {
+                    "name": "eventId",
+                    "in": "path",
+                    "required": true,
+                    "schema": { "type": "string", "format": "uuid" }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "description": "OK",
+                    "content": {
+                      "application/json": {
+                        "schema": { "$ref": "#/components/schemas/Event" }
+                      }
+                    }
+                  },
+                  "404": { "description": "Not found" }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "Event": {
+                "type": "object",
+                "required": ["id", "date"],
+                "properties": {
+                  "id": { "type": "string", "format": "uuid" },
+                  "date": { "type": "string", "format": "date" },
+                  "notes": { "type": "string", "format": "date", "nullable": true }
+                }
+              }
+            }
+          }
+        }
+        """;
+
+    /// <summary>
     /// A POST endpoint where both the request body and the 200 response schema are defined
     /// inline (no <c>$ref</c> to a named component schema).
     /// </summary>

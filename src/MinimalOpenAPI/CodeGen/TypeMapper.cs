@@ -113,7 +113,7 @@ internal static class TypeMapper
         {
             ("string", "uuid") => "global::System.Guid",
             ("string", "date-time") => "global::System.DateTimeOffset",
-            ("string", "date") => "string",
+            ("string", "date") => "global::System.DateOnly",
             ("string", _) => "string",
             ("integer", "int64") => "long",
             ("integer", _) => "int",

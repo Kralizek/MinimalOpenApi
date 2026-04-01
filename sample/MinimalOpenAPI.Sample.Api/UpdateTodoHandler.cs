@@ -17,10 +17,10 @@ public sealed class UpdateTodoHandler : UpdateTodoEndpointBase
         if (string.IsNullOrWhiteSpace(request.Title))
             return Task.FromResult<Results<Ok<Todo>, BadRequest, NotFound>>(TypedResults.BadRequest());
 
-        if (!_store.Update(id, request.Title, request.Description, request.IsComplete))
+        if (!_store.Update(id, request.Title, request.Description, request.IsComplete, request.DueDate))
             return Task.FromResult<Results<Ok<Todo>, BadRequest, NotFound>>(TypedResults.NotFound());
 
-        var todo = new Todo { Id = id, Title = request.Title, Description = request.Description, IsComplete = request.IsComplete };
+        var todo = new Todo { Id = id, Title = request.Title, Description = request.Description, IsComplete = request.IsComplete, DueDate = request.DueDate };
         return Task.FromResult<Results<Ok<Todo>, BadRequest, NotFound>>(TypedResults.Ok(todo));
     }
 }
