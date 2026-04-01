@@ -363,10 +363,64 @@ public sealed class GetTodoEndpoint(ITodoStore store) : GetTodoEndpointBase
 
 ---
 
+## Publishing the OpenAPI spec
+
+MinimalOpenAPI can copy the original OpenAPI spec file(s) into the build and publish output and serve them as static HTTP endpoints.
+
+### 1 — Mark the spec for publishing:
+
+```xml
+<!-- MyApi.csproj -->
+<ItemGroup>
+  <OpenApi Include="openapi.yaml" Publish="true" />
+</ItemGroup>
+```
+
+The `Publish="true"` metadata triggers two MSBuild targets:
+- `CopyMinimalOpenApiFilesToOutput` — copies the file to `openapi/schemas/<filename>.<ext>` in the build output directory (e.g. `bin/Debug/net10.0/openapi/schemas/openapi.yaml`).
+- `AddMinimalOpenApiFilesToPublishOutput` — includes the file at the same relative path when running `dotnet publish`.
+
+### 2 — Serve the spec via HTTP in `Program.cs`:
+
+```csharp
+using MinimalOpenAPI;
+
+var app = builder.Build();
+app.MapMinimalOpenApiEndpoints();
+app.MapOpenApiSchemas();  // GET /.openapi/schemas/{version}/{name}.{ext}
+app.Run();
+```
+
+At startup `MapOpenApiSchemas` scans `openapi/schemas/` in the application base directory, extracts the `info.version` field from each file, and registers one endpoint per file. For a spec with `info.version: "1.0.0"` and filename `openapi.yaml` the endpoint is:
+
+```
+GET /.openapi/schemas/1.0.0/openapi.yaml
+```
+
+When `info.version` cannot be determined the version segment is omitted:
+
+```
+GET /.openapi/schemas/openapi.yaml
+```
+
+### 3 — Securing schema endpoints:
+
+`MapOpenApiSchemas` returns a `RouteGroupBuilder`:
+
+```csharp
+app.MapOpenApiSchemas().RequireAuthorization("InternalOnly");
+```
+
+### Contract-package pattern
+
+An OpenAPI spec can be shipped in a separate NuGet "contracts" package (the same pattern used by gRPC `.proto` files) and the consuming project does not need an `<OpenApi>` item of its own. See [docs/architecture.md §5.1](docs/architecture.md) for details.
+
+---
+
 ## Limitations and non-goals
 
 - **OpenAPI 3.0.x only.** OpenAPI 3.1.x support may be added in a future release. OpenAPI 2.0 (Swagger) is not supported.
-- **No runtime OpenAPI document serving.** MinimalOpenAPI does not expose a `/openapi.json` endpoint or integrate with Swashbuckle/Scalar. It generates code from the spec; serving the spec is a separate concern.
+- **No runtime OpenAPI document serving via Swashbuckle/Scalar.** MinimalOpenAPI does not integrate with Swashbuckle or Scalar. To serve the original OpenAPI spec file as a static HTTP endpoint, use `<OpenApi Publish="true" />` and `MapOpenApiSchemas()` (see [Publishing the OpenAPI spec](#publishing-the-openapi-spec) below).
 - **Schema composition not supported.** Keywords such as `allOf`, `oneOf`, and `anyOf` are not yet supported. Both `$ref` schemas and inline object schemas (for request bodies and responses) are fully supported.
 - **Single spec file per project.** Each `<OpenApi>` item produces generated code in the same namespace. Multiple spec files may conflict if they define the same operation IDs or schema names.
 - **No runtime validation.** The generated code uses ASP.NET Core's built-in model binding. It does not perform OpenAPI-level request validation (e.g. pattern, min/max constraints).

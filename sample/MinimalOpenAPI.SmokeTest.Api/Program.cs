@@ -7,5 +7,6 @@ builder.Services.AddMinimalOpenApi();
 var app = builder.Build();
 
 app.MapMinimalOpenApiEndpoints();
+app.MapOpenApiSchemas();
 
 app.Run();

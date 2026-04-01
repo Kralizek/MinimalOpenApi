@@ -145,4 +145,15 @@ public class EndpointIntegrationTests
         Assert.That(todos, Is.Not.Null);
         Assert.That(todos!.All(t => t.IsComplete), Is.True);
     }
+
+    [Test]
+    public async Task GetOpenApiSchema_ReturnsYamlWithCorrectContentType()
+    {
+        var response = await _client.GetAsync("/.openapi/schemas/1.0.0/openapi.yaml");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/yaml"));
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.That(body, Does.Contain("openapi:"));
+    }
 }
