@@ -6,15 +6,15 @@ namespace MinimalOpenAPI.Abstractions;
 public interface IOpenApiParser
 {
     /// <summary>
-    /// Returns <see langword="true"/> when this parser is able to handle the given file.
-    /// Implementations should inspect the file extension for format compatibility and may
-    /// also do a lightweight content peek to check the <c>openapi</c> version field when
-    /// they only support a specific version range.
+    /// Returns <see langword="true"/> when this parser is able to handle the document described by
+    /// <paramref name="request"/>.  Implementations declare their supported scope with a simple
+    /// condition on <see cref="OpenApiParserRequest.Format"/> and, for version-targeted parsers, on
+    /// <see cref="OpenApiParserRequest.Version"/>.  The call site is responsible for format and
+    /// version detection before invoking this method.
     /// </summary>
-    /// <param name="filePath">The full path of the OpenAPI file (used to check the extension).</param>
-    /// <param name="content">The raw text content of the OpenAPI file (may be peeked for version).</param>
+    /// <param name="request">The pre-detected format and version of the OpenAPI document.</param>
     /// <returns><see langword="true"/> if this parser should be used; <see langword="false"/> otherwise.</returns>
-    bool CanParse(string filePath, string content);
+    bool CanParse(OpenApiParserRequest request);
 
     /// <summary>
     /// Parses the given OpenAPI document content and returns a structured <see cref="OpenApiDocument"/>.

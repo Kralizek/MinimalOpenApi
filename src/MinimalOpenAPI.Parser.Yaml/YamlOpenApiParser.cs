@@ -11,12 +11,8 @@ namespace MinimalOpenAPI.Parser.Yaml;
 public sealed class YamlOpenApiParser : IOpenApiParser
 {
     /// <inheritdoc/>
-    public bool CanParse(string filePath, string content)
-    {
-        var ext = System.IO.Path.GetExtension(filePath);
-        return ext.Equals(".yaml", StringComparison.OrdinalIgnoreCase)
-            || ext.Equals(".yml", StringComparison.OrdinalIgnoreCase);
-    }
+    public bool CanParse(OpenApiParserRequest request) =>
+        request.Format == OpenApiFormat.Yaml;
 
     /// <inheritdoc/>
     public System.Threading.Tasks.Task<OpenApiDocument> ParseAsync(string content, System.Threading.CancellationToken cancellationToken = default)

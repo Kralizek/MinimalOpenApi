@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -169,8 +171,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     /// <summary>
     /// The ordered list of parsers consulted by <see cref="SelectParser"/>.
     /// The first parser whose <see cref="IOpenApiParser.CanParse"/> returns <see langword="true"/>
-    /// is used.  Add new parsers here (before the catch-all implementations) to handle new
-    /// OpenAPI versions or formats without modifying any existing parser.
+    /// is used.  To support a new version with breaking structural changes, prepend a
+    /// version-targeted parser here; existing parsers are unmodified.
     /// </summary>
     private static readonly IOpenApiParser[] _parsers =
     [
@@ -179,12 +181,48 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     ];
 
     /// <summary>
-    /// Returns the first registered parser whose <see cref="IOpenApiParser.CanParse"/> returns
-    /// <see langword="true"/> for the given file path and content, or <see langword="null"/> if
-    /// no registered parser can handle the file (emits diagnostic <b>MOA005</b>).
+    /// Detects the serialisation format from the file extension and does a lightweight content
+    /// peek for the <c>openapi</c> version field, then returns the first registered parser whose
+    /// <see cref="IOpenApiParser.CanParse"/> accepts the resulting <see cref="OpenApiParserRequest"/>.
+    /// Returns <see langword="null"/> if no parser accepts the file (caller emits <b>MOA005</b>).
     /// </summary>
-    private static IOpenApiParser? SelectParser(string path, string content) =>
-        Array.Find(_parsers, p => p.CanParse(path, content));
+    private static IOpenApiParser? SelectParser(string path, string content)
+    {
+        var format = DetectFormat(path);
+        var version = PeekVersion(format, content);
+        var request = new OpenApiParserRequest(format, version);
+        return Array.Find(_parsers, p => p.CanParse(request));
+    }
+
+    private static OpenApiFormat DetectFormat(string path)
+    {
+        var ext = System.IO.Path.GetExtension(path);
+        return ext.ToLowerInvariant() switch
+        {
+            ".yaml" or ".yml" => OpenApiFormat.Yaml,
+            ".json" => OpenApiFormat.Json,
+            _ => OpenApiFormat.Unknown
+        };
+    }
+
+    // Lightweight regexes that extract the raw version string from the openapi field
+    // without a full parse.  These run before parser selection and must work on both
+    // well-formed and partially malformed documents.
+    // RegexOptions.Compiled is intentionally omitted: this generator targets netstandard2.0
+    // and runs inside the Roslyn analyzer host, where runtime code-gen (Compiled) can fail.
+    // Each pattern is matched at most once per file so uncompiled performance is acceptable.
+    private static readonly Regex _yamlVersionPattern =
+        new(@"^\s*openapi\s*:\s*[""']?(\d[\d.]*)", RegexOptions.Multiline);
+
+    private static readonly Regex _jsonVersionPattern =
+        new(@"""openapi""\s*:\s*""([\d.]+)""");
+
+    private static Version? PeekVersion(OpenApiFormat format, string content)
+    {
+        var regex = format == OpenApiFormat.Yaml ? _yamlVersionPattern : _jsonVersionPattern;
+        var match = regex.Match(content);
+        return match.Success && Version.TryParse(match.Groups[1].Value, out var v) ? v : null;
+    }
 
     /// <summary>
     /// Creates a <see cref="Location"/> that points to the start of the given OpenAPI

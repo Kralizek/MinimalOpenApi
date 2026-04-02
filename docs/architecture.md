@@ -183,7 +183,7 @@ Defines the object model and the parser abstraction:
 - `OpenApiSchema` — a recursive type covering primitives, arrays (`type: array`
   with `items`), object schemas (with `properties` and `required`), `$ref`
   references, `nullable`, `format`.
-- `IOpenApiParser` — `bool CanParse(string filePath, string content)` to declare which files a parser handles, and `Task<OpenApiDocument> ParseAsync(string content, CancellationToken)` to perform the parse.
+- `IOpenApiParser` — `bool CanParse(OpenApiParserRequest request)` to declare which format and version range a parser handles, and `Task<OpenApiDocument> ParseAsync(string content, CancellationToken)` to perform the parse.
 
 ### 4.4 `MinimalOpenAPI.Parser.Yaml`
 
@@ -299,22 +299,43 @@ considered.  This avoids accidentally picking up other `AdditionalFiles` items.
 
 ### 6.2 Selecting a parser
 
-`SelectParser(string path, string content)` iterates the registered `_parsers`
-array and returns the first parser whose `IOpenApiParser.CanParse(path, content)`
-returns `true`:
+`SelectParser(string path, string content)` builds an `OpenApiParserRequest` by
+detecting the format and peeking the version, then iterates `_parsers` to find
+the first parser whose `CanParse` returns `true`:
 
-| Extension | Parser |
-|-----------|--------|
-| `.yaml` / `.yml` | `YamlOpenApiParser` |
-| `.json` | `JsonOpenApiParser` |
-| anything else | `null` → diagnostic **MOA005** |
+**Format detection** — from the file extension:
 
-`CanParse` receives both the file path (for extension inspection) and the raw
-content (so a version-specific parser can peek the `openapi` field without a
-full parse).  The current parsers only inspect the extension, but a future
-version-targeted parser (e.g. one that only handles 4.x breaking-change
-structure) can return `false` for earlier version strings and fall through to
-the next entry in `_parsers`.
+| Extension | `OpenApiFormat` |
+|-----------|-----------------|
+| `.yaml` / `.yml` | `Yaml` |
+| `.json` | `Json` |
+| anything else | `Unknown` |
+
+**Version peek** — a lightweight regex scans the raw content for the top-level
+`openapi` field (no full parse).  The result is a `Version?` (`null` when the
+field is absent or unparseable).
+
+Both values are bundled into an `OpenApiParserRequest(Format, Version?)` and
+passed to each parser's `CanParse`.  The current parsers only check the format:
+
+```csharp
+// YamlOpenApiParser
+public bool CanParse(OpenApiParserRequest request) => request.Format == OpenApiFormat.Yaml;
+
+// JsonOpenApiParser
+public bool CanParse(OpenApiParserRequest request) => request.Format == OpenApiFormat.Json;
+```
+
+A future version-targeted parser can additionally filter on the version:
+
+```csharp
+// Hypothetical parser for a future breaking-change version
+public bool CanParse(OpenApiParserRequest request) =>
+    request.Format == OpenApiFormat.Yaml && request.Version?.Major == 4;
+```
+
+If no parser returns `true`, `SelectParser` returns `null` and the generator
+emits diagnostic **MOA005**.
 
 ### 6.3 Discovering user implementations
 
@@ -492,31 +513,32 @@ To support a new OpenAPI file format:
 
 1. Create a new project (e.g. `MinimalOpenAPI.Parser.Toml`).
 2. Reference `MinimalOpenAPI.Abstractions` and implement both methods of `IOpenApiParser`:
-   - `CanParse(filePath, content)` — return `true` for `.toml` extensions.
+   - `CanParse(OpenApiParserRequest request)` — return `true` for `request.Format == OpenApiFormat.Toml`
+     (after also adding `Toml` to the `OpenApiFormat` enum and the `DetectFormat` switch).
    - `ParseAsync(content)` — parse and return an `OpenApiDocument`.
-3. Add the new parser instance to `_parsers` in `MinimalOpenApiGenerator` (before the
-   catch-all entries).
+3. Add the new parser instance to `_parsers` in `MinimalOpenApiGenerator`.
 4. Add the new DLL as an `<Analyzer>` in `MinimalOpenAPI.targets` so Roslyn can load it.
 
 ### 10.2 Version-specific parser (e.g. OpenAPI 4.0)
 
 When a new major version introduces breaking structural changes that cannot be
-handled by adding branches to an existing parser, add a new version-targeted parser:
+handled by adding branches to an existing parser:
 
-1. Create a new project (e.g. `MinimalOpenAPI.Parser.Yaml.V4`) or add a class to an
-   existing parser project.
-2. Implement `IOpenApiParser`:
-   - `CanParse(filePath, content)` — check extension **and** peek the `openapi` field
-     to accept only the target version (e.g. `version?.Major == 4`).  Because `CanParse`
-     receives the raw content, peeking the version does not require a full parse.
+1. Implement `IOpenApiParser` (in a new project or in an existing one):
+   - `CanParse(OpenApiParserRequest request)` — check format **and** version:
+     ```csharp
+     return request.Format == OpenApiFormat.Yaml && request.Version?.Major == 4;
+     ```
+     Because the call site has already peeked the version from the raw content, this
+     check is a simple, declarative expression — no string scanning inside the parser.
    - `ParseAsync(content)` — implement parsing for the new version's structure.
-3. Insert the new parser into `_parsers` **before** the existing catch-all parsers so
-   it wins the selection for its target version.  Existing parsers are unmodified.
-4. Add the new DLL as an `<Analyzer>` in `MinimalOpenAPI.targets`.
+2. Prepend the new parser to `_parsers` in `MinimalOpenApiGenerator` so it wins
+   selection for its target version before the existing catch-all parsers are tried.
+   Existing parsers are unmodified.
+3. Add the new DLL as an `<Analyzer>` in `MinimalOpenAPI.targets`.
 
-This "can/do" selection model means each parser remains focused on a single version
-range, avoids version-branching inside its parsing logic, and can be introduced or
-replaced without touching any existing parser.
+The "can/do" selection model keeps each parser focused on a single version range
+and avoids version-branching inside its parsing logic.
 
 ---
 
