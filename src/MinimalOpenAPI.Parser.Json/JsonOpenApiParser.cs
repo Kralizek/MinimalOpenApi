@@ -12,6 +12,13 @@ namespace MinimalOpenAPI.Parser.Json;
 public sealed class JsonOpenApiParser : IOpenApiParser
 {
     /// <inheritdoc/>
+    public bool CanParse(string filePath, string content)
+    {
+        var ext = System.IO.Path.GetExtension(filePath);
+        return ext.Equals(".json", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <inheritdoc/>
     public System.Threading.Tasks.Task<OpenApiDocument> ParseAsync(string content, System.Threading.CancellationToken cancellationToken = default)
     {
         var root = JsonNode.Parse(content)?.AsObject();

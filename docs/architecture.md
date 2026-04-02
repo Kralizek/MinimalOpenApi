@@ -183,7 +183,7 @@ Defines the object model and the parser abstraction:
 - `OpenApiSchema` — a recursive type covering primitives, arrays (`type: array`
   with `items`), object schemas (with `properties` and `required`), `$ref`
   references, `nullable`, `format`.
-- `IOpenApiParser` — `Task<OpenApiDocument> ParseAsync(string content, CancellationToken)`.
+- `IOpenApiParser` — `bool CanParse(string filePath, string content)` to declare which files a parser handles, and `Task<OpenApiDocument> ParseAsync(string content, CancellationToken)` to perform the parse.
 
 ### 4.4 `MinimalOpenAPI.Parser.Yaml`
 
@@ -299,14 +299,22 @@ considered.  This avoids accidentally picking up other `AdditionalFiles` items.
 
 ### 6.2 Selecting a parser
 
-`SelectParser(string path)` matches the file extension:
+`SelectParser(string path, string content)` iterates the registered `_parsers`
+array and returns the first parser whose `IOpenApiParser.CanParse(path, content)`
+returns `true`:
 
-- `.yaml` / `.yml` → `YamlOpenApiParser`
-- `.json` → `JsonOpenApiParser`
-- anything else → `null` (emits diagnostic **MOA005**)
+| Extension | Parser |
+|-----------|--------|
+| `.yaml` / `.yml` | `YamlOpenApiParser` |
+| `.json` | `JsonOpenApiParser` |
+| anything else | `null` → diagnostic **MOA005** |
 
-The design is intentionally open for extension: adding JSON support means
-adding a new `IOpenApiParser` implementation and a new case to `SelectParser`.
+`CanParse` receives both the file path (for extension inspection) and the raw
+content (so a version-specific parser can peek the `openapi` field without a
+full parse).  The current parsers only inspect the extension, but a future
+version-targeted parser (e.g. one that only handles 4.x breaking-change
+structure) can return `false` for earlier version strings and fall through to
+the next entry in `_parsers`.
 
 ### 6.3 Discovering user implementations
 
@@ -478,21 +486,37 @@ like `AddMinimalOpenApi`.
 
 ## 10. Adding a new parser (extensibility point)
 
-To support a new OpenAPI format, follow the same pattern used by the existing
-YAML and JSON parsers:
+### 10.1 New format (e.g. TOML)
+
+To support a new OpenAPI file format:
 
 1. Create a new project (e.g. `MinimalOpenAPI.Parser.Toml`).
-2. Reference `MinimalOpenAPI.Abstractions` and implement `IOpenApiParser`.
-3. In `MinimalOpenApiGenerator.SelectParser`, add the new extension(s):
+2. Reference `MinimalOpenAPI.Abstractions` and implement both methods of `IOpenApiParser`:
+   - `CanParse(filePath, content)` — return `true` for `.toml` extensions.
+   - `ParseAsync(content)` — parse and return an `OpenApiDocument`.
+3. Add the new parser instance to `_parsers` in `MinimalOpenApiGenerator` (before the
+   catch-all entries).
+4. Add the new DLL as an `<Analyzer>` in `MinimalOpenAPI.targets` so Roslyn can load it.
 
-   ```csharp
-   ".toml" => new TomlOpenApiParser(),
-   ```
+### 10.2 Version-specific parser (e.g. OpenAPI 4.0)
 
-4. Add the new DLL as an `<Analyzer>` in `MinimalOpenAPI.targets` so Roslyn can
-   load it.
+When a new major version introduces breaking structural changes that cannot be
+handled by adding branches to an existing parser, add a new version-targeted parser:
 
-No changes to any other part of the generator are required.
+1. Create a new project (e.g. `MinimalOpenAPI.Parser.Yaml.V4`) or add a class to an
+   existing parser project.
+2. Implement `IOpenApiParser`:
+   - `CanParse(filePath, content)` — check extension **and** peek the `openapi` field
+     to accept only the target version (e.g. `version?.Major == 4`).  Because `CanParse`
+     receives the raw content, peeking the version does not require a full parse.
+   - `ParseAsync(content)` — implement parsing for the new version's structure.
+3. Insert the new parser into `_parsers` **before** the existing catch-all parsers so
+   it wins the selection for its target version.  Existing parsers are unmodified.
+4. Add the new DLL as an `<Analyzer>` in `MinimalOpenAPI.targets`.
+
+This "can/do" selection model means each parser remains focused on a single version
+range, avoids version-branching inside its parsing logic, and can be introduced or
+replaced without touching any existing parser.
 
 ---
 

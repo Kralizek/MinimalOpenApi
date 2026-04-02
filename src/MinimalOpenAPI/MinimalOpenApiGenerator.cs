@@ -52,14 +52,14 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 return ns ?? "MinimalOpenAPI.Generated";
             });
 
-        // 3. Parse OpenAPI documents — parser is selected from the file extension
+        // 3. Parse OpenAPI documents — parser is selected via CanParse (format + optional version check)
         var parsedDocuments = openApiFiles
             .Combine(rootNamespace)
             .Select((pair, _) =>
             {
                 var ((content, path), ns) = pair;
 
-                var parser = SelectParser(path);
+                var parser = SelectParser(path, content);
                 if (parser is null)
                 {
                     var ext = System.IO.Path.GetExtension(path);
@@ -167,19 +167,24 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         Array.Exists(_knownVersions, kv => kv.Major == version.Major && kv.Minor == version.Minor);
 
     /// <summary>
-    /// Returns the appropriate parser for the given file path based on its extension,
-    /// or <see langword="null"/> if no parser supports that extension.
+    /// The ordered list of parsers consulted by <see cref="SelectParser"/>.
+    /// The first parser whose <see cref="IOpenApiParser.CanParse"/> returns <see langword="true"/>
+    /// is used.  Add new parsers here (before the catch-all implementations) to handle new
+    /// OpenAPI versions or formats without modifying any existing parser.
     /// </summary>
-    private static IOpenApiParser? SelectParser(string path)
-    {
-        var ext = System.IO.Path.GetExtension(path);
-        return ext.ToLowerInvariant() switch
-        {
-            ".yaml" or ".yml" => new YamlOpenApiParser(),
-            ".json" => new JsonOpenApiParser(),
-            _ => null
-        };
-    }
+    private static readonly IOpenApiParser[] _parsers =
+    [
+        new YamlOpenApiParser(),
+        new JsonOpenApiParser(),
+    ];
+
+    /// <summary>
+    /// Returns the first registered parser whose <see cref="IOpenApiParser.CanParse"/> returns
+    /// <see langword="true"/> for the given file path and content, or <see langword="null"/> if
+    /// no registered parser can handle the file (emits diagnostic <b>MOA005</b>).
+    /// </summary>
+    private static IOpenApiParser? SelectParser(string path, string content) =>
+        Array.Find(_parsers, p => p.CanParse(path, content));
 
     /// <summary>
     /// Creates a <see cref="Location"/> that points to the start of the given OpenAPI
