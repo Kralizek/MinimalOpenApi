@@ -869,4 +869,324 @@ internal static class OpenApiFixtures
                   format: date
                   nullable: true
         """;
+
+    // ── OpenAPI 3.1 fixtures ──────────────────────────────────────────────
+    //
+    // These are 3.1 equivalents of the 3.0 fixtures above.  The key difference
+    // is that nullable fields use the JSON Schema 2020-12 type-array syntax
+    // ("type": ["string", "null"]) instead of the OpenAPI 3.0 "nullable: true"
+    // keyword.  All other structure (paths, schemas, formats) is identical so
+    // the generated C# output should be identical to the 3.0 counterpart.
+
+    /// <summary>
+    /// OpenAPI 3.1 equivalent of <see cref="GetClientYaml"/>.
+    /// Nullable field <c>vatNumber</c> uses the 3.1 type-array syntax instead of
+    /// <c>nullable: true</c>.
+    /// </summary>
+    public const string GetClientV31Yaml = """
+        openapi: "3.1.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /tenants/{tenantId}/clients/{clientId}:
+            get:
+              operationId: getClient
+              summary: Get a specific client
+              description: Returns the client with the specified identifier.
+              tags:
+                - clients
+              parameters:
+                - name: tenantId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+                - name: clientId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+                - name: includeDeleted
+                  in: query
+                  required: false
+                  schema:
+                    type: boolean
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Client'
+                "404":
+                  description: Not found
+        components:
+          schemas:
+            Client:
+              type: object
+              required:
+                - id
+                - name
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                vatNumber:
+                  type:
+                    - string
+                    - "null"
+        """;
+
+    /// <summary>
+    /// OpenAPI 3.1 equivalent of <see cref="GetClientJson"/>.
+    /// Nullable field <c>vatNumber</c> uses the 3.1 type-array syntax instead of
+    /// <c>"nullable": true</c>.
+    /// </summary>
+    public const string GetClientV31Json = """
+        {
+          "openapi": "3.1.0",
+          "info": {
+            "title": "Test API",
+            "version": "1.0.0"
+          },
+          "paths": {
+            "/tenants/{tenantId}/clients/{clientId}": {
+              "get": {
+                "operationId": "getClient",
+                "summary": "Get a specific client",
+                "description": "Returns the client with the specified identifier.",
+                "tags": ["clients"],
+                "parameters": [
+                  {
+                    "name": "tenantId",
+                    "in": "path",
+                    "required": true,
+                    "schema": { "type": "string", "format": "uuid" }
+                  },
+                  {
+                    "name": "clientId",
+                    "in": "path",
+                    "required": true,
+                    "schema": { "type": "string", "format": "uuid" }
+                  },
+                  {
+                    "name": "includeDeleted",
+                    "in": "query",
+                    "required": false,
+                    "schema": { "type": "boolean" }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "description": "OK",
+                    "content": {
+                      "application/json": {
+                        "schema": { "$ref": "#/components/schemas/Client" }
+                      }
+                    }
+                  },
+                  "404": { "description": "Not found" }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "Client": {
+                "type": "object",
+                "required": ["id", "name"],
+                "properties": {
+                  "id": { "type": "string", "format": "uuid" },
+                  "name": { "type": "string" },
+                  "vatNumber": { "type": ["string", "null"] }
+                }
+              }
+            }
+          }
+        }
+        """;
+
+    /// <summary>
+    /// OpenAPI 3.1 equivalent of <see cref="CreateClientYaml"/>.
+    /// Nullable field <c>vatNumber</c> in <c>CreateClientRequest</c> uses the 3.1
+    /// type-array syntax.
+    /// </summary>
+    public const string CreateClientV31Yaml = """
+        openapi: "3.1.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /tenants/{tenantId}/clients:
+            post:
+              operationId: createClient
+              parameters:
+                - name: tenantId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/CreateClientRequest'
+              responses:
+                "201":
+                  description: Created
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Client'
+                "400":
+                  description: Bad Request
+        components:
+          schemas:
+            Client:
+              type: object
+              required:
+                - id
+                - name
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+            CreateClientRequest:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                vatNumber:
+                  type:
+                    - string
+                    - "null"
+        """;
+
+    /// <summary>
+    /// An OpenAPI 3.1 YAML document with a rich schema that exercises multiple
+    /// type-array combinations: nullable string, nullable integer, nullable uuid,
+    /// non-nullable type array (no "null"), and a required field.
+    /// </summary>
+    public const string GetOrderV31Yaml = """
+        openapi: "3.1.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /orders/{orderId}:
+            get:
+              operationId: getOrder
+              parameters:
+                - name: orderId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Order'
+                "404":
+                  description: Not found
+        components:
+          schemas:
+            Order:
+              type: object
+              required:
+                - id
+                - quantity
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                quantity:
+                  type: integer
+                notes:
+                  type:
+                    - string
+                    - "null"
+                discount:
+                  type:
+                    - integer
+                    - "null"
+                referralCode:
+                  type:
+                    - string
+                    - "null"
+                  format: uuid
+                tag:
+                  type:
+                    - string
+        """;
+
+    /// <summary>
+    /// JSON equivalent of <see cref="GetOrderV31Yaml"/>: an OpenAPI 3.1 spec
+    /// exercising multiple type-array combinations.
+    /// </summary>
+    public const string GetOrderV31Json = """
+        {
+          "openapi": "3.1.0",
+          "info": {
+            "title": "Test API",
+            "version": "1.0.0"
+          },
+          "paths": {
+            "/orders/{orderId}": {
+              "get": {
+                "operationId": "getOrder",
+                "parameters": [
+                  {
+                    "name": "orderId",
+                    "in": "path",
+                    "required": true,
+                    "schema": { "type": "string", "format": "uuid" }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "description": "OK",
+                    "content": {
+                      "application/json": {
+                        "schema": { "$ref": "#/components/schemas/Order" }
+                      }
+                    }
+                  },
+                  "404": { "description": "Not found" }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "Order": {
+                "type": "object",
+                "required": ["id", "quantity"],
+                "properties": {
+                  "id": { "type": "string", "format": "uuid" },
+                  "quantity": { "type": "integer" },
+                  "notes": { "type": ["string", "null"] },
+                  "discount": { "type": ["integer", "null"] },
+                  "referralCode": { "type": ["string", "null"], "format": "uuid" },
+                  "tag": { "type": ["string"] }
+                }
+              }
+            }
+          }
+        }
+        """;
 }
