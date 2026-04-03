@@ -29,18 +29,24 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
     private readonly AdditionalText[] _additionalTexts;
     private readonly string _rootNamespace;
     private readonly string _metadataKey;
+    private readonly string _namespaceMetadataKey;
     private readonly string _namespaceKey;
+    private readonly string? _specNameOverride;
 
     public TestAnalyzerConfigOptionsProvider(
         AdditionalText[] additionalTexts,
         string rootNamespace,
         string metadataKey,
-        string namespaceKey)
+        string namespaceMetadataKey,
+        string namespaceKey,
+        string? specNameOverride = null)
     {
         _additionalTexts = additionalTexts;
         _rootNamespace = rootNamespace;
         _metadataKey = metadataKey;
+        _namespaceMetadataKey = namespaceMetadataKey;
         _namespaceKey = namespaceKey;
+        _specNameOverride = specNameOverride;
     }
 
     public override AnalyzerConfigOptions GlobalOptions
@@ -54,13 +60,17 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
 
     public override AnalyzerConfigOptions GetOptions(AdditionalText textFile)
     {
-        var isOpenApi = _additionalTexts.Any(t =>
-            t.Path == textFile.Path);
+        var isOpenApi = _additionalTexts.Any(t => t.Path == textFile.Path);
 
-        return new TestAnalyzerConfigOptions(new Dictionary<string, string>
+        var options = new Dictionary<string, string>
         {
             [_metadataKey] = isOpenApi ? "true" : "false"
-        });
+        };
+
+        if (isOpenApi && _specNameOverride is not null)
+            options[_namespaceMetadataKey] = _specNameOverride;
+
+        return new TestAnalyzerConfigOptions(options);
     }
 }
 

@@ -50,7 +50,7 @@ public class GetEndpointGenerationJsonTests
         var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpointBase.g.cs");
 
         Assert.That(source, Does.Contain("Results<"));
-        Assert.That(source, Does.Contain("Ok<global::TestProject.Contracts.Client>"));
+        Assert.That(source, Does.Contain("Ok<global::TestProject.Openapi.Contracts.Client>"));
         Assert.That(source, Does.Contain("NotFound>"));
     }
 

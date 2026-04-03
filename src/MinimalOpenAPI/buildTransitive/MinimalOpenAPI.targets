@@ -24,6 +24,7 @@
   <!-- ── OpenApi item type ────────────────────────────────────────────── -->
   <ItemGroup>
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiFile" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiNamespace" />
     <CompilerVisibleProperty Include="RootNamespace" />
   </ItemGroup>
 
@@ -32,11 +33,15 @@
     metadata flag set.  Must run before GenerateMSBuildEditorConfigFileCore so
     that the metadata is included in the generated analyzer config file that
     Roslyn reads via AnalyzerConfigOptions.
+
+    The optional Namespace item metadata (e.g. <OpenApi Include="payment.yaml" Namespace="Payment" />)
+    is forwarded as MinimalOpenApiNamespace.  When absent, the generator derives
+    a PascalCase name from the file name (e.g. payment-api.yaml → PaymentApi).
   -->
   <Target Name="AddMinimalOpenApiFilesToAdditionalFiles"
           BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile">
     <ItemGroup>
-      <AdditionalFiles Include="@(OpenApi)" MinimalOpenApiFile="true" />
+      <AdditionalFiles Include="@(OpenApi)" MinimalOpenApiFile="true" MinimalOpenApiNamespace="%(OpenApi.Namespace)" />
     </ItemGroup>
   </Target>
 

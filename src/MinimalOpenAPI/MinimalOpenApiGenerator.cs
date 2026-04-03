@@ -23,6 +23,7 @@ namespace MinimalOpenAPI.Generator;
 public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 {
     private const string MetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiFile";
+    private const string NamespaceMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiNamespace";
     private const string RootNamespaceKey = "build_property.RootNamespace";
 
     /// <summary>
@@ -41,9 +42,12 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             })
             .Select((pair, ct) =>
             {
+                var options = pair.Right.GetOptions(pair.Left);
                 var content = pair.Left.GetText(ct)?.ToString() ?? string.Empty;
                 var path = pair.Left.Path;
-                return (Content: content, Path: path);
+                options.TryGetValue(NamespaceMetadataKey, out var explicitNamespace);
+                var specName = DeriveSpecName(path, explicitNamespace);
+                return (Content: content, Path: path, SpecName: specName);
             });
 
         // 2. Get root namespace
@@ -59,25 +63,25 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             .Combine(rootNamespace)
             .Select((pair, _) =>
             {
-                var ((content, path), ns) = pair;
+                var ((content, path, specName), ns) = pair;
 
                 var parser = SelectParser(path, content);
                 if (parser is null)
                 {
                     var ext = System.IO.Path.GetExtension(path);
-                    return (Doc: (OpenApiDocument?)null, Path: path, Namespace: ns,
+                    return (Doc: (OpenApiDocument?)null, Path: path, Namespace: ns, SpecName: specName,
                             Error: (string?)null, UnsupportedExtension: ext);
                 }
 
                 try
                 {
                     var doc = parser.ParseAsync(content).GetAwaiter().GetResult();
-                    return (Doc: (OpenApiDocument?)doc, Path: path, Namespace: ns,
+                    return (Doc: (OpenApiDocument?)doc, Path: path, Namespace: ns, SpecName: specName,
                             Error: (string?)null, UnsupportedExtension: (string?)null);
                 }
                 catch (Exception ex)
                 {
-                    return (Doc: (OpenApiDocument?)null, Path: path, Namespace: ns,
+                    return (Doc: (OpenApiDocument?)null, Path: path, Namespace: ns, SpecName: specName,
                             Error: ex.Message, UnsupportedExtension: (string?)null);
                 }
             });
@@ -117,7 +121,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         // 6. Generate source files
         context.RegisterSourceOutput(combined, (spc, pair) =>
         {
-            var ((doc, path, ns, error, unsupportedExtension), classes) = pair;
+            var ((doc, path, ns, specName, error, unsupportedExtension), classes) = pair;
 
             if (unsupportedExtension is not null)
             {
@@ -148,7 +152,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     path));
             }
 
-            GenerateForDocument(spc, doc, ns, path, classes.ToArray());
+            GenerateForDocument(spc, doc, ns, specName, path, classes.ToArray());
         });
     }
 
@@ -236,19 +240,39 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             textSpan: TextSpan.FromBounds(0, 0),
             lineSpan: new LinePositionSpan(new LinePosition(0, 0), new LinePosition(0, 0)));
 
+    /// <summary>
+    /// Derives the spec name used as a namespace segment from the file path or an explicit override.
+    /// When <paramref name="explicitNamespace"/> is non-empty it is returned as-is (callers supply
+    /// a valid identifier via the <c>Namespace</c> MSBuild item metadata attribute).
+    /// Otherwise the file name (without extension) is converted to PascalCase: hyphens, underscores
+    /// and dots are treated as word separators, e.g. <c>payment-api.yaml</c> → <c>PaymentApi</c>.
+    /// </summary>
+    internal static string DeriveSpecName(string filePath, string? explicitNamespace)
+    {
+        if (!string.IsNullOrWhiteSpace(explicitNamespace))
+            return explicitNamespace!;
+
+        var fileName = System.IO.Path.GetFileNameWithoutExtension(filePath);
+        if (string.IsNullOrWhiteSpace(fileName))
+            return "Api";
+
+        return TypeMapper.ToPascalCase(fileName);
+    }
+
     private static void GenerateForDocument(
         SourceProductionContext spc,
         OpenApiDocument doc,
         string rootNamespace,
+        string specName,
         string openApiFilePath,
         ClassInfo[] allClasses)
     {
         // Generate DTOs
         if (doc.Schemas.Count > 0)
         {
-            var dtoSource = DtoGenerator.Generate(doc.Schemas, rootNamespace);
+            var dtoSource = DtoGenerator.Generate(doc.Schemas, rootNamespace, specName);
             if (!string.IsNullOrWhiteSpace(dtoSource))
-                spc.AddSource("MinimalOpenApi.Dtos.g.cs", dtoSource);
+                spc.AddSource($"MinimalOpenApi.{specName}.Dtos.g.cs", dtoSource);
         }
 
         // Discover handlers and customizers, emit diagnostics
@@ -261,12 +285,12 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             var customizerBase = TypeMapper.RegistrationClassName(op.OperationId);
 
             // Generate handler base
-            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace);
-            spc.AddSource($"MinimalOpenApi.{handlerBase}.g.cs", handlerSource);
+            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName);
+            spc.AddSource($"MinimalOpenApi.{specName}.{handlerBase}.g.cs", handlerSource);
 
             // Generate registration customizer base
-            var customizerSource = RegistrationCustomizerGenerator.Generate(op, rootNamespace);
-            spc.AddSource($"MinimalOpenApi.{customizerBase}.g.cs", customizerSource);
+            var customizerSource = RegistrationCustomizerGenerator.Generate(op, rootNamespace, specName);
+            spc.AddSource($"MinimalOpenApi.{specName}.{customizerBase}.g.cs", customizerSource);
 
             // Discover handler implementations
             var handlerImpls = allClasses
@@ -279,7 +303,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     spc.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.MissingHandlerImplementation,
                         CreateOpenApiLocation(openApiFilePath),
-                        $"{rootNamespace}.Endpoints.{handlerBase}"));
+                        $"{rootNamespace}.{specName}.Endpoints.{handlerBase}"));
                     break;
                 case 1:
                     handlers.Add(new DiscoveredImplementation
@@ -324,12 +348,12 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         }
 
         // Generate DI registration
-        var diSource = DependencyInjectionRegistrationGenerator.Generate(doc.Operations, handlers, customizers, rootNamespace);
-        spc.AddSource("MinimalOpenApi.DependencyInjection.g.cs", diSource);
+        var diSource = DependencyInjectionRegistrationGenerator.Generate(doc.Operations, handlers, customizers, rootNamespace, specName);
+        spc.AddSource($"MinimalOpenApi.{specName}.DependencyInjection.g.cs", diSource);
 
         // Generate endpoint mapping
-        var mappingSource = EndpointMappingGenerator.Generate(doc.Operations, customizers, rootNamespace);
-        spc.AddSource("MinimalOpenApi.EndpointMapping.g.cs", mappingSource);
+        var mappingSource = EndpointMappingGenerator.Generate(doc.Operations, customizers, rootNamespace, specName);
+        spc.AddSource($"MinimalOpenApi.{specName}.EndpointMapping.g.cs", mappingSource);
     }
 }
 

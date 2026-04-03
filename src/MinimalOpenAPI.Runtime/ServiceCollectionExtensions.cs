@@ -13,27 +13,36 @@ namespace MinimalOpenAPI;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
-    private static volatile Action<IServiceCollection>? _generatedRegistration;
-    private static volatile Func<IEndpointRouteBuilder, string?, RouteGroupBuilder>? _generatedEndpointMapping;
+    private static readonly List<Action<IServiceCollection>> _generatedRegistrations = new();
+    private static readonly List<Action<IEndpointRouteBuilder, RouteGroupBuilder>> _generatedEndpointMappings = new();
+    private static readonly object _registrationLock = new();
 
     /// <summary>
     /// Called by the source-generated <c>[ModuleInitializer]</c> to wire up the
     /// generated handler and customizer registrations before the app starts.
+    /// Each OpenAPI spec file registered in the project contributes one registration
+    /// callback; multiple specs are supported by calling this method once per spec.
     /// </summary>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public static void RegisterGeneratedServices(Action<IServiceCollection> registration)
     {
-        _generatedRegistration = registration;
+        lock (_registrationLock)
+            _generatedRegistrations.Add(registration);
     }
 
     /// <summary>
     /// Called by the source-generated <c>[ModuleInitializer]</c> to wire up the
     /// generated endpoint mapping before the app starts.
+    /// Each OpenAPI spec file registered in the project contributes one mapping
+    /// callback; multiple specs are supported by calling this method once per spec.
+    /// The callback receives the service provider and the pre-created
+    /// <see cref="RouteGroupBuilder"/> and maps endpoints directly onto it.
     /// </summary>
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void RegisterEndpointMapping(Func<IEndpointRouteBuilder, string?, RouteGroupBuilder> mapping)
+    public static void RegisterEndpointMapping(Action<IEndpointRouteBuilder, RouteGroupBuilder> mapping)
     {
-        _generatedEndpointMapping = mapping;
+        lock (_registrationLock)
+            _generatedEndpointMappings.Add(mapping);
     }
 
     /// <summary>
@@ -42,7 +51,13 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddMinimalOpenApi(this IServiceCollection services)
     {
-        _generatedRegistration?.Invoke(services);
+        List<Action<IServiceCollection>> registrations;
+        lock (_registrationLock)
+            registrations = new List<Action<IServiceCollection>>(_generatedRegistrations);
+
+        foreach (var reg in registrations)
+            reg(services);
+
         return services;
     }
 
@@ -50,6 +65,8 @@ public static class ServiceCollectionExtensions
     /// Maps all source-generated MinimalOpenAPI endpoints and returns a
     /// <see cref="RouteGroupBuilder"/> that can be further configured
     /// (e.g. <c>.RequireAuthorization()</c> to protect all endpoints at once).
+    /// When multiple OpenAPI spec files are registered, all of their endpoints are
+    /// mapped onto the same group under the shared <paramref name="prefix"/>.
     /// </summary>
     /// <param name="builder">The endpoint route builder.</param>
     /// <param name="prefix">Optional route prefix applied to all generated endpoints.</param>
@@ -57,15 +74,31 @@ public static class ServiceCollectionExtensions
         this IEndpointRouteBuilder builder,
         string? prefix = null)
     {
-        if (_generatedEndpointMapping is not null)
-            return _generatedEndpointMapping(builder, prefix);
+        var group = builder.MapGroup(prefix ?? string.Empty);
 
-        // Fallback when no generator has run (e.g. missing OpenAPI spec).
-        return builder.MapGroup(prefix ?? string.Empty);
+        List<Action<IEndpointRouteBuilder, RouteGroupBuilder>> mappings;
+        lock (_registrationLock)
+            mappings = new List<Action<IEndpointRouteBuilder, RouteGroupBuilder>>(_generatedEndpointMappings);
+
+        foreach (var mapping in mappings)
+            mapping(builder, group);
+
+        return group;
     }
 
     /// <summary>
-    /// Maps a GET endpoint for each <c>&lt;OpenApi Publish="true" /&gt;</c> spec file
+    /// Clears all registered service and endpoint-mapping callbacks.
+    /// This method is intended for use in unit tests only to prevent state leaking between tests.
+    /// </summary>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void ResetForTesting()
+    {
+        lock (_registrationLock)
+        {
+            _generatedRegistrations.Clear();
+            _generatedEndpointMappings.Clear();
+        }
+    }
     /// copied to the application base directory at build time, making each schema
     /// accessible at <c>{prefix}/schemas/{version}/{name}.{ext}</c>
     /// (e.g. <c>/.openapi/schemas/1.0.0/clients.yaml</c>).

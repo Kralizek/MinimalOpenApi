@@ -12,9 +12,8 @@ public class ServiceCollectionExtensionsTests
     [TearDown]
     public void TearDown()
     {
-        // Reset static callbacks after each test so no state leaks to subsequent tests.
-        ServiceCollectionExtensions.RegisterEndpointMapping(
-            (builder, prefix) => builder.MapGroup(prefix ?? string.Empty));
+        // Reset static state after each test so no state leaks to subsequent tests.
+        ServiceCollectionExtensions.ResetForTesting();
     }
 
     [Test]
@@ -53,7 +52,7 @@ public class ServiceCollectionExtensionsTests
     {
         Assert.DoesNotThrow(() =>
             ServiceCollectionExtensions.RegisterEndpointMapping(
-                (builder, prefix) => builder.MapGroup(prefix ?? string.Empty)));
+                (builder, group) => { }));
     }
 
     [Test]
@@ -62,9 +61,9 @@ public class ServiceCollectionExtensionsTests
         Assert.DoesNotThrow(() =>
         {
             ServiceCollectionExtensions.RegisterEndpointMapping(
-                (builder, prefix) => builder.MapGroup(prefix ?? string.Empty));
+                (builder, group) => { });
             ServiceCollectionExtensions.RegisterEndpointMapping(
-                (builder, prefix) => builder.MapGroup(prefix ?? string.Empty));
+                (builder, group) => { });
         });
     }
 
@@ -74,16 +73,56 @@ public class ServiceCollectionExtensionsTests
         var app = WebApplication.CreateBuilder().Build();
 
         var invoked = false;
-        ServiceCollectionExtensions.RegisterEndpointMapping((builder, prefix) =>
+        ServiceCollectionExtensions.RegisterEndpointMapping((builder, group) =>
         {
             invoked = true;
-            return builder.MapGroup(prefix ?? string.Empty);
         });
 
         var group = app.MapMinimalOpenApiEndpoints();
 
         Assert.That(invoked, Is.True);
         Assert.That(group, Is.Not.Null);
+    }
+
+    [Test]
+    public void MapMinimalOpenApiEndpoints_MultipleCallbacks_AllAreInvoked()
+    {
+        var app = WebApplication.CreateBuilder().Build();
+
+        var invoked1 = false;
+        var invoked2 = false;
+        ServiceCollectionExtensions.RegisterEndpointMapping((builder, group) => { invoked1 = true; });
+        ServiceCollectionExtensions.RegisterEndpointMapping((builder, group) => { invoked2 = true; });
+
+        var group = app.MapMinimalOpenApiEndpoints();
+
+        Assert.That(invoked1, Is.True);
+        Assert.That(invoked2, Is.True);
+        Assert.That(group, Is.Not.Null);
+    }
+
+    [Test]
+    public void MapMinimalOpenApiEndpoints_NoCallbackRegistered_ReturnsRouteGroupBuilder()
+    {
+        var app = WebApplication.CreateBuilder().Build();
+
+        var group = app.MapMinimalOpenApiEndpoints();
+
+        Assert.That(group, Is.Not.Null);
+    }
+
+    [Test]
+    public void AddMinimalOpenApi_MultipleRegistrations_AllAreInvoked()
+    {
+        var services = new ServiceCollection();
+
+        var count = 0;
+        ServiceCollectionExtensions.RegisterGeneratedServices(_ => count++);
+        ServiceCollectionExtensions.RegisterGeneratedServices(_ => count++);
+
+        services.AddMinimalOpenApi();
+
+        Assert.That(count, Is.EqualTo(2));
     }
 
     [Test]

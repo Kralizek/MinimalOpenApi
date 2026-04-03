@@ -20,7 +20,7 @@ public class NestedInlineDtoTests
             {
                 public override System.Threading.Tasks.Task<
                     global::Microsoft.AspNetCore.Http.HttpResults.Results<
-                        global::Microsoft.AspNetCore.Http.HttpResults.Ok<global::TestProject.Contracts.Order>,
+                        global::Microsoft.AspNetCore.Http.HttpResults.Ok<global::TestProject.Openapi.Contracts.Order>,
                         global::Microsoft.AspNetCore.Http.HttpResults.NotFound>> HandleAsync(
                     global::System.Guid orderId,
                     System.Threading.CancellationToken ct) => throw new System.NotImplementedException();
@@ -129,7 +129,7 @@ public class NestedInlineDtoTests
             {
                 public override System.Threading.Tasks.Task<
                     global::Microsoft.AspNetCore.Http.HttpResults.Results<
-                        global::Microsoft.AspNetCore.Http.HttpResults.Ok<global::TestProject.Contracts.Shipment>,
+                        global::Microsoft.AspNetCore.Http.HttpResults.Ok<global::TestProject.Openapi.Contracts.Shipment>,
                         global::Microsoft.AspNetCore.Http.HttpResults.NotFound>> HandleAsync(
                     global::System.Guid shipmentId,
                     System.Threading.CancellationToken ct) => throw new System.NotImplementedException();
@@ -211,7 +211,7 @@ public class NestedInlineDtoTests
             {
                 public override System.Threading.Tasks.Task<
                     global::Microsoft.AspNetCore.Http.HttpResults.Results<
-                        global::Microsoft.AspNetCore.Http.HttpResults.Ok<global::TestProject.Contracts.Invoice>,
+                        global::Microsoft.AspNetCore.Http.HttpResults.Ok<global::TestProject.Openapi.Contracts.Invoice>,
                         global::Microsoft.AspNetCore.Http.HttpResults.NotFound>> HandleAsync(
                     global::System.Guid invoiceId,
                     System.Threading.CancellationToken ct) => throw new System.NotImplementedException();

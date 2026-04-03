@@ -13,12 +13,25 @@ namespace MinimalOpenAPI.Generator.Tests;
 internal static class GeneratorTestHelper
 {
     private static readonly string AdditionalFilesMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiFile";
+    private static readonly string NamespaceMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiNamespace";
     private static readonly string RootNamespaceKey = "build_property.RootNamespace";
 
+    /// <summary>
+    /// Runs the generator with the given user source and additional files.
+    /// </summary>
+    /// <param name="userSource">C# source code representing user-written handler implementations.</param>
+    /// <param name="additionalFiles">OpenAPI spec files to pass as AdditionalTexts.</param>
+    /// <param name="rootNamespace">The root namespace to use (defaults to "TestProject").</param>
+    /// <param name="specNameOverride">
+    /// When non-null, simulates the <c>Namespace</c> MSBuild metadata attribute on all provided
+    /// OpenAPI files, so the generator uses this value as the spec name instead of deriving it
+    /// from the file name.
+    /// </param>
     public static (GeneratorDriverRunResult Result, Compilation OutputCompilation) RunGenerator(
         string userSource,
         IEnumerable<(string FileName, string Content)> additionalFiles,
-        string rootNamespace = "TestProject")
+        string rootNamespace = "TestProject",
+        string? specNameOverride = null)
     {
         // Create a minimal compilation for the generator
         var references = new List<MetadataReference>
@@ -49,7 +62,9 @@ internal static class GeneratorTestHelper
             additionalTexts.ToArray(),
             rootNamespace,
             AdditionalFilesMetadataKey,
-            RootNamespaceKey);
+            NamespaceMetadataKey,
+            RootNamespaceKey,
+            specNameOverride);
 
         var driver = CSharpGeneratorDriver
             .Create(generator)

@@ -63,7 +63,7 @@ public class GetEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "EndpointMapping.g.cs");
 
-        Assert.That(source, Does.Contain("[global::Microsoft.AspNetCore.Http.AsParameters] global::TestProject.Endpoints.GetClientEndpointBase.Parameters parameters"));
+        Assert.That(source, Does.Contain("[global::Microsoft.AspNetCore.Http.AsParameters] global::TestProject.Openapi.Endpoints.GetClientEndpointBase.Parameters parameters"));
     }
 
     [Test]
@@ -76,7 +76,7 @@ public class GetEndpointGenerationTests
         var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpointBase.g.cs");
 
         Assert.That(source, Does.Contain("Results<"));
-        Assert.That(source, Does.Contain("Ok<global::TestProject.Contracts.Client>"));
+        Assert.That(source, Does.Contain("Ok<global::TestProject.Openapi.Contracts.Client>"));
         Assert.That(source, Does.Contain("NotFound>"));
     }
 
@@ -182,7 +182,7 @@ public class GetEndpointGenerationTests
         var moa001 = result.Diagnostics.FirstOrDefault(d => d.Id == "MOA001");
         Assert.That(moa001, Is.Not.Null, "MOA001 should be emitted");
         Assert.That(moa001!.GetMessage(),
-            Does.Contain("TestProject.Endpoints.GetClientEndpointBase"),
+            Does.Contain("TestProject.Openapi.Endpoints.GetClientEndpointBase"),
             "MOA001 message must include the fully-qualified type name so users know exactly what to inherit from");
     }
 
