@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 
-using MinimalOpenAPI.SmokeTest.Api.Endpoints;
+using MinimalOpenAPI.SmokeTest.Api.Openapi.Endpoints;
 
 namespace MinimalOpenAPI.SmokeTest.Api;
 
