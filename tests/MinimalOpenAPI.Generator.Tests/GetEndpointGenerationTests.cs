@@ -63,7 +63,7 @@ public class GetEndpointGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "EndpointMapping.g.cs");
 
-        Assert.That(source, Does.Contain("[global::Microsoft.AspNetCore.Http.AsParameters] global::TestProject.Endpoints.GetClientEndpointBase.Parameters parameters"));
+        Assert.That(source, Does.Contain("[global::Microsoft.AspNetCore.Http.AsParameters] global::TestProject.Openapi.Endpoints.GetClientEndpointBase.Parameters parameters"));
     }
 
     [Test]
@@ -76,7 +76,7 @@ public class GetEndpointGenerationTests
         var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpointBase.g.cs");
 
         Assert.That(source, Does.Contain("Results<"));
-        Assert.That(source, Does.Contain("Ok<global::TestProject.Contracts.Client>"));
+        Assert.That(source, Does.Contain("Ok<global::TestProject.Openapi.Contracts.Client>"));
         Assert.That(source, Does.Contain("NotFound>"));
     }
 
@@ -161,6 +161,51 @@ public class GetEndpointGenerationTests
     }
 
     [Test]
+    public void GeneratesDiRegistration_WithoutPublish_DoesNotEmitRegisterSchemaFile()
+    {
+        // No schemaId / publish=false → RegisterSchemaFile must NOT appear.
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: GetClientHandlerImpl,
+            additionalFiles: AdditionalFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
+
+        Assert.That(source, Does.Not.Contain("RegisterSchemaFile("));
+    }
+
+    [Test]
+    public void GeneratesDiRegistration_WithPublish_EmitsRegisterSchemaFile()
+    {
+        // schemaId + publish=true → RegisterSchemaFile must be emitted with the correct path.
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: GetClientHandlerImpl,
+            additionalFiles: AdditionalFiles,
+            schemaId: "987654321",
+            publish: true);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
+
+        Assert.That(source, Does.Contain("RegisterSchemaFile("));
+        Assert.That(source, Does.Contain("openapi/schemas/987654321/openapi.yaml"));
+    }
+
+    [Test]
+    public void GeneratesDiRegistration_PublishTrueButNoSchemaId_DoesNotEmitRegisterSchemaFile()
+    {
+        // publish=true but no schemaId → RegisterSchemaFile must NOT be emitted
+        // (the file was not copied by the targets, so there is nothing to serve).
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: GetClientHandlerImpl,
+            additionalFiles: AdditionalFiles,
+            schemaId: null,
+            publish: true);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
+
+        Assert.That(source, Does.Not.Contain("RegisterSchemaFile("));
+    }
+
+    [Test]
     public void ReportsMissingHandlerImplementationDiagnostic()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -182,7 +227,7 @@ public class GetEndpointGenerationTests
         var moa001 = result.Diagnostics.FirstOrDefault(d => d.Id == "MOA001");
         Assert.That(moa001, Is.Not.Null, "MOA001 should be emitted");
         Assert.That(moa001!.GetMessage(),
-            Does.Contain("TestProject.Endpoints.GetClientEndpointBase"),
+            Does.Contain("TestProject.Openapi.Endpoints.GetClientEndpointBase"),
             "MOA001 message must include the fully-qualified type name so users know exactly what to inherit from");
     }
 

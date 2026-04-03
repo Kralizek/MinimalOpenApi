@@ -81,8 +81,8 @@ public class InlineSchemaGenerationTests
         var source = GeneratorTestHelper.GetGeneratedSource(result, "EndpointMapping.g.cs");
 
         // From outside the class, the nested types must be fully qualified.
-        Assert.That(source, Does.Contain("global::TestProject.Endpoints.CreateOrderEndpointBase.Request request"));
-        Assert.That(source, Does.Contain("global::TestProject.Endpoints.CreateOrderEndpointBase.CreatedResponse"));
+        Assert.That(source, Does.Contain("global::TestProject.Openapi.Endpoints.CreateOrderEndpointBase.Request request"));
+        Assert.That(source, Does.Contain("global::TestProject.Openapi.Endpoints.CreateOrderEndpointBase.CreatedResponse"));
     }
 
     [Test]

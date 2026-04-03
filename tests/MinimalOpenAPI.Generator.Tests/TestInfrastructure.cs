@@ -29,18 +29,36 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
     private readonly AdditionalText[] _additionalTexts;
     private readonly string _rootNamespace;
     private readonly string _metadataKey;
+    private readonly string _namespaceMetadataKey;
+    private readonly string _schemaIdMetadataKey;
+    private readonly string _publishMetadataKey;
     private readonly string _namespaceKey;
+    private readonly string? _specNameOverride;
+    private readonly string? _schemaIdOverride;
+    private readonly bool _publish;
 
     public TestAnalyzerConfigOptionsProvider(
         AdditionalText[] additionalTexts,
         string rootNamespace,
         string metadataKey,
-        string namespaceKey)
+        string namespaceMetadataKey,
+        string schemaIdMetadataKey,
+        string publishMetadataKey,
+        string namespaceKey,
+        string? specNameOverride = null,
+        string? schemaId = null,
+        bool publish = false)
     {
         _additionalTexts = additionalTexts;
         _rootNamespace = rootNamespace;
         _metadataKey = metadataKey;
+        _namespaceMetadataKey = namespaceMetadataKey;
+        _schemaIdMetadataKey = schemaIdMetadataKey;
+        _publishMetadataKey = publishMetadataKey;
         _namespaceKey = namespaceKey;
+        _specNameOverride = specNameOverride;
+        _schemaIdOverride = schemaId;
+        _publish = publish;
     }
 
     public override AnalyzerConfigOptions GlobalOptions
@@ -54,13 +72,23 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
 
     public override AnalyzerConfigOptions GetOptions(AdditionalText textFile)
     {
-        var isOpenApi = _additionalTexts.Any(t =>
-            t.Path == textFile.Path);
+        var isOpenApi = _additionalTexts.Any(t => t.Path == textFile.Path);
 
-        return new TestAnalyzerConfigOptions(new Dictionary<string, string>
+        var options = new Dictionary<string, string>
         {
             [_metadataKey] = isOpenApi ? "true" : "false"
-        });
+        };
+
+        if (isOpenApi && _specNameOverride is not null)
+            options[_namespaceMetadataKey] = _specNameOverride;
+
+        if (isOpenApi && _schemaIdOverride is not null)
+            options[_schemaIdMetadataKey] = _schemaIdOverride;
+
+        if (isOpenApi)
+            options[_publishMetadataKey] = _publish ? "true" : "false";
+
+        return new TestAnalyzerConfigOptions(options);
     }
 }
 

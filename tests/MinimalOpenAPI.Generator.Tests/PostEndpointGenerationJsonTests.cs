@@ -34,7 +34,7 @@ public class PostEndpointGenerationJsonTests
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateClientEndpointBase.g.cs");
 
         Assert.That(source, Does.Contain("System.Guid tenantId"));
-        Assert.That(source, Does.Contain("global::TestProject.Contracts.CreateClientRequest request"));
+        Assert.That(source, Does.Contain("global::TestProject.Openapi.Contracts.CreateClientRequest request"));
         Assert.That(source, Does.Contain("CancellationToken cancellationToken"));
     }
 
@@ -47,7 +47,7 @@ public class PostEndpointGenerationJsonTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateClientEndpointBase.g.cs");
 
-        Assert.That(source, Does.Contain("Created<global::TestProject.Contracts.Client>"));
+        Assert.That(source, Does.Contain("Created<global::TestProject.Openapi.Contracts.Client>"));
         Assert.That(source, Does.Contain("BadRequest"));
     }
 
@@ -77,7 +77,7 @@ public class PostEndpointGenerationJsonTests
 
         Assert.That(source, Does.Contain("MapPost("));
         Assert.That(source, Does.Contain("/tenants/{tenantId:guid}/clients"));
-        Assert.That(source, Does.Contain("global::TestProject.Contracts.CreateClientRequest request"));
+        Assert.That(source, Does.Contain("global::TestProject.Openapi.Contracts.CreateClientRequest request"));
         Assert.That(source, Does.Contain("WithName(\"createClient\")"));
     }
 

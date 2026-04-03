@@ -24,6 +24,9 @@
   <!-- ── OpenApi item type ────────────────────────────────────────────── -->
   <ItemGroup>
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiFile" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiNamespace" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiSchemaId" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiPublish" />
     <CompilerVisibleProperty Include="RootNamespace" />
   </ItemGroup>
 
@@ -32,11 +35,31 @@
     metadata flag set.  Must run before GenerateMSBuildEditorConfigFileCore so
     that the metadata is included in the generated analyzer config file that
     Roslyn reads via AnalyzerConfigOptions.
+
+    The optional Namespace item metadata (e.g. <OpenApi Include="payment.yaml" Namespace="Payment" />)
+    is forwarded as MinimalOpenApiNamespace.  When absent, the generator derives
+    a PascalCase name from the file name (e.g. payment-api.yaml → PaymentApi).
+
+    MinimalOpenApiSchemaId is a stable integer hash of the item's full source path.
+    It is used as a unique subdirectory when copying publishable spec files to the
+    build output (openapi/schemas/<SchemaId>/<filename>.<ext>), preventing collisions
+    between spec files that share the same filename but come from different directories
+    or NuGet packages.  The value is non-deterministic across machines (because full
+    paths differ), which is intentional and acceptable since the files are never
+    checked in.  The generator receives the same value so it can hard-code the correct
+    relative file path inside the generated RegisterSchemaFile() call.
+
+    MinimalOpenApiPublish mirrors the Publish item metadata so the generator knows
+    whether to emit a RegisterSchemaFile() call for a given spec file.
   -->
   <Target Name="AddMinimalOpenApiFilesToAdditionalFiles"
           BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile">
     <ItemGroup>
-      <AdditionalFiles Include="@(OpenApi)" MinimalOpenApiFile="true" />
+      <AdditionalFiles Include="@(OpenApi)"
+                       MinimalOpenApiFile="true"
+                       MinimalOpenApiNamespace="%(OpenApi.Namespace)"
+                       MinimalOpenApiSchemaId="$([System.Math]::Abs($([MSBuild]::StableStringHash('%(FullPath)'))))"
+                       MinimalOpenApiPublish="%(OpenApi.Publish)" />
     </ItemGroup>
   </Target>
 
@@ -111,20 +134,25 @@
   <!--
     Copy <OpenApi Publish="true" /> files to the build output directory so
     they are available when running locally (e.g. dotnet run via AppContext.BaseDirectory).
-    Destination: $(OutDir)openapi/schemas/<filename>.<extension>
+    Each file is placed under a unique subdirectory derived from a stable hash of its
+    full source path, preventing name collisions between files with the same filename
+    from different directories or NuGet packages.
+    Destination: $(OutDir)openapi/schemas/<SchemaId>/<filename>.<extension>
     Examples:
-      clients.yaml  →  <OutDir>/openapi/schemas/clients.yaml
-      admin.json    →  <OutDir>/openapi/schemas/admin.json
+      /repo/openapi.yaml (hash 987654321)  →  <OutDir>/openapi/schemas/987654321/openapi.yaml
+      /pkg/v2/openapi.yaml (hash 123456789) →  <OutDir>/openapi/schemas/123456789/openapi.yaml
   -->
   <Target Name="CopyMinimalOpenApiFilesToOutput"
           AfterTargets="Build"
           Condition="'@(OpenApi->WithMetadataValue('Publish', 'true'))' != ''">
     <ItemGroup>
-      <_MinimalOpenApiFilesToCopy Include="@(OpenApi)" Condition="'%(OpenApi.Publish)' == 'true'" />
+      <_MinimalOpenApiFilesToCopy Include="@(OpenApi)" Condition="'%(OpenApi.Publish)' == 'true'">
+        <SchemaId>$([System.Math]::Abs($([MSBuild]::StableStringHash('%(FullPath)'))))</SchemaId>
+      </_MinimalOpenApiFilesToCopy>
     </ItemGroup>
-    <MakeDir Directories="$(OutDir)openapi/schemas" />
+    <MakeDir Directories="@(_MinimalOpenApiFilesToCopy->'$(OutDir)openapi/schemas/%(SchemaId)')" />
     <Copy SourceFiles="@(_MinimalOpenApiFilesToCopy)"
-          DestinationFiles="@(_MinimalOpenApiFilesToCopy->'$(OutDir)openapi/schemas/%(Filename)%(Extension)')"
+          DestinationFiles="@(_MinimalOpenApiFilesToCopy->'$(OutDir)openapi/schemas/%(SchemaId)/%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
   </Target>
 
@@ -133,15 +161,17 @@
     Hooks into AfterTargets="ComputeFilesToPublish" so items are injected
     into ResolvedFileToPublish after the SDK's standard publish computation
     and before CopyFilesToPublishDirectory copies everything to $(PublishDir).
-    Destination: openapi/schemas/<filename>.<extension>  (relative to publish root)
+    Destination: openapi/schemas/<SchemaId>/<filename>.<extension>  (relative to publish root)
   -->
   <Target Name="AddMinimalOpenApiFilesToPublishOutput"
           AfterTargets="ComputeFilesToPublish"
           Condition="'@(OpenApi->WithMetadataValue('Publish', 'true'))' != ''">
     <ItemGroup>
-      <_MinimalOpenApiFilesToPublish Include="@(OpenApi)" Condition="'%(OpenApi.Publish)' == 'true'" />
+      <_MinimalOpenApiFilesToPublish Include="@(OpenApi)" Condition="'%(OpenApi.Publish)' == 'true'">
+        <SchemaId>$([System.Math]::Abs($([MSBuild]::StableStringHash('%(FullPath)'))))</SchemaId>
+      </_MinimalOpenApiFilesToPublish>
       <ResolvedFileToPublish Include="@(_MinimalOpenApiFilesToPublish)">
-        <RelativePath>openapi/schemas/%(Filename)%(Extension)</RelativePath>
+        <RelativePath>openapi/schemas/%(SchemaId)/%(Filename)%(Extension)</RelativePath>
         <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       </ResolvedFileToPublish>
     </ItemGroup>

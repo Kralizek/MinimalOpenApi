@@ -11,7 +11,8 @@ internal static class DtoGenerator
 {
     public static string Generate(
         Dictionary<string, OpenApiSchema> schemas,
-        string rootNamespace)
+        string rootNamespace,
+        string specName)
     {
         if (schemas.Count == 0) return string.Empty;
 
@@ -21,7 +22,7 @@ internal static class DtoGenerator
         sb.AppendLine();
         sb.AppendLine("using global::System.Text.Json.Serialization;");
         sb.AppendLine();
-        sb.AppendLine($"namespace {rootNamespace}.Contracts;");
+        sb.AppendLine($"namespace {rootNamespace}.{specName}.Contracts;");
         sb.AppendLine();
 
         var emitted = new HashSet<string>(StringComparer.Ordinal);

@@ -12,9 +12,8 @@ public class ServiceCollectionExtensionsTests
     [TearDown]
     public void TearDown()
     {
-        // Reset static callbacks after each test so no state leaks to subsequent tests.
-        ServiceCollectionExtensions.RegisterEndpointMapping(
-            (builder, prefix) => builder.MapGroup(prefix ?? string.Empty));
+        // Reset static state after each test so no state leaks to subsequent tests.
+        ServiceCollectionExtensions.ResetForTesting();
     }
 
     [Test]
@@ -53,7 +52,7 @@ public class ServiceCollectionExtensionsTests
     {
         Assert.DoesNotThrow(() =>
             ServiceCollectionExtensions.RegisterEndpointMapping(
-                (builder, prefix) => builder.MapGroup(prefix ?? string.Empty)));
+                (builder, group) => { }));
     }
 
     [Test]
@@ -62,9 +61,9 @@ public class ServiceCollectionExtensionsTests
         Assert.DoesNotThrow(() =>
         {
             ServiceCollectionExtensions.RegisterEndpointMapping(
-                (builder, prefix) => builder.MapGroup(prefix ?? string.Empty));
+                (builder, group) => { });
             ServiceCollectionExtensions.RegisterEndpointMapping(
-                (builder, prefix) => builder.MapGroup(prefix ?? string.Empty));
+                (builder, group) => { });
         });
     }
 
@@ -74,16 +73,56 @@ public class ServiceCollectionExtensionsTests
         var app = WebApplication.CreateBuilder().Build();
 
         var invoked = false;
-        ServiceCollectionExtensions.RegisterEndpointMapping((builder, prefix) =>
+        ServiceCollectionExtensions.RegisterEndpointMapping((builder, group) =>
         {
             invoked = true;
-            return builder.MapGroup(prefix ?? string.Empty);
         });
 
         var group = app.MapMinimalOpenApiEndpoints();
 
         Assert.That(invoked, Is.True);
         Assert.That(group, Is.Not.Null);
+    }
+
+    [Test]
+    public void MapMinimalOpenApiEndpoints_MultipleCallbacks_AllAreInvoked()
+    {
+        var app = WebApplication.CreateBuilder().Build();
+
+        var invoked1 = false;
+        var invoked2 = false;
+        ServiceCollectionExtensions.RegisterEndpointMapping((builder, group) => { invoked1 = true; });
+        ServiceCollectionExtensions.RegisterEndpointMapping((builder, group) => { invoked2 = true; });
+
+        var group = app.MapMinimalOpenApiEndpoints();
+
+        Assert.That(invoked1, Is.True);
+        Assert.That(invoked2, Is.True);
+        Assert.That(group, Is.Not.Null);
+    }
+
+    [Test]
+    public void MapMinimalOpenApiEndpoints_NoCallbackRegistered_ReturnsRouteGroupBuilder()
+    {
+        var app = WebApplication.CreateBuilder().Build();
+
+        var group = app.MapMinimalOpenApiEndpoints();
+
+        Assert.That(group, Is.Not.Null);
+    }
+
+    [Test]
+    public void AddMinimalOpenApi_MultipleRegistrations_AllAreInvoked()
+    {
+        var services = new ServiceCollection();
+
+        var count = 0;
+        ServiceCollectionExtensions.RegisterGeneratedServices(_ => count++);
+        ServiceCollectionExtensions.RegisterGeneratedServices(_ => count++);
+
+        services.AddMinimalOpenApi();
+
+        Assert.That(count, Is.EqualTo(2));
     }
 
     [Test]
@@ -197,6 +236,75 @@ public class ServiceCollectionExtensionsTests
 
             Assert.That(group, Is.Not.Null);
             Assert.That(((IEndpointRouteBuilder)group).DataSources, Is.Empty);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void RegisterSchemaFile_DoesNotThrow()
+    {
+        Assert.DoesNotThrow(() =>
+            ServiceCollectionExtensions.RegisterSchemaFile("openapi/schemas/123456789/openapi.yaml"));
+    }
+
+    [Test]
+    public void RegisterSchemaFile_CalledMultipleTimes_DoesNotThrow()
+    {
+        Assert.DoesNotThrow(() =>
+        {
+            ServiceCollectionExtensions.RegisterSchemaFile("openapi/schemas/111111111/api-v1.yaml");
+            ServiceCollectionExtensions.RegisterSchemaFile("openapi/schemas/222222222/api-v2.yaml");
+        });
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_WithRegisteredSchemaFiles_UsesRegisteredFilesInsteadOfDirectoryScan()
+    {
+        // Register the relative path (as the generated module initializer would).
+        ServiceCollectionExtensions.RegisterSchemaFile("openapi/schemas/987654321/myapi.yaml");
+
+        // The flat scan directory is empty — if MapOpenApiSchemas fell back to scanning it, no
+        // endpoints would be registered.  With a registered file the endpoint must still appear,
+        // confirming that the registered-file path takes precedence over directory scanning.
+        var app = WebApplication.CreateBuilder().Build();
+        var emptyDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            var group = app.MapOpenApiSchemas(schemasDirectory: emptyDir);
+
+            Assert.That(group, Is.Not.Null);
+            Assert.That(((IEndpointRouteBuilder)group).DataSources, Is.Not.Empty,
+                "An endpoint should be registered from the registered schema file, not from the empty schemasDirectory.");
+        }
+        finally
+        {
+            Directory.Delete(emptyDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_WithRegisteredSchemaFiles_IgnoresDirectoryScan()
+    {
+        // When files ARE registered, a non-empty schemasDirectory must not contribute extra endpoints.
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            // Register one schema file (path does not need to exist for endpoint-count assertions).
+            ServiceCollectionExtensions.RegisterSchemaFile("openapi/schemas/111111111/registered.yaml");
+
+            // Put an extra file in the scan directory — it should be ignored because registered
+            // files take precedence, so only 1 DataSource (from the registered file) is added.
+            File.WriteAllText(Path.Combine(tempDir, "extra.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: Extra\n  version: '9.9.9'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var group = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            // DataSources count reflects registered files only (1), not the extra scan file.
+            Assert.That(((IEndpointRouteBuilder)group).DataSources, Has.Count.EqualTo(1));
         }
         finally
         {

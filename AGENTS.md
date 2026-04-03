@@ -109,7 +109,8 @@ dotnet build sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj --no-resto
 # 3. Publish the smoke-test consumer (exercises the OpenAPI file publish targets)
 dotnet publish sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj --no-restore --configuration Release --output /tmp/smoketest-publish
 # Verify the spec file was published at the expected path:
-test -f /tmp/smoketest-publish/openapi/schemas/openapi.yaml && echo "OpenAPI spec published OK"
+# Verify the spec file was published under the unique schema-id subdirectory:
+find /tmp/smoketest-publish/openapi/schemas -name "openapi.yaml" | grep -q . && echo "OpenAPI spec published OK"
 ```
 
 ---

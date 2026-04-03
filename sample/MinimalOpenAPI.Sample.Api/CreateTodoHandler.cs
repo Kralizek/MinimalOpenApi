@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 
-using MinimalOpenAPI.Sample.Api.Contracts;
-using MinimalOpenAPI.Sample.Api.Endpoints;
+using MinimalOpenAPI.Sample.Api.Openapi.Contracts;
+using MinimalOpenAPI.Sample.Api.Openapi.Endpoints;
 
 namespace MinimalOpenAPI.Sample.Api;
 
