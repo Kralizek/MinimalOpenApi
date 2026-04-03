@@ -106,7 +106,14 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             Properties = properties,
             Required = required,
             Items = ExtractItemsSchema(node),
-            Enum = enumValues
+            Enum = enumValues,
+            MinLength = GetNullableInt(node, "minLength"),
+            MaxLength = GetNullableInt(node, "maxLength"),
+            Pattern = GetString(node, "pattern"),
+            Minimum = GetNullableDouble(node, "minimum"),
+            Maximum = GetNullableDouble(node, "maximum"),
+            MinItems = GetNullableInt(node, "minItems"),
+            MaxItems = GetNullableInt(node, "maxItems")
         };
     }
 
@@ -282,6 +289,22 @@ public sealed class YamlOpenApiParser : IOpenApiParser
     {
         var value = GetString(node, key);
         return value is "true" or "True" or "TRUE";
+    }
+
+    private static int? GetNullableInt(YamlMappingNode node, string key)
+    {
+        var value = GetString(node, key);
+        return value is not null && int.TryParse(value, out var i) ? i : null;
+    }
+
+    private static double? GetNullableDouble(YamlMappingNode node, string key)
+    {
+        var value = GetString(node, key);
+        return value is not null && double.TryParse(
+            value,
+            System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var d) ? d : null;
     }
 
     private static YamlMappingNode? GetMapping(YamlMappingNode node, params string[] path)

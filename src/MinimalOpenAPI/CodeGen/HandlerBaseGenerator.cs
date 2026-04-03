@@ -136,6 +136,9 @@ internal static class HandlerBaseGenerator
 
             sb.AppendLine($"        [global::System.Text.Json.Serialization.JsonPropertyName(\"{propName}\")]");
 
+            foreach (var attr in ValidationAttributeEmitter.GetAttributes(propSchema, "        "))
+                sb.AppendLine(attr);
+
             if (nullable)
             {
                 sb.AppendLine($"        public {csharpTypeName} {csharpName} {{ get; init; }}");
@@ -168,6 +171,8 @@ internal static class HandlerBaseGenerator
             var bindingAttr = GetBindingAttribute(p);
             if (bindingAttr is not null)
                 sb.AppendLine($"        {bindingAttr}");
+            foreach (var attr in ValidationAttributeEmitter.GetAttributes(p.Schema, "        "))
+                sb.AppendLine(attr);
             sb.AppendLine($"        public {type} {propName} {{ get; init; }}");
         }
 

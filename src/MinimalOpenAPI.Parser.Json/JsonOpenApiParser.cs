@@ -114,7 +114,14 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             Properties = properties,
             Required = required,
             Items = ExtractItemsSchema(node),
-            Enum = enumValues
+            Enum = enumValues,
+            MinLength = GetNullableInt(node, "minLength"),
+            MaxLength = GetNullableInt(node, "maxLength"),
+            Pattern = GetString(node, "pattern"),
+            Minimum = GetNullableDouble(node, "minimum"),
+            Maximum = GetNullableDouble(node, "maximum"),
+            MinItems = GetNullableInt(node, "minItems"),
+            MaxItems = GetNullableInt(node, "maxItems")
         };
     }
 
@@ -294,6 +301,20 @@ public sealed class JsonOpenApiParser : IOpenApiParser
         if (!node.TryGetPropertyValue(key, out var value) || value is null)
             return false;
         return value.GetValueKind() == JsonValueKind.True;
+    }
+
+    private static int? GetNullableInt(JsonObject node, string key)
+    {
+        if (!node.TryGetPropertyValue(key, out var value) || value is null)
+            return null;
+        return value.GetValueKind() == JsonValueKind.Number ? value.GetValue<int>() : null;
+    }
+
+    private static double? GetNullableDouble(JsonObject node, string key)
+    {
+        if (!node.TryGetPropertyValue(key, out var value) || value is null)
+            return null;
+        return value.GetValueKind() == JsonValueKind.Number ? value.GetValue<double>() : null;
     }
 
     private static JsonObject? GetObject(JsonObject node, params string[] path)
