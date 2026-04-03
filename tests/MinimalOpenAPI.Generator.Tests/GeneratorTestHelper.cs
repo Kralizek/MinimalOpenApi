@@ -14,6 +14,8 @@ internal static class GeneratorTestHelper
 {
     private static readonly string AdditionalFilesMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiFile";
     private static readonly string NamespaceMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiNamespace";
+    private static readonly string SchemaIdMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiSchemaId";
+    private static readonly string PublishMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiPublish";
     private static readonly string RootNamespaceKey = "build_property.RootNamespace";
 
     /// <summary>
@@ -27,11 +29,21 @@ internal static class GeneratorTestHelper
     /// OpenAPI files, so the generator uses this value as the spec name instead of deriving it
     /// from the file name.
     /// </param>
+    /// <param name="schemaId">
+    /// When non-null, simulates the <c>MinimalOpenApiSchemaId</c> MSBuild metadata on all provided
+    /// OpenAPI files (the stable hash of the source file's full path computed by the targets).
+    /// </param>
+    /// <param name="publish">
+    /// When <see langword="true"/>, simulates <c>Publish="true"</c> on all provided OpenAPI files,
+    /// causing the generator to emit a <c>RegisterSchemaFile</c> call in the module initializer.
+    /// </param>
     public static (GeneratorDriverRunResult Result, Compilation OutputCompilation) RunGenerator(
         string userSource,
         IEnumerable<(string FileName, string Content)> additionalFiles,
         string rootNamespace = "TestProject",
-        string? specNameOverride = null)
+        string? specNameOverride = null,
+        string? schemaId = null,
+        bool publish = false)
     {
         // Create a minimal compilation for the generator
         var references = new List<MetadataReference>
@@ -63,8 +75,12 @@ internal static class GeneratorTestHelper
             rootNamespace,
             AdditionalFilesMetadataKey,
             NamespaceMetadataKey,
+            SchemaIdMetadataKey,
+            PublishMetadataKey,
             RootNamespaceKey,
-            specNameOverride);
+            specNameOverride,
+            schemaId,
+            publish);
 
         var driver = CSharpGeneratorDriver
             .Create(generator)

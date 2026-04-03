@@ -161,6 +161,51 @@ public class GetEndpointGenerationTests
     }
 
     [Test]
+    public void GeneratesDiRegistration_WithoutPublish_DoesNotEmitRegisterSchemaFile()
+    {
+        // No schemaId / publish=false → RegisterSchemaFile must NOT appear.
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: GetClientHandlerImpl,
+            additionalFiles: AdditionalFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
+
+        Assert.That(source, Does.Not.Contain("RegisterSchemaFile("));
+    }
+
+    [Test]
+    public void GeneratesDiRegistration_WithPublish_EmitsRegisterSchemaFile()
+    {
+        // schemaId + publish=true → RegisterSchemaFile must be emitted with the correct path.
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: GetClientHandlerImpl,
+            additionalFiles: AdditionalFiles,
+            schemaId: "987654321",
+            publish: true);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
+
+        Assert.That(source, Does.Contain("RegisterSchemaFile("));
+        Assert.That(source, Does.Contain("openapi/schemas/987654321/openapi.yaml"));
+    }
+
+    [Test]
+    public void GeneratesDiRegistration_PublishTrueButNoSchemaId_DoesNotEmitRegisterSchemaFile()
+    {
+        // publish=true but no schemaId → RegisterSchemaFile must NOT be emitted
+        // (the file was not copied by the targets, so there is nothing to serve).
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: GetClientHandlerImpl,
+            additionalFiles: AdditionalFiles,
+            schemaId: null,
+            publish: true);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
+
+        Assert.That(source, Does.Not.Contain("RegisterSchemaFile("));
+    }
+
+    [Test]
     public void ReportsMissingHandlerImplementationDiagnostic()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(

@@ -15,6 +15,7 @@ public static class ServiceCollectionExtensions
 {
     private static readonly List<Action<IServiceCollection>> _generatedRegistrations = new();
     private static readonly List<Action<IEndpointRouteBuilder, RouteGroupBuilder>> _generatedEndpointMappings = new();
+    private static readonly List<string> _registeredSchemaFiles = new();
     private static readonly object _registrationLock = new();
 
     /// <summary>
@@ -43,6 +44,24 @@ public static class ServiceCollectionExtensions
     {
         lock (_registrationLock)
             _generatedEndpointMappings.Add(mapping);
+    }
+
+    /// <summary>
+    /// Called by the source-generated <c>[ModuleInitializer]</c> to register the
+    /// path (relative to <see cref="AppContext.BaseDirectory"/>) at which the
+    /// corresponding OpenAPI spec file was copied at build time.
+    /// <see cref="MapOpenApiSchemas"/> uses these registrations to serve each spec
+    /// file at the correct endpoint URL without scanning the output directory.
+    /// </summary>
+    /// <param name="relPath">
+    /// Path relative to <see cref="AppContext.BaseDirectory"/>, using forward slashes,
+    /// e.g. <c>openapi/schemas/987654321/openapi.yaml</c>.
+    /// </param>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void RegisterSchemaFile(string relPath)
+    {
+        lock (_registrationLock)
+            _registeredSchemaFiles.Add(relPath);
     }
 
     /// <summary>
@@ -97,29 +116,39 @@ public static class ServiceCollectionExtensions
         {
             _generatedRegistrations.Clear();
             _generatedEndpointMappings.Clear();
+            _registeredSchemaFiles.Clear();
         }
     }
-    /// copied to the application base directory at build time, making each schema
-    /// accessible at <c>{prefix}/schemas/{version}/{name}.{ext}</c>
+
+    /// <summary>
+    /// Maps endpoints that serve each <c>&lt;OpenApi Publish="true" /&gt;</c> spec file as a
+    /// static HTTP response, making each schema accessible at
+    /// <c>{prefix}/schemas/{version}/{name}.{ext}</c>
     /// (e.g. <c>/.openapi/schemas/1.0.0/clients.yaml</c>).
     /// When the <c>info.version</c> field cannot be determined the version segment is
     /// omitted and the endpoint is registered at <c>{prefix}/schemas/{name}.{ext}</c>.
     /// </summary>
     /// <remarks>
-    /// The method scans <paramref name="schemasDirectory"/> (or
-    /// <c>AppContext.BaseDirectory/openapi/schemas</c> by default) for spec files
-    /// created by the <c>CopyMinimalOpenApiFilesToOutput</c> MSBuild target, and
-    /// registers one endpoint per discovered file.  The <c>info.version</c> value is
-    /// extracted from each file at startup and included as a path segment.  This works
-    /// for specs declared directly in the project as well as specs contributed via a
-    /// NuGet contracts package (gRPC-style).
+    /// <para>
+    /// When the source generator has emitted <c>RegisterSchemaFile</c> calls (the normal case
+    /// for projects that reference the <c>MinimalOpenAPI</c> package), those registered paths
+    /// are used directly and no filesystem scan is performed.  The registered paths point to
+    /// the unique per-file subdirectories created by the <c>CopyMinimalOpenApiFilesToOutput</c>
+    /// MSBuild target, so two spec files with the same filename in different source directories
+    /// or NuGet packages never collide.
+    /// </para>
+    /// <para>
+    /// When no files have been registered (e.g. in tests that call <c>MapOpenApiSchemas</c>
+    /// directly without going through the generated module initializer), the method falls back
+    /// to scanning <paramref name="schemasDirectory"/> for spec files.
+    /// </para>
     /// </remarks>
     /// <param name="builder">The endpoint route builder.</param>
     /// <param name="prefix">
     /// Route prefix for all schema endpoints.  Defaults to <c>"/.openapi"</c>.
     /// </param>
     /// <param name="schemasDirectory">
-    /// Absolute path to the directory that contains the spec files.
+    /// Absolute path to the directory that contains the spec files used by the fallback scan.
     /// Defaults to <c>AppContext.BaseDirectory/openapi/schemas</c>.
     /// Override this parameter in tests to point at a temporary directory.
     /// </param>
@@ -130,42 +159,69 @@ public static class ServiceCollectionExtensions
         string? schemasDirectory = null)
     {
         var group = builder.MapGroup(prefix ?? "/.openapi");
-        var directory = schemasDirectory ?? Path.Combine(AppContext.BaseDirectory, "openapi", "schemas");
 
-        if (!Directory.Exists(directory))
-        {
-            return group;
-        }
+        List<string> registeredFiles;
+        lock (_registrationLock)
+            registeredFiles = new List<string>(_registeredSchemaFiles);
 
-        foreach (var schemaFile in Directory.EnumerateFiles(directory))
+        if (registeredFiles.Count > 0)
         {
-            var extension = Path.GetExtension(schemaFile).ToLowerInvariant();
-            if (extension is not (".yaml" or ".yml" or ".json"))
+            // Use files registered by the source-generated module initializer.
+            // Each path is relative to AppContext.BaseDirectory and uses forward slashes.
+            foreach (var relPath in registeredFiles)
             {
-                continue;
+                var absolutePath = Path.Combine(
+                    AppContext.BaseDirectory,
+                    relPath.Replace('/', Path.DirectorySeparatorChar));
+                MapSchemaFileEndpoint(group, absolutePath);
             }
+        }
+        else
+        {
+            // Fallback: scan the schemas directory (used when no files were registered via
+            // RegisterSchemaFile, e.g. in tests that exercise MapOpenApiSchemas directly).
+            var directory = schemasDirectory ?? Path.Combine(AppContext.BaseDirectory, "openapi", "schemas");
 
-            var name = Path.GetFileNameWithoutExtension(schemaFile);
-            var contentType = extension switch
-            {
-                ".yaml" or ".yml" => "text/yaml",
-                ".json" => "application/json",
-                _ => "application/octet-stream",
-            };
+            if (!Directory.Exists(directory))
+                return group;
 
-            var version = ExtractVersion(schemaFile);
-            var routePath = version is not null
-                ? $"schemas/{version}/{name}{extension}"
-                : $"schemas/{name}{extension}";
-
-            group.MapGet(
-                routePath,
-                // FileStreamHttpResult (returned by Results.File) disposes the stream
-                // after the response is written, so the FileStream is correctly cleaned up.
-                () => Results.File(File.OpenRead(schemaFile), contentType));
+            foreach (var schemaFile in Directory.EnumerateFiles(directory))
+                MapSchemaFileEndpoint(group, schemaFile);
         }
 
         return group;
+    }
+
+    /// <summary>
+    /// Registers a single GET endpoint on <paramref name="group"/> that serves
+    /// <paramref name="absolutePath"/> at <c>schemas/{version}/{name}{ext}</c>
+    /// (or <c>schemas/{name}{ext}</c> when no version is found).
+    /// Files whose extension is not <c>.yaml</c>, <c>.yml</c>, or <c>.json</c> are skipped.
+    /// </summary>
+    private static void MapSchemaFileEndpoint(RouteGroupBuilder group, string absolutePath)
+    {
+        var extension = Path.GetExtension(absolutePath).ToLowerInvariant();
+        if (extension is not (".yaml" or ".yml" or ".json"))
+            return;
+
+        var name = Path.GetFileNameWithoutExtension(absolutePath);
+        var contentType = extension switch
+        {
+            ".yaml" or ".yml" => "text/yaml",
+            ".json" => "application/json",
+            _ => "application/octet-stream",
+        };
+
+        var version = ExtractVersion(absolutePath);
+        var routePath = version is not null
+            ? $"schemas/{version}/{name}{extension}"
+            : $"schemas/{name}{extension}";
+
+        group.MapGet(
+            routePath,
+            // FileStreamHttpResult (returned by Results.File) disposes the stream
+            // after the response is written, so the FileStream is correctly cleaned up.
+            () => Results.File(File.OpenRead(absolutePath), contentType));
     }
 
     /// <summary>
