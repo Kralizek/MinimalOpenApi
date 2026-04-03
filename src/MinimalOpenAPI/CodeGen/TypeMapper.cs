@@ -25,13 +25,14 @@ internal static class TypeMapper
 
     /// <summary>
     /// Returns <see langword="true"/> when the schema represents a free-form map —
-    /// i.e. it has <c>additionalProperties</c> set and no named <c>properties</c>.
+    /// i.e. it has no named <c>properties</c> and either has a typed
+    /// <c>additionalProperties</c> schema or has <c>additionalProperties: true</c>.
     /// Such schemas map to <c>Dictionary&lt;string, T&gt;</c> rather than a generated record.
     /// </summary>
     public static bool IsDictionarySchema(OpenApiSchema schema)
         => schema.Reference is null
-            && schema.AdditionalProperties is not null
-            && schema.Properties.Count == 0;
+            && schema.Properties.Count == 0
+            && (schema.AdditionalProperties is not null || schema.AdditionalPropertiesAllowed);
 
     /// <summary>
     /// Returns <see langword="true"/> when the schema is an inline object definition —
@@ -113,10 +114,15 @@ internal static class TypeMapper
             return nullable ? $"{arrayType}?" : arrayType;
         }
 
-        // Dictionary schema: additionalProperties set and no named properties.
+        // Dictionary schema: no named properties AND either a typed additionalProperties schema
+        // or additionalProperties:true (allow-any).
         if (IsDictionarySchema(schema))
         {
-            var valueType = MapSchema(schema.AdditionalProperties!, contractsNamespace: contractsNamespace, resolveInline: resolveInline);
+            string valueType;
+            if (schema.AdditionalProperties is not null)
+                valueType = MapSchema(schema.AdditionalProperties, contractsNamespace: contractsNamespace, resolveInline: resolveInline);
+            else
+                valueType = "object"; // additionalProperties: true — values may be of any type
             var dictType = $"global::System.Collections.Generic.Dictionary<string, {valueType}>";
             return nullable || schema.Nullable ? $"{dictType}?" : dictType;
         }

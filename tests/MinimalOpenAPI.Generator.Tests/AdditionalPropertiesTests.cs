@@ -139,12 +139,12 @@ public class AdditionalPropertiesTests
         }
     }
 
-    // ── Boolean additionalProperties (ignored) ────────────────────────────
+    // ── Boolean additionalProperties ───────────────────────────────────────
 
     [TestFixture]
     public class BooleanAdditionalProperties
     {
-        private const string BooleanAdditionalPropertiesYaml = """
+        private const string WithPropertiesYaml = """
             openapi: "3.0.0"
             info:
               title: Test API
@@ -172,19 +172,60 @@ public class AdditionalPropertiesTests
                   additionalProperties: true
             """;
 
+        private const string PureMapYaml = """
+            openapi: "3.0.0"
+            info:
+              title: Test API
+              version: "1.0.0"
+            paths:
+              /items:
+                post:
+                  operationId: createItem
+                  requestBody:
+                    required: true
+                    content:
+                      application/json:
+                        schema:
+                          $ref: '#/components/schemas/FreeMap'
+                  responses:
+                    "204":
+                      description: No content
+            components:
+              schemas:
+                FreeMap:
+                  type: object
+                  additionalProperties: true
+            """;
+
         [Test]
-        public void BooleanAdditionalPropertiesIsIgnored()
+        public void RecordWithPropertiesAndBooleanAdditionalPropertiesEmitsExtensionData()
         {
             var (result, _) = GeneratorTestHelper.RunGenerator(
                 userSource: NoOpHandlerImpl,
-                additionalFiles: [("openapi.yaml", BooleanAdditionalPropertiesYaml)]);
+                additionalFiles: [("openapi.yaml", WithPropertiesYaml)]);
 
             var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
 
-            // The schema has real properties, so a record is still generated.
+            // Named properties are still emitted.
             Assert.That(source, Does.Contain("public sealed record Item"));
-            // The name property should be emitted normally.
             Assert.That(source, Does.Contain("public required string Name { get; init; }"));
+            // Extension-data property captures free-form extra keys.
+            Assert.That(source, Does.Contain("[JsonExtensionData]"));
+            Assert.That(source, Does.Contain(
+                "public global::System.Collections.Generic.Dictionary<string, global::System.Text.Json.JsonElement>? Extensions { get; init; }"));
+        }
+
+        [Test]
+        public void PureBooleanAdditionalPropertiesSchemaDoesNotGenerateRecord()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: NoOpHandlerImpl,
+                additionalFiles: [("openapi.yaml", PureMapYaml)]);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+            // No named record should be generated for a schema that only has additionalProperties: true.
+            Assert.That(source, Does.Not.Contain("public sealed record FreeMap"));
         }
     }
 }

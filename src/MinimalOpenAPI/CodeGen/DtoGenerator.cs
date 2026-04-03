@@ -164,6 +164,14 @@ internal static class DtoGenerator
             }
         }
 
+        // When additionalProperties: true is set alongside named properties, capture
+        // any extra key-value pairs via [JsonExtensionData].
+        if (schema.AdditionalPropertiesAllowed && schema.Properties.Count > 0)
+        {
+            sb.AppendLine($"    [JsonExtensionData]");
+            sb.AppendLine($"    public global::System.Collections.Generic.Dictionary<string, global::System.Text.Json.JsonElement>? Extensions {{ get; init; }}");
+        }
+
         sb.AppendLine("}");
     }
 }

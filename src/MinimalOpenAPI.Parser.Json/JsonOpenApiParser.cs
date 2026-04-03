@@ -122,16 +122,24 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             Maximum = GetNullableDouble(node, "maximum"),
             MinItems = GetNullableInt(node, "minItems"),
             MaxItems = GetNullableInt(node, "maxItems"),
-            AdditionalProperties = ExtractAdditionalPropertiesSchema(node)
+            AdditionalProperties = ExtractAdditionalPropertiesSchema(node),
+            AdditionalPropertiesAllowed = GetAdditionalPropertiesAllowed(node)
         };
     }
 
     private static OpenApiSchema? ExtractAdditionalPropertiesSchema(JsonObject node)
     {
         // additionalProperties can be a boolean (true/false) or a schema object.
-        // We only handle the schema-object form; a boolean is ignored (falls back to object).
+        // We only handle the schema-object form here; the boolean form is handled separately.
         var additionalPropsNode = GetObject(node, "additionalProperties");
         return additionalPropsNode is not null ? ExtractSchema(additionalPropsNode) : null;
+    }
+
+    private static bool GetAdditionalPropertiesAllowed(JsonObject node)
+    {
+        if (!node.TryGetPropertyValue("additionalProperties", out var value) || value is null)
+            return false;
+        return value.GetValueKind() == JsonValueKind.True;
     }
 
     private static OpenApiSchema? ExtractItemsSchema(JsonObject node)

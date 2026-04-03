@@ -114,16 +114,24 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             Maximum = GetNullableDouble(node, "maximum"),
             MinItems = GetNullableInt(node, "minItems"),
             MaxItems = GetNullableInt(node, "maxItems"),
-            AdditionalProperties = ExtractAdditionalPropertiesSchema(node)
+            AdditionalProperties = ExtractAdditionalPropertiesSchema(node),
+            AdditionalPropertiesAllowed = GetAdditionalPropertiesAllowed(node)
         };
     }
 
     private static OpenApiSchema? ExtractAdditionalPropertiesSchema(YamlMappingNode node)
     {
         // additionalProperties can be a boolean (true/false) or a schema object.
-        // We only handle the schema-object form; a boolean is ignored (falls back to object).
+        // We only handle the schema-object form here; the boolean form is handled separately.
         var additionalPropsNode = GetMapping(node, "additionalProperties");
         return additionalPropsNode is not null ? ExtractSchema(additionalPropsNode) : null;
+    }
+
+    private static bool GetAdditionalPropertiesAllowed(YamlMappingNode node)
+    {
+        if (!node.Children.TryGetValue(new YamlScalarNode("additionalProperties"), out var apNode))
+            return false;
+        return apNode is YamlScalarNode scalar && (scalar.Value is "true" or "True" or "TRUE");
     }
 
     private static OpenApiSchema? ExtractItemsSchema(YamlMappingNode node)

@@ -55,11 +55,20 @@ public sealed class OpenApiSchema
     public int? MaxItems { get; init; }
 
     /// <summary>
-    /// Schema for the values of a free-form map (<c>additionalProperties</c> keyword).
+    /// Schema for the values of a free-form map (<c>additionalProperties</c> keyword, object form).
     /// When non-<see langword="null"/> and <see cref="Properties"/> is empty, the schema
     /// represents a <c>Dictionary&lt;string, T&gt;</c> where <c>T</c> is mapped from this schema.
-    /// A boolean <c>additionalProperties</c> (allow-any) is not captured here and falls back
-    /// to <c>object</c>.
     /// </summary>
     public OpenApiSchema? AdditionalProperties { get; init; }
+
+    /// <summary>
+    /// Whether the schema permits any additional properties (boolean <c>additionalProperties: true</c>).
+    /// When <see langword="true"/> and <see cref="Properties"/> is non-empty, generated records include
+    /// a <c>[JsonExtensionData] Dictionary&lt;string, JsonElement&gt;?</c> property to capture
+    /// extra key-value pairs at runtime.
+    /// When <see langword="true"/> and <see cref="Properties"/> is empty, the schema maps to
+    /// <c>Dictionary&lt;string, object&gt;</c> at the use site (no record is generated for the
+    /// component).
+    /// </summary>
+    public bool AdditionalPropertiesAllowed { get; init; }
 }
