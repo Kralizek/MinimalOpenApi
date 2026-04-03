@@ -25,10 +25,10 @@ already covers.
 | `required` (required property list) | ✅ |
 | `enum` | ❌ |
 | `default` | ❌ |
-| `minLength` / `maxLength` | ❌ |
-| `minimum` / `maximum` | ❌ |
-| `pattern` | ❌ |
-| `minItems` / `maxItems` | ❌ |
+| `minLength` / `maxLength` | ✅ |
+| `minimum` / `maximum` | ✅ |
+| `pattern` | ✅ |
+| `minItems` / `maxItems` | ✅ |
 | `deprecated` | ❌ |
 | `readOnly` / `writeOnly` | ❌ |
 | `additionalProperties` | ❌ |
@@ -400,7 +400,7 @@ The following order balances consumer value, implementation cost, and risk.
 | Priority | Feature | Section | Effort |
 |----------|---------|---------|--------|
 | 1 | Enum support | §2.1.A | Medium |
-| 2 | Constraint validation attributes (`minLength` / `maxLength` / `pattern` / `minimum` / `maximum`) | §2.1.B | Medium |
+| 2 | ~~Constraint validation attributes (`minLength` / `maxLength` / `pattern` / `minimum` / `maximum`)~~ ✅ | §2.1.B | Medium |
 | 3 | `deprecated` → `[Obsolete]` | §2.1.C | Small |
 | 4 | Nested inline object schemas in DTO properties | §2.1.D | Medium |
 | 5 | Parameter `default` values | §2.1.E | Small |

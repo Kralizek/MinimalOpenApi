@@ -32,4 +32,25 @@ public sealed class OpenApiSchema
     /// When non-<see langword="null"/>, the schema represents an enumeration.
     /// </summary>
     public List<string>? Enum { get; init; }
+
+    /// <summary>Minimum allowed length for a <c>string</c>-typed schema (<c>minLength</c> keyword).</summary>
+    public int? MinLength { get; init; }
+
+    /// <summary>Maximum allowed length for a <c>string</c>-typed schema (<c>maxLength</c> keyword).</summary>
+    public int? MaxLength { get; init; }
+
+    /// <summary>Regular-expression pattern for a <c>string</c>-typed schema (<c>pattern</c> keyword).</summary>
+    public string? Pattern { get; init; }
+
+    /// <summary>Inclusive lower bound for an <c>integer</c> or <c>number</c>-typed schema (<c>minimum</c> keyword).</summary>
+    public double? Minimum { get; init; }
+
+    /// <summary>Inclusive upper bound for an <c>integer</c> or <c>number</c>-typed schema (<c>maximum</c> keyword).</summary>
+    public double? Maximum { get; init; }
+
+    /// <summary>Minimum number of items for an <c>array</c>-typed schema (<c>minItems</c> keyword).</summary>
+    public int? MinItems { get; init; }
+
+    /// <summary>Maximum number of items for an <c>array</c>-typed schema (<c>maxItems</c> keyword).</summary>
+    public int? MaxItems { get; init; }
 }

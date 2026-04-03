@@ -149,6 +149,9 @@ internal static class DtoGenerator
 
             sb.AppendLine($"    [JsonPropertyName(\"{propName}\")]");
 
+            foreach (var attr in ValidationAttributeEmitter.GetAttributes(propSchema, "    "))
+                sb.AppendLine(attr);
+
             if (nullable)
             {
                 sb.AppendLine($"    public {typeName} {csharpName} {{ get; init; }}");
