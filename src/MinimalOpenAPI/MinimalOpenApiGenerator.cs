@@ -212,7 +212,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     // and runs inside the Roslyn analyzer host, where runtime code-gen (Compiled) can fail.
     // Each pattern is matched at most once per file so uncompiled performance is acceptable.
     private static readonly Regex _yamlVersionPattern =
-        new(@"^\s*openapi\s*:\s*[""']?(\d[\d.]*)", RegexOptions.Multiline);
+        new(@"^\s*openapi\s*:\s*[""']?(\d[\d.]*)(?=[""'\s]|$)", RegexOptions.Multiline);
 
     private static readonly Regex _jsonVersionPattern =
         new(@"""openapi""\s*:\s*""([\d.]+)""");
