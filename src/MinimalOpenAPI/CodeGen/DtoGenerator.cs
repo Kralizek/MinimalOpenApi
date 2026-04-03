@@ -43,6 +43,8 @@ internal static class DtoGenerator
             if (schema.Enum is not null) continue;
             if (schema.Type != "object" && schema.Reference is null && schema.Properties.Count == 0)
                 continue;
+            if (TypeMapper.IsDictionarySchema(schema))
+                continue; // pure-dictionary schemas map to Dictionary<string, T> at the use site
 
             EmitRecordTree(sb, name, schema, emitted);
         }

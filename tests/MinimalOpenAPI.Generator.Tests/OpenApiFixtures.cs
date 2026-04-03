@@ -1189,4 +1189,111 @@ internal static class OpenApiFixtures
           }
         }
         """;
+
+    /// <summary>
+    /// YAML fixture: a schema with a required <c>labels</c> property using
+    /// <c>additionalProperties: { type: string }</c> (maps to <c>Dictionary&lt;string, string&gt;</c>)
+    /// and an optional <c>metadata</c> property using
+    /// <c>additionalProperties: { type: integer }</c> (maps to <c>Dictionary&lt;string, int&gt;</c>).
+    /// </summary>
+    public const string GetResourceWithAdditionalPropertiesYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /resources/{resourceId}:
+            get:
+              operationId: getResource
+              parameters:
+                - name: resourceId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Resource'
+                "404":
+                  description: Not found
+        components:
+          schemas:
+            Resource:
+              type: object
+              required:
+                - id
+                - labels
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                labels:
+                  type: object
+                  additionalProperties:
+                    type: string
+                metadata:
+                  type: object
+                  additionalProperties:
+                    type: integer
+        """;
+
+    /// <summary>
+    /// JSON equivalent of <see cref="GetResourceWithAdditionalPropertiesYaml"/>.
+    /// </summary>
+    public const string GetResourceWithAdditionalPropertiesJson = """
+        {
+          "openapi": "3.0.0",
+          "info": { "title": "Test API", "version": "1.0.0" },
+          "paths": {
+            "/resources/{resourceId}": {
+              "get": {
+                "operationId": "getResource",
+                "parameters": [
+                  {
+                    "name": "resourceId",
+                    "in": "path",
+                    "required": true,
+                    "schema": { "type": "string", "format": "uuid" }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "description": "OK",
+                    "content": {
+                      "application/json": {
+                        "schema": { "$ref": "#/components/schemas/Resource" }
+                      }
+                    }
+                  },
+                  "404": { "description": "Not found" }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "Resource": {
+                "type": "object",
+                "required": ["id", "labels"],
+                "properties": {
+                  "id": { "type": "string", "format": "uuid" },
+                  "labels": {
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "additionalProperties": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+        """;
 }

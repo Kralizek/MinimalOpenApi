@@ -113,8 +113,17 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             Minimum = GetNullableDouble(node, "minimum"),
             Maximum = GetNullableDouble(node, "maximum"),
             MinItems = GetNullableInt(node, "minItems"),
-            MaxItems = GetNullableInt(node, "maxItems")
+            MaxItems = GetNullableInt(node, "maxItems"),
+            AdditionalProperties = ExtractAdditionalPropertiesSchema(node)
         };
+    }
+
+    private static OpenApiSchema? ExtractAdditionalPropertiesSchema(YamlMappingNode node)
+    {
+        // additionalProperties can be a boolean (true/false) or a schema object.
+        // We only handle the schema-object form; a boolean is ignored (falls back to object).
+        var additionalPropsNode = GetMapping(node, "additionalProperties");
+        return additionalPropsNode is not null ? ExtractSchema(additionalPropsNode) : null;
     }
 
     private static OpenApiSchema? ExtractItemsSchema(YamlMappingNode node)

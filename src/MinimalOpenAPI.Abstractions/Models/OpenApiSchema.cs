@@ -53,4 +53,13 @@ public sealed class OpenApiSchema
 
     /// <summary>Maximum number of items for an <c>array</c>-typed schema (<c>maxItems</c> keyword).</summary>
     public int? MaxItems { get; init; }
+
+    /// <summary>
+    /// Schema for the values of a free-form map (<c>additionalProperties</c> keyword).
+    /// When non-<see langword="null"/> and <see cref="Properties"/> is empty, the schema
+    /// represents a <c>Dictionary&lt;string, T&gt;</c> where <c>T</c> is mapped from this schema.
+    /// A boolean <c>additionalProperties</c> (allow-any) is not captured here and falls back
+    /// to <c>object</c>.
+    /// </summary>
+    public OpenApiSchema? AdditionalProperties { get; init; }
 }
