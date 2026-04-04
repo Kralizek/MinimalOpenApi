@@ -267,9 +267,9 @@ Generated namespaces:
 
 ## Troubleshooting
 
-**Build error MOA001 — no handler implementation found**
+**Warning MOA001 — no handler implementation found**
 
-The generator emits a warning when it cannot find a class that inherits from a generated `<OperationId>EndpointBase`. Add a concrete handler class:
+The generator emits a *warning* when it cannot find a class that inherits from a generated `<OperationId>EndpointBase`. The app will still compile, but `HandleAsync` will throw `NotImplementedException` at runtime. Add a concrete handler class:
 
 ```csharp
 public sealed class GetItemEndpoint : GetItemEndpointBase
@@ -284,6 +284,10 @@ public sealed class GetItemEndpoint : GetItemEndpointBase
 
 Only one class may inherit from a given generated base. Remove or consolidate the duplicate.
 
+**Build error MOA003 — multiple customizer implementations**
+
+At most one class may inherit from a given generated `<OperationId>EndpointRegistration` base. Remove or consolidate the duplicate.
+
 **Build error MOA004 — OpenAPI file could not be parsed**
 
 Check the spec file for YAML/JSON syntax errors. Validate it with a tool like the [Swagger Editor](https://editor.swagger.io) before referencing it in the project.
@@ -291,6 +295,10 @@ Check the spec file for YAML/JSON syntax errors. Validate it with a tool like th
 **Build error MOA005 — unrecognised file extension**
 
 Only `.yaml`, `.yml`, and `.json` are supported. Rename the file or use the correct extension in the `<OpenApi>` item.
+
+**Warning MOA006 — unknown OpenAPI version**
+
+The `openapi` field is absent or not recognised as a 3.0.x or 3.1.x version string. Code is still generated, but behaviour may be incorrect. Add or correct the `openapi` field at the top of the spec file (e.g. `openapi: "3.1.0"`).
 
 **Handler `HandleAsync` throws `NotImplementedException` at runtime**
 
@@ -326,6 +334,7 @@ src/
   MinimalOpenAPI.Parser.Json/   ← JSON parser implementation
 sample/
   MinimalOpenAPI.Sample.Api/    ← end-to-end Todo CRUD example
+  MinimalOpenAPI.SmokeTest.Api/ ← minimal consumer built against the packed NuGet artifact
 tests/
   MinimalOpenAPI.Generator.Tests/
   MinimalOpenAPI.Runtime.Tests/
@@ -333,6 +342,8 @@ tests/
 docs/
   architecture.md               ← internals, design decisions, extensibility
   releasing.md                  ← versioning and release process
+  schema-feature-roadmap.md     ← OpenAPI schema feature coverage and backlog
+  consumer-agents.md            ← guide for coding agents integrating this library
 ```
 
 For a deep-dive into the design, architecture, and internals see [docs/architecture.md](docs/architecture.md).
