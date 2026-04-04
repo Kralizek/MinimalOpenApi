@@ -1189,4 +1189,221 @@ internal static class OpenApiFixtures
           }
         }
         """;
+
+    /// <summary>
+    /// YAML fixture: a schema with a required <c>labels</c> property using
+    /// <c>additionalProperties: { type: string }</c> (maps to <c>Dictionary&lt;string, string&gt;</c>)
+    /// and an optional <c>metadata</c> property using
+    /// <c>additionalProperties: { type: integer }</c> (maps to <c>Dictionary&lt;string, int&gt;</c>).
+    /// </summary>
+    public const string GetResourceWithAdditionalPropertiesYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /resources/{resourceId}:
+            get:
+              operationId: getResource
+              parameters:
+                - name: resourceId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Resource'
+                "404":
+                  description: Not found
+        components:
+          schemas:
+            Resource:
+              type: object
+              required:
+                - id
+                - labels
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                labels:
+                  type: object
+                  additionalProperties:
+                    type: string
+                metadata:
+                  type: object
+                  additionalProperties:
+                    type: integer
+        """;
+
+    /// <summary>
+    /// JSON equivalent of <see cref="GetResourceWithAdditionalPropertiesYaml"/>.
+    /// </summary>
+    public const string GetResourceWithAdditionalPropertiesJson = """
+        {
+          "openapi": "3.0.0",
+          "info": { "title": "Test API", "version": "1.0.0" },
+          "paths": {
+            "/resources/{resourceId}": {
+              "get": {
+                "operationId": "getResource",
+                "parameters": [
+                  {
+                    "name": "resourceId",
+                    "in": "path",
+                    "required": true,
+                    "schema": { "type": "string", "format": "uuid" }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "description": "OK",
+                    "content": {
+                      "application/json": {
+                        "schema": { "$ref": "#/components/schemas/Resource" }
+                      }
+                    }
+                  },
+                  "404": { "description": "Not found" }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "Resource": {
+                "type": "object",
+                "required": ["id", "labels"],
+                "properties": {
+                  "id": { "type": "string", "format": "uuid" },
+                  "labels": {
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "additionalProperties": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+        """;
+
+    /// <summary>
+    /// OpenAPI spec (YAML) with a component schema that has a property using
+    /// <c>additionalProperties: { type: object, properties: {...} }</c>.
+    /// The value type is an inline complex schema; the generator should emit a
+    /// separate record named <c>ResourceTagsValue</c> and type the property as
+    /// <c>Dictionary&lt;string, ResourceTagsValue&gt;</c>.
+    /// </summary>
+    public const string GetResourceWithInlineComplexAdditionalPropertiesYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /resources/{resourceId}:
+            get:
+              operationId: getResource
+              parameters:
+                - name: resourceId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Resource'
+                "404":
+                  description: Not found
+        components:
+          schemas:
+            Resource:
+              type: object
+              required:
+                - id
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                tags:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    properties:
+                      label:
+                        type: string
+                      weight:
+                        type: integer
+        """;
+
+    /// <summary>
+    /// JSON equivalent of <see cref="GetResourceWithInlineComplexAdditionalPropertiesYaml"/>.
+    /// </summary>
+    public const string GetResourceWithInlineComplexAdditionalPropertiesJson = """
+        {
+          "openapi": "3.0.0",
+          "info": { "title": "Test API", "version": "1.0.0" },
+          "paths": {
+            "/resources/{resourceId}": {
+              "get": {
+                "operationId": "getResource",
+                "parameters": [
+                  {
+                    "name": "resourceId",
+                    "in": "path",
+                    "required": true,
+                    "schema": { "type": "string", "format": "uuid" }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "description": "OK",
+                    "content": {
+                      "application/json": {
+                        "schema": { "$ref": "#/components/schemas/Resource" }
+                      }
+                    }
+                  },
+                  "404": { "description": "Not found" }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "Resource": {
+                "type": "object",
+                "required": ["id"],
+                "properties": {
+                  "id": { "type": "string", "format": "uuid" },
+                  "tags": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "label": { "type": "string" },
+                        "weight": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        """;
 }

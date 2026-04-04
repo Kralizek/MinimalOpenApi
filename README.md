@@ -224,9 +224,113 @@ public sealed class GetItemCountEndpoint(IItemRepository repo) : GetItemCountEnd
 
 ---
 
+### `additionalProperties` — typed dictionaries
+
+When a schema property uses `additionalProperties`, the generator maps it to a strongly-typed `Dictionary<string, T>`.
+
+**Primitive or array value types** map directly:
+
+```yaml
+components:
+  schemas:
+    Deployment:
+      type: object
+      properties:
+        labels:
+          type: object
+          additionalProperties:
+            type: string     # → Dictionary<string, string>
+        env:
+          type: object
+          additionalProperties:
+            type: string     # → Dictionary<string, string>
+```
+
+**Inline object value types** generate a dedicated named record for the value:
+
+```yaml
+components:
+  schemas:
+    Todo:
+      type: object
+      properties:
+        metadata:
+          type: object
+          additionalProperties:
+            type: object     # inline complex value type
+            properties:
+              value:
+                type: string
+              color:
+                type: string
+                nullable: true
+```
+
+This produces a `TodoMetadataValue` record in the `Contracts` namespace and types
+`Todo.Metadata` as `Dictionary<string, TodoMetadataValue>?`.
+
+The same rule applies to **inline request and response schemas**: if an inline
+`Request` schema has a `labels` dict property with an object value type, the
+generator emits a `RequestLabelsValue` nested record inside the handler base class
+alongside the `Request` record:
+
+```yaml
+paths:
+  /items:
+    post:
+      operationId: createItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                labels:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      color:
+                        type: string
+                        nullable: true
+      responses:
+        "201":
+          description: Created
+```
+
+Generated handler base:
+
+```csharp
+public class CreateItemEndpointBase
+{
+    public sealed record RequestLabelsValue
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; init; }
+
+        [JsonPropertyName("color")]
+        public string? Color { get; init; }
+    }
+
+    public sealed record Request
+    {
+        [JsonPropertyName("labels")]
+        public Dictionary<string, RequestLabelsValue>? Labels { get; init; }
+    }
+
+    public virtual Task<Created> HandleAsync(Request request, CancellationToken cancellationToken) …
+}
+```
+
+---
+
 ### Realistic example — query parameters, path parameters, and request body
 
 The following example is based on the bundled [sample app](sample/MinimalOpenAPI.Sample.Api) (a simple Todo CRUD API).
+
 
 **`openapi.yaml` (relevant excerpts):**
 

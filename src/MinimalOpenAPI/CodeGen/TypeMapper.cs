@@ -24,11 +24,24 @@ internal static class TypeMapper
     public const string GeneratorVersion = "1.0.0";
 
     /// <summary>
+    /// Returns <see langword="true"/> when the schema represents a free-form map —
+    /// i.e. it has no named <c>properties</c> and either has a typed
+    /// <c>additionalProperties</c> schema or has <c>additionalProperties: true</c>.
+    /// Such schemas map to <c>Dictionary&lt;string, T&gt;</c> rather than a generated record.
+    /// </summary>
+    public static bool IsDictionarySchema(OpenApiSchema schema)
+        => schema.Reference is null
+            && schema.Properties.Count == 0
+            && (schema.AdditionalProperties is not null || schema.AdditionalPropertiesAllowed);
+
+    /// <summary>
     /// Returns <see langword="true"/> when the schema is an inline object definition —
-    /// i.e. it declares properties or an explicit <c>object</c> type, but has no <c>$ref</c>.
+    /// i.e. it declares properties or an explicit <c>object</c> type, but has no <c>$ref</c>
+    /// and is not a pure dictionary schema (see <see cref="IsDictionarySchema"/>).
     /// </summary>
     public static bool IsInlineObject(OpenApiSchema schema)
         => schema.Reference is null
+            && !IsDictionarySchema(schema)
             && (schema.Type?.ToLowerInvariant() == "object" || schema.Properties.Count > 0);
 
     /// <summary>Returns the nested record name used for an inline request-body schema.</summary>
@@ -99,6 +112,19 @@ internal static class TypeMapper
                 : "object";
             var arrayType = $"{itemType}[]";
             return nullable ? $"{arrayType}?" : arrayType;
+        }
+
+        // Dictionary schema: no named properties AND either a typed additionalProperties schema
+        // or additionalProperties:true (allow-any).
+        if (IsDictionarySchema(schema))
+        {
+            string valueType;
+            if (schema.AdditionalProperties is not null)
+                valueType = MapSchema(schema.AdditionalProperties, contractsNamespace: contractsNamespace, resolveInline: resolveInline);
+            else
+                valueType = "global::System.Text.Json.JsonElement"; // additionalProperties: true — payloads are assumed to be JSON
+            var dictType = $"global::System.Collections.Generic.Dictionary<string, {valueType}>";
+            return nullable || schema.Nullable ? $"{dictType}?" : dictType;
         }
 
         // Inline object schema: ask the resolver for the type name (e.g. a nested record).

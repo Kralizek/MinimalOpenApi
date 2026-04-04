@@ -156,4 +156,40 @@ public class EndpointIntegrationTests
         var body = await response.Content.ReadAsStringAsync();
         Assert.That(body, Does.Contain("openapi:"));
     }
+
+    [Test]
+    public async Task CreateTodo_WithMetadata_RoundTripsMetadataOnGet()
+    {
+        // Metadata uses an inline complex additionalProperties value type:
+        // Request.Metadata is Dictionary<string, RequestMetadataValue> (inline nested record)
+        // Todo.Metadata is Dictionary<string, TodoMetadataValue> (top-level Contracts record)
+        var createRequest = new
+        {
+            title = "Metadata test todo",
+            isComplete = false,
+            metadata = new Dictionary<string, object>
+            {
+                ["priority"] = new { value = "high", color = "red" },
+                ["category"] = new { value = "work", color = (string?)null },
+            },
+        };
+
+        var createResponse = await _client.PostAsJsonAsync("/todos", createRequest);
+        Assert.That(createResponse.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+
+        var location = createResponse.Headers.Location;
+        Assert.That(location, Is.Not.Null);
+
+        var getResponse = await _client.GetAsync(location!.ToString());
+        Assert.That(getResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var todo = await getResponse.Content.ReadFromJsonAsync<Todo>();
+        Assert.That(todo, Is.Not.Null);
+        Assert.That(todo!.Metadata, Is.Not.Null);
+        Assert.That(todo.Metadata!.ContainsKey("priority"), Is.True);
+        Assert.That(todo.Metadata["priority"].Value, Is.EqualTo("high"));
+        Assert.That(todo.Metadata["priority"].Color, Is.EqualTo("red"));
+        Assert.That(todo.Metadata.ContainsKey("category"), Is.True);
+        Assert.That(todo.Metadata["category"].Value, Is.EqualTo("work"));
+    }
 }

@@ -43,6 +43,8 @@ internal static class DtoGenerator
             if (schema.Enum is not null) continue;
             if (schema.Type != "object" && schema.Reference is null && schema.Properties.Count == 0)
                 continue;
+            if (TypeMapper.IsDictionarySchema(schema))
+                continue; // pure-dictionary schemas map to Dictionary<string, T> at the use site
 
             EmitRecordTree(sb, name, schema, emitted);
         }
@@ -84,12 +86,33 @@ internal static class DtoGenerator
             }
         }
 
+        // Emit inline-object value types for dictionary properties (dependencies) before the parent record.
+        foreach (var propKvp in schema.Properties)
+        {
+            if (TypeMapper.IsDictionarySchema(propKvp.Value)
+                && propKvp.Value.AdditionalProperties is { } valueSchema
+                && TypeMapper.IsInlineObject(valueSchema))
+            {
+                var valueName = name + TypeMapper.ToPascalCase(propKvp.Key) + "Value";
+                EmitRecordTree(sb, valueName, valueSchema, emitted);
+            }
+        }
+
         // Build a resolver that maps each inline schema instance to its derived name.
         var inlineMap = new Dictionary<OpenApiSchema, string>();
         foreach (var propKvp in schema.Properties)
         {
             if (TypeMapper.IsInlineObject(propKvp.Value) || propKvp.Value.Enum is not null)
                 inlineMap[propKvp.Value] = name + TypeMapper.ToPascalCase(propKvp.Key);
+        }
+
+        // Also map inline-object value types for dictionary properties.
+        foreach (var propKvp in schema.Properties)
+        {
+            if (TypeMapper.IsDictionarySchema(propKvp.Value)
+                && propKvp.Value.AdditionalProperties is { } valueSchema
+                && TypeMapper.IsInlineObject(valueSchema))
+                inlineMap[valueSchema] = name + TypeMapper.ToPascalCase(propKvp.Key) + "Value";
         }
 
         InlineSchemaResolver? resolveInline = inlineMap.Count > 0
@@ -160,6 +183,14 @@ internal static class DtoGenerator
             {
                 sb.AppendLine($"    public required {typeName} {csharpName} {{ get; init; }}");
             }
+        }
+
+        // When additionalProperties: true is set alongside named properties, capture
+        // any extra key-value pairs via [JsonExtensionData].
+        if (schema.AdditionalPropertiesAllowed && schema.Properties.Count > 0)
+        {
+            sb.AppendLine($"    [JsonExtensionData]");
+            sb.AppendLine($"    public global::System.Collections.Generic.Dictionary<string, global::System.Text.Json.JsonElement>? Extensions {{ get; init; }}");
         }
 
         sb.AppendLine("}");
