@@ -49,7 +49,37 @@ Configuration in [`Directory.Build.props`](../Directory.Build.props):
 - .NET 10 SDK (`dotnet --version` should show `10.x.x`)
 - Push access to the repository
 - Write access to the GitHub Releases page (for stable releases)
-- The `NUGET_API_KEY` secret configured in the repository settings (for NuGet.org publishing)
+- A **NuGet Trusted Publisher** configured on nuget.org for each package (replaces the old `NUGET_API_KEY` secret — see [Trusted Publishing setup](#trusted-publishing-setup) below)
+
+---
+
+## Trusted Publishing setup
+
+MinimalOpenAPI uses [NuGet Trusted Publishing](https://learn.microsoft.com/nuget/nuget-org/publish-a-package#trusted-publishing) to push packages to NuGet.org.
+This mechanism uses short-lived OIDC tokens issued by GitHub Actions instead of a long-lived API key secret, eliminating the need to store `NUGET_API_KEY` in repository settings.
+
+### One-time NuGet.org configuration
+
+For **each package** published by this repository, a Trusted Publisher must be registered once on nuget.org:
+
+1. Sign in to [nuget.org](https://www.nuget.org) with the package owner account.
+2. Navigate to the package → **Manage package** → **Trusted Publishers**.
+3. Click **Add trusted publisher** and select **GitHub Actions**.
+4. Fill in:
+   | Field | Value |
+   |-------|-------|
+   | Repository owner | `Kralizek` |
+   | Repository name | `MinimalOpenApi` |
+   | Workflow file name | `publish.yml` |
+   | Environment | _(leave blank)_ |
+5. Save. NuGet.org will now accept OIDC tokens issued by that specific workflow.
+
+No repository secret is required after this one-time step.
+
+### How it works in CI
+
+The [`publish.yml`](../.github/workflows/publish.yml) workflow has `id-token: write` permission, which allows it to request a short-lived GitHub OIDC token with audience `nuget.org`.
+That token is passed directly as the `--api-key` to `dotnet nuget push`; NuGet.org validates the OIDC claims against the registered Trusted Publisher and accepts or rejects the push.
 
 ---
 
