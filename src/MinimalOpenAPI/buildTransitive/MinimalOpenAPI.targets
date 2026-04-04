@@ -171,7 +171,7 @@
         <SchemaId>$([System.Math]::Abs($([MSBuild]::StableStringHash('%(FullPath)'))))</SchemaId>
       </_MinimalOpenApiFilesToPublish>
       <ResolvedFileToPublish Include="@(_MinimalOpenApiFilesToPublish)">
-        <RelativePath>openapi/schemas/%(SchemaId)/%(Filename)%(Extension)</RelativePath>
+        <RelativePath>openapi/schemas/%(_MinimalOpenApiFilesToPublish.SchemaId)/%(_MinimalOpenApiFilesToPublish.Filename)%(_MinimalOpenApiFilesToPublish.Extension)</RelativePath>
         <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       </ResolvedFileToPublish>
     </ItemGroup>

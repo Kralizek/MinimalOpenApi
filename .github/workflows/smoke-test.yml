@@ -47,3 +47,13 @@ jobs:
         run: >
           dotnet build sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj
           --no-restore --configuration Release --warnaserror
+
+      - name: Publish smoke-test consumer
+        run: >
+          dotnet publish sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj
+          --no-restore --configuration Release --output /tmp/smoketest-publish
+
+      - name: Verify OpenAPI spec is in publish output
+        run: >
+          find /tmp/smoketest-publish/openapi/schemas -name "openapi.yaml"
+          | grep -q . && echo "OpenAPI spec published OK"
