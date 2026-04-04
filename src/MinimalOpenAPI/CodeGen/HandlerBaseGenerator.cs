@@ -28,10 +28,31 @@ internal static class HandlerBaseGenerator
                 inlineSchemas.Add((respSchema, TypeMapper.GetInlineResponseTypeName(r.StatusCode)));
         }
 
+        // Collect inline-object value schemas from dictionary properties within the inline schemas.
+        // These are emitted as sibling nested records (named "{InlineTypeName}{Prop}Value") so that
+        // the inline parent record can reference them in Dictionary<string, T> property types.
+        var valueSchemas = new List<(OpenApiSchema Schema, string TypeName)>();
+        foreach (var (schema, typeName) in inlineSchemas)
+        {
+            foreach (var propKvp in schema.Properties)
+            {
+                if (TypeMapper.IsDictionarySchema(propKvp.Value)
+                    && propKvp.Value.AdditionalProperties is { } valueSchema
+                    && TypeMapper.IsInlineObject(valueSchema))
+                {
+                    var valueName = typeName + TypeMapper.ToPascalCase(propKvp.Key) + "Value";
+                    valueSchemas.Add((valueSchema, valueName));
+                }
+            }
+        }
+
+        // All schemas the resolver needs to know about (value schemas first, then parent schemas).
+        var allInlineSchemas = valueSchemas.Concat(inlineSchemas).ToList();
+
         // Resolver: inline schema → SHORT nested type name (usable inside the class body).
         InlineSchemaResolver localResolver = s =>
         {
-            foreach (var (schema, typeName) in inlineSchemas)
+            foreach (var (schema, typeName) in allInlineSchemas)
                 if (ReferenceEquals(schema, s)) return typeName;
             return null;
         };
@@ -51,9 +72,17 @@ internal static class HandlerBaseGenerator
         sb.AppendLine("{");
 
         // Emit one nested record per inline schema before the handler method.
+        // Value schemas (dictionary element types) are emitted first as they are dependencies
+        // of the parent inline schemas that reference them.
+        foreach (var (schema, typeName) in valueSchemas)
+        {
+            AppendNestedRecord(sb, typeName, schema, localResolver);
+            sb.AppendLine();
+        }
+
         foreach (var (schema, typeName) in inlineSchemas)
         {
-            AppendNestedRecord(sb, typeName, schema);
+            AppendNestedRecord(sb, typeName, schema, localResolver);
             sb.AppendLine();
         }
 
@@ -118,7 +147,7 @@ internal static class HandlerBaseGenerator
     }
 
     /// <summary>Appends a nested <c>sealed record</c> for an inline schema.</summary>
-    private static void AppendNestedRecord(StringBuilder sb, string typeName, OpenApiSchema schema)
+    private static void AppendNestedRecord(StringBuilder sb, string typeName, OpenApiSchema schema, InlineSchemaResolver? resolveInline = null)
     {
         sb.AppendLine($"    /// <summary>Inline DTO for the <c>{typeName}</c> schema of this operation.</summary>");
         TypeMapper.AppendGeneratedAttributes(sb, "    ");
@@ -131,7 +160,7 @@ internal static class HandlerBaseGenerator
             var propSchema = propKvp.Value;
             var isRequired = schema.Required.Contains(propName, StringComparer.OrdinalIgnoreCase);
             var nullable = propSchema.Nullable || !isRequired;
-            var csharpTypeName = TypeMapper.MapSchema(propSchema, nullable: nullable);
+            var csharpTypeName = TypeMapper.MapSchema(propSchema, nullable: nullable, resolveInline: resolveInline);
             var csharpName = TypeMapper.ToPascalCase(propName);
 
             sb.AppendLine($"        [global::System.Text.Json.Serialization.JsonPropertyName(\"{propName}\")]");

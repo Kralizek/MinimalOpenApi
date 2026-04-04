@@ -264,4 +264,177 @@ public class AdditionalPropertiesTests
                 "global::System.Collections.Generic.Dictionary<string, global::System.Text.Json.JsonElement>"));
         }
     }
+
+    // ── Inline complex value type ──────────────────────────────────────────
+
+    [TestFixture]
+    public class InlineComplexValueType
+    {
+        // ── Component schema (Dtos.g.cs) ──────────────────────────────────
+
+        [TestFixture]
+        public class YamlParser
+        {
+            private static readonly (string, string)[] AdditionalFiles =
+            [
+                ("openapi.yaml", OpenApiFixtures.GetResourceWithInlineComplexAdditionalPropertiesYaml)
+            ];
+
+            [Test]
+            public void ValueRecordIsGenerated()
+            {
+                var (result, _) = GeneratorTestHelper.RunGenerator(
+                    userSource: NoOpHandlerImpl,
+                    additionalFiles: AdditionalFiles);
+
+                var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+                Assert.That(source, Does.Contain("public sealed record ResourceTagsValue"));
+            }
+
+            [Test]
+            public void ValueRecordHasCorrectProperties()
+            {
+                var (result, _) = GeneratorTestHelper.RunGenerator(
+                    userSource: NoOpHandlerImpl,
+                    additionalFiles: AdditionalFiles);
+
+                var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+                Assert.That(source, Does.Contain("public string? Label { get; init; }"));
+                Assert.That(source, Does.Contain("public int? Weight { get; init; }"));
+            }
+
+            [Test]
+            public void TagsPropertyMapsToTypedDictionary()
+            {
+                var (result, _) = GeneratorTestHelper.RunGenerator(
+                    userSource: NoOpHandlerImpl,
+                    additionalFiles: AdditionalFiles);
+
+                var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+                Assert.That(source, Does.Contain(
+                    "global::System.Collections.Generic.Dictionary<string, ResourceTagsValue>"));
+            }
+
+            [Test]
+            public void ValueRecordIsEmittedBeforeParentRecord()
+            {
+                var (result, _) = GeneratorTestHelper.RunGenerator(
+                    userSource: NoOpHandlerImpl,
+                    additionalFiles: AdditionalFiles);
+
+                var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+                var valuePos = source.IndexOf("public sealed record ResourceTagsValue", StringComparison.Ordinal);
+                var parentPos = source.IndexOf("public sealed record Resource\n", StringComparison.Ordinal);
+
+                Assert.That(valuePos, Is.GreaterThan(-1));
+                Assert.That(parentPos, Is.GreaterThan(-1));
+                Assert.That(valuePos, Is.LessThan(parentPos));
+            }
+        }
+
+        [TestFixture]
+        public class JsonParser
+        {
+            [Test]
+            public void JsonParserProducesSameOutputAsYamlParser()
+            {
+                var (yamlResult, _) = GeneratorTestHelper.RunGenerator(
+                    userSource: NoOpHandlerImpl,
+                    additionalFiles: [("openapi.yaml", OpenApiFixtures.GetResourceWithInlineComplexAdditionalPropertiesYaml)]);
+
+                var (jsonResult, _) = GeneratorTestHelper.RunGenerator(
+                    userSource: NoOpHandlerImpl,
+                    additionalFiles: [("openapi.json", OpenApiFixtures.GetResourceWithInlineComplexAdditionalPropertiesJson)]);
+
+                var yamlSource = GeneratorTestHelper.GetGeneratedSource(yamlResult, "Dtos.g.cs");
+                var jsonSource = GeneratorTestHelper.GetGeneratedSource(jsonResult, "Dtos.g.cs");
+
+                Assert.That(jsonSource, Is.EqualTo(yamlSource));
+            }
+        }
+
+        // ── Inline request body schema (Handler base) ──────────────────────
+
+        [TestFixture]
+        public class InlineRequestBody
+        {
+            private const string InlineComplexValueYaml = """
+                openapi: "3.0.0"
+                info:
+                  title: Test API
+                  version: "1.0.0"
+                paths:
+                  /items:
+                    post:
+                      operationId: createItem
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                                tags:
+                                  type: object
+                                  additionalProperties:
+                                    type: object
+                                    properties:
+                                      label:
+                                        type: string
+                                      weight:
+                                        type: integer
+                      responses:
+                        "201":
+                          description: Created
+                """;
+
+            [Test]
+            public void ValueRecordIsEmittedAsNestedType()
+            {
+                var (result, _) = GeneratorTestHelper.RunGenerator(
+                    userSource: NoOpHandlerImpl,
+                    additionalFiles: [("openapi.yaml", InlineComplexValueYaml)]);
+
+                var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateItemEndpointBase.g.cs");
+
+                Assert.That(source, Does.Contain("public sealed record RequestTagsValue"));
+            }
+
+            [Test]
+            public void RequestTagsPropertyMapsToTypedDictionary()
+            {
+                var (result, _) = GeneratorTestHelper.RunGenerator(
+                    userSource: NoOpHandlerImpl,
+                    additionalFiles: [("openapi.yaml", InlineComplexValueYaml)]);
+
+                var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateItemEndpointBase.g.cs");
+
+                Assert.That(source, Does.Contain(
+                    "global::System.Collections.Generic.Dictionary<string, RequestTagsValue>"));
+            }
+
+            [Test]
+            public void ValueRecordIsEmittedBeforeRequestRecord()
+            {
+                var (result, _) = GeneratorTestHelper.RunGenerator(
+                    userSource: NoOpHandlerImpl,
+                    additionalFiles: [("openapi.yaml", InlineComplexValueYaml)]);
+
+                var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateItemEndpointBase.g.cs");
+
+                var valuePos = source.IndexOf("public sealed record RequestTagsValue", StringComparison.Ordinal);
+                var requestPos = source.IndexOf("public sealed record Request\n", StringComparison.Ordinal);
+
+                Assert.That(valuePos, Is.GreaterThan(-1));
+                Assert.That(requestPos, Is.GreaterThan(-1));
+                Assert.That(valuePos, Is.LessThan(requestPos));
+            }
+        }
+    }
 }

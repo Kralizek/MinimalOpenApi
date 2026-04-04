@@ -1296,4 +1296,114 @@ internal static class OpenApiFixtures
           }
         }
         """;
+
+    /// <summary>
+    /// OpenAPI spec (YAML) with a component schema that has a property using
+    /// <c>additionalProperties: { type: object, properties: {...} }</c>.
+    /// The value type is an inline complex schema; the generator should emit a
+    /// separate record named <c>ResourceTagsValue</c> and type the property as
+    /// <c>Dictionary&lt;string, ResourceTagsValue&gt;</c>.
+    /// </summary>
+    public const string GetResourceWithInlineComplexAdditionalPropertiesYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /resources/{resourceId}:
+            get:
+              operationId: getResource
+              parameters:
+                - name: resourceId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Resource'
+                "404":
+                  description: Not found
+        components:
+          schemas:
+            Resource:
+              type: object
+              required:
+                - id
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                tags:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    properties:
+                      label:
+                        type: string
+                      weight:
+                        type: integer
+        """;
+
+    /// <summary>
+    /// JSON equivalent of <see cref="GetResourceWithInlineComplexAdditionalPropertiesYaml"/>.
+    /// </summary>
+    public const string GetResourceWithInlineComplexAdditionalPropertiesJson = """
+        {
+          "openapi": "3.0.0",
+          "info": { "title": "Test API", "version": "1.0.0" },
+          "paths": {
+            "/resources/{resourceId}": {
+              "get": {
+                "operationId": "getResource",
+                "parameters": [
+                  {
+                    "name": "resourceId",
+                    "in": "path",
+                    "required": true,
+                    "schema": { "type": "string", "format": "uuid" }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "description": "OK",
+                    "content": {
+                      "application/json": {
+                        "schema": { "$ref": "#/components/schemas/Resource" }
+                      }
+                    }
+                  },
+                  "404": { "description": "Not found" }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "Resource": {
+                "type": "object",
+                "required": ["id"],
+                "properties": {
+                  "id": { "type": "string", "format": "uuid" },
+                  "tags": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "label": { "type": "string" },
+                        "weight": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        """;
 }
