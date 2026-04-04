@@ -17,26 +17,14 @@ public sealed class CreateTodoHandler : CreateTodoEndpointBase
         if (string.IsNullOrWhiteSpace(request.Title))
             return Task.FromResult<Results<Created<Todo>, BadRequest>>(TypedResults.BadRequest());
 
-        // Convert inline request metadata value type to the component schema value type.
-        var metadata = request.Metadata?.ToDictionary(
+        // The inline request Metadata uses RequestMetadataValue; the store uses a raw (Value, Color) tuple.
+        var storeMetadata = request.Metadata?.ToDictionary(
             kvp => kvp.Key,
-            kvp => new TodoMetadataValue { Value = kvp.Value?.Value, Color = kvp.Value?.Color });
+            kvp => (kvp.Value?.Value, kvp.Value?.Color));
 
-        var id = _store.Add(request.Title, request.Description, request.Priority, request.DueDate,
-            metadata?.ToDictionary(kvp => kvp.Key, kvp => (kvp.Value.Value, kvp.Value.Color)));
+        var id = _store.Add(request.Title, request.Description, request.Priority, request.DueDate, storeMetadata);
 
-        var todo = new Todo
-        {
-            Id = id,
-            Title = request.Title,
-            Description = request.Description,
-            IsComplete = false,
-            Priority = request.Priority,
-            DueDate = request.DueDate,
-            Metadata = metadata,
-        };
-
-        return Task.FromResult<Results<Created<Todo>, BadRequest>>(
-            TypedResults.Created($"/todos/{id}", todo));
+        var todo = GetTodoHandler.ToTodo(_store.Get(id)!);
+        return Task.FromResult<Results<Created<Todo>, BadRequest>>(TypedResults.Created($"/todos/{id}", todo));
     }
 }

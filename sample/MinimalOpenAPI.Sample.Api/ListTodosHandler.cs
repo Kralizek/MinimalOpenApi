@@ -17,18 +17,7 @@ public sealed class ListTodosHandler : ListTodosEndpointBase
         CancellationToken cancellationToken)
     {
         var items = _store.List(parameters.IsComplete, parameters.Priority)
-            .Select(t => new Todo
-            {
-                Id = t.Id,
-                Title = t.Title,
-                Description = t.Description,
-                IsComplete = t.IsComplete,
-                Priority = t.Priority,
-                DueDate = t.DueDate,
-                Metadata = t.Metadata?.ToDictionary(
-                    kvp => kvp.Key,
-                    kvp => new TodoMetadataValue { Value = kvp.Value.Value, Color = kvp.Value.Color }),
-            })
+            .Select(GetTodoHandler.ToTodo)
             .ToArray();
 
         return Task.FromResult(TypedResults.Ok(items));
