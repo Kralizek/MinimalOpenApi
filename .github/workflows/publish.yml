@@ -44,7 +44,6 @@ jobs:
           name: nuget-packages
           path: |
             ./artifacts/*.nupkg
-            ./artifacts/*.snupkg
           if-no-files-found: error
 
       # ── Manual execution ────────────────────────────────────────────────────────
@@ -64,17 +63,12 @@ jobs:
         run: |
           gh release upload "${{ github.event.release.tag_name }}" \
             ./artifacts/*.nupkg \
-            ./artifacts/*.snupkg \
             --repo "${{ github.repository }}"
 
       - name: Push to NuGet.org
         if: github.event_name == 'release'
         run: |
           dotnet nuget push "./artifacts/*.nupkg" \
-            --api-key "${{ secrets.NUGET_API_KEY }}" \
-            --source https://api.nuget.org/v3/index.json \
-            --skip-duplicate
-          dotnet nuget push "./artifacts/*.snupkg" \
             --api-key "${{ secrets.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
