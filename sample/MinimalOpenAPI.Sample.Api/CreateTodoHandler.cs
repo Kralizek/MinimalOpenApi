@@ -22,7 +22,7 @@ public sealed class CreateTodoHandler : CreateTodoEndpointBase
             kvp => kvp.Key,
             kvp => new TodoMetadataValue { Value = kvp.Value?.Value, Color = kvp.Value?.Color });
 
-        var id = _store.Add(request.Title, request.Description, request.DueDate,
+        var id = _store.Add(request.Title, request.Description, request.Priority, request.DueDate,
             metadata?.ToDictionary(kvp => kvp.Key, kvp => (kvp.Value.Value, kvp.Value.Color)));
 
         var todo = new Todo
@@ -31,6 +31,7 @@ public sealed class CreateTodoHandler : CreateTodoEndpointBase
             Title = request.Title,
             Description = request.Description,
             IsComplete = false,
+            Priority = request.Priority,
             DueDate = request.DueDate,
             Metadata = metadata,
         };

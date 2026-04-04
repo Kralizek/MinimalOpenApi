@@ -27,6 +27,7 @@ public sealed class GetTodoHandler : GetTodoEndpointBase
             Title = item.Value.Title,
             Description = item.Value.Description,
             IsComplete = item.Value.IsComplete,
+            Priority = item.Value.Priority,
             DueDate = item.Value.DueDate,
             Metadata = item.Value.Metadata?.ToDictionary(
                 kvp => kvp.Key,

@@ -16,13 +16,14 @@ public sealed class ListTodosHandler : ListTodosEndpointBase
         ListTodosEndpointBase.Parameters parameters,
         CancellationToken cancellationToken)
     {
-        var items = _store.List(parameters.IsComplete)
+        var items = _store.List(parameters.IsComplete, parameters.Priority)
             .Select(t => new Todo
             {
                 Id = t.Id,
                 Title = t.Title,
                 Description = t.Description,
                 IsComplete = t.IsComplete,
+                Priority = t.Priority,
                 DueDate = t.DueDate,
                 Metadata = t.Metadata?.ToDictionary(
                     kvp => kvp.Key,

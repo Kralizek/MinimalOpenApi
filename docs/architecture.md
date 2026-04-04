@@ -47,6 +47,7 @@ src/
   MinimalOpenAPI.Parser.Json/   ← JSON parser (IOpenApiParser implementation)
 sample/
   MinimalOpenAPI.Sample.Api/    ← end-to-end working example (Todo CRUD)
+  MinimalOpenAPI.SmokeTest.Api/ ← minimal consumer that builds against the packed NuGet artifact
 tests/
   MinimalOpenAPI.Generator.Tests/   ← generator unit tests (Roslyn driver)
   MinimalOpenAPI.Runtime.Tests/     ← runtime unit tests
@@ -63,29 +64,30 @@ tests/
 ## 3. End-to-end data flow
 
 ```
-openapi.yaml / openapi.json
+openapi.yaml / openapi.json  (one or more <OpenApi> items)
     │
     │  MSBuild target AddMinimalOpenApiFilesToAdditionalFiles
     │  promotes <OpenApi> items → AdditionalFiles with
     │  build_metadata.AdditionalFiles.MinimalOpenApiFile = true
+    │  (SpecName metadata carries the PascalCase sub-namespace segment)
     │
     ▼
 MinimalOpenAPI.Generator  (IIncrementalGenerator, runs inside Roslyn)
     │
     ├─ Reads AdditionalFiles tagged with MinimalOpenApiFile = true
-    ├─ Selects parser by file extension (.yaml/.yml → YamlOpenApiParser, .json → JsonOpenApiParser)
+    ├─ Peeks openapi version field; selects parser via OpenApiParserRequest(Format, Version?)
     ├─ Calls IOpenApiParser.ParseAsync → OpenApiDocument
     ├─ Scans user-project class declarations (SyntaxProvider)
     │   to discover concrete handler and customizer implementations
     │
-    ├─ Emits per-operation source files:
-    │   MinimalOpenApi.<OperationId>Endpoint.g.cs          (handler base class)
-    │   MinimalOpenApi.<OperationId>EndpointRegistration.g.cs (customizer base)
+    ├─ Emits per-operation source files (prefixed with spec name):
+    │   MinimalOpenApi.<SpecName>.<OperationId>Endpoint.g.cs          (handler base)
+    │   MinimalOpenApi.<SpecName>.<OperationId>EndpointRegistration.g.cs (customizer base)
     │
-    ├─ Emits shared source files:
-    │   MinimalOpenApi.Dtos.g.cs                 (DTO records)
-    │   MinimalOpenApi.DependencyInjection.g.cs  (AddGeneratedEndpoints + ModuleInitializer)
-    │   MinimalOpenApi.EndpointMapping.g.cs      (MapMinimalOpenApiEndpoints)
+    ├─ Emits shared source files (one set per spec):
+    │   MinimalOpenApi.<SpecName>.Dtos.g.cs                 (DTO records + enums)
+    │   MinimalOpenApi.<SpecName>.DependencyInjection.g.cs  (AddGeneratedEndpoints + ModuleInitializer)
+    │   MinimalOpenApi.<SpecName>.EndpointMapping.g.cs      (MapEndpoints internal helper)
     │
     ▼
 User project: inherit handler base, fill in business logic
@@ -94,6 +96,7 @@ User project: inherit handler base, fill in business logic
 Runtime startup
   builder.Services.AddMinimalOpenApi()      ← invokes generated AddGeneratedEndpoints
   app.MapMinimalOpenApiEndpoints()          ← maps all routes to handler lambdas
+  app.MapOpenApiSchemas()                   ← serves spec files as GET endpoints (optional)
 ```
 
 ---
@@ -127,19 +130,20 @@ MSBuild plumbing described in §5.
 
 ### 4.2 `MinimalOpenAPI.Runtime`
 
-Contains a single class, `ServiceCollectionExtensions`, with five public methods:
+Contains a single class, `ServiceCollectionExtensions`, with six public methods:
 
-- **`RegisterGeneratedServices(Action<IServiceCollection>)`** — called by the
+- **`RegisterGeneratedServices(Action<IServiceCollection>)`** — called once per spec by the
   source-generated `[ModuleInitializer]` (§6.4) to register a callback that
   will wire in all generated handlers before the application starts.
-- **`RegisterEndpointMapping(Func<IEndpointRouteBuilder, string?, RouteGroupBuilder>)`** —
-  called by the same `[ModuleInitializer]` to register a callback that performs
-  the actual endpoint mapping.
+- **`RegisterEndpointMapping(Action<IEndpointRouteBuilder, RouteGroupBuilder>)`** —
+  called once per spec by the same `[ModuleInitializer]` to register a callback that
+  maps routes onto the shared `RouteGroupBuilder` created by `MapMinimalOpenApiEndpoints`.
 - **`AddMinimalOpenApi(IServiceCollection)`** — called by the application in
-  `Program.cs`.  Invokes the `RegisterGeneratedServices` callback.
+  `Program.cs`.  Invokes all registered `RegisterGeneratedServices` callbacks.
 - **`MapMinimalOpenApiEndpoints(IEndpointRouteBuilder, string?)`** — called by
-  the application in `Program.cs`.  Invokes the `RegisterEndpointMapping`
-  callback.  Falls back to an empty route group if no generator has run.
+  the application in `Program.cs`.  Creates a single `RouteGroupBuilder` and invokes
+  all registered `RegisterEndpointMapping` callbacks with it.  Falls back gracefully
+  if no generator has run.
 - **`MapOpenApiSchemas(IEndpointRouteBuilder, string? prefix, string? schemasDirectory)`** —
   scans `AppContext.BaseDirectory/openapi/schemas/` (a flat directory, or a custom
   path) for `.yaml`, `.yml`, and `.json` spec files created by the
@@ -150,11 +154,15 @@ Contains a single class, `ServiceCollectionExtensions`, with five public methods
   determined the version segment is omitted: `{prefix}/schemas/{name}.{ext}`.
   Returns a `RouteGroupBuilder` for further configuration (e.g.
   `.RequireAuthorization()`).
+- **`ResetForTesting()`** — clears all registered callbacks; intended for use in
+  unit tests that exercise `ServiceCollectionExtensions` in isolation.
 
-The indirection through static callback fields is what lets the *generated*
+The indirection through static callback lists is what lets the *generated*
 code (which lives in a different conceptual layer from the runtime) hook into
 two single user-facing API calls without requiring reflection or a `using` for
-the generated namespace.
+the generated namespace.  Because all registered callbacks are accumulated in
+thread-safe lists, calling `RegisterGeneratedServices` and
+`RegisterEndpointMapping` multiple times (once per spec) is expected and safe.
 
 Because `MapMinimalOpenApiEndpoints` and `MapOpenApiSchemas` are defined in the
 `MinimalOpenAPI` runtime namespace (the same one as `AddMinimalOpenApi`), users
@@ -436,16 +444,31 @@ If none exists, the customizer lookup is simply skipped.
 | `string` | `string` |
 | `string` + `uuid` | `global::System.Guid` |
 | `string` + `date-time` | `global::System.DateTimeOffset` |
+| `string` + `date` | `global::System.DateOnly` |
 | `integer` | `int` |
 | `integer` + `int64` | `long` |
 | `number` | `double` |
 | `number` + `float` | `float` |
 | `boolean` | `bool` |
 | `array` | `<itemType>[]` |
-| `$ref` | the referenced schema name (resolved to last path segment) |
+| schema with `enum` values | C# `enum` decorated with `[JsonConverter(typeof(JsonStringEnumConverter))]` |
+| `$ref` | the referenced schema name, fully qualified with the contracts namespace |
 | `object` + `additionalProperties: { primitive/array schema }` | `global::System.Collections.Generic.Dictionary<string, T>` where `T` is the mapped value type |
 | `object` + `additionalProperties: { inline object schema }` | `global::System.Collections.Generic.Dictionary<string, TValue>` where `TValue` is a generated record (see below) |
 | `object` + `additionalProperties: true` + `properties: …` | record with named properties + `[JsonExtensionData] Dictionary<string, JsonElement>? Extensions` |
+
+**`enum` schemas**
+
+A schema with an `enum` list generates a C# `enum` decorated with
+`[JsonConverter(typeof(JsonStringEnumConverter))]`.  Top-level component schemas
+produce a named enum in the `Contracts` namespace.  Inline enum schemas on object
+properties produce a derived enum named `{ContainingSchema}{PascalCase(PropertyName)}`
+(e.g. `Product.category` → `ProductCategory`).
+
+`[ExcludeFromCodeCoverage]` is intentionally not placed on `enum` declarations
+because C# only allows that attribute on `class`, `struct`, `constructor`,
+`method`, `property`, `indexer`, and `event` declarations.  Only
+`[GeneratedCode]` is emitted before enum declarations.
 
 **`additionalProperties` with an inline object value type**
 
@@ -482,8 +505,8 @@ wraps multiple types in `Results<T1, T2, …>`.
 
 **Naming conventions**:
 
-- `ToPascalCase` — first letter uppercased.  Used for handler class names and
-  DTO property names.
+- `ToPascalCase` — handles snake_case, kebab-case, camelCase, and PascalCase inputs.
+  Used for handler class names, DTO property names, nested record names, and enum names.
 - `ToCamelCase` — first letter lowercased.  Used for C# parameter names in
   lambdas and `HandleAsync` signatures.
 - `HandlerClassName(operationId)` → `<PascalCase(operationId)>EndpointBase`
@@ -500,6 +523,7 @@ wraps multiple types in `Results<T1, T2, …>`.
 | **MOA003** | Error | Two or more classes inherit from the same generated customizer base.  At most one is allowed. |
 | **MOA004** | Error | The OpenAPI file could not be parsed (YAML syntax error, etc.). |
 | **MOA005** | Error | The `<OpenApi>` item has a file extension the generator does not recognise (only `.yaml`, `.yml`, and `.json` are supported). |
+| **MOA006** | Warning | The `openapi` version field is absent or contains a value the generator cannot parse as a `System.Version`.  The spec is still processed; generation continues. |
 
 ---
 

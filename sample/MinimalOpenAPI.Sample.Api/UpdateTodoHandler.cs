@@ -17,7 +17,7 @@ public sealed class UpdateTodoHandler : UpdateTodoEndpointBase
         if (string.IsNullOrWhiteSpace(request.Title))
             return Task.FromResult<Results<Ok<Todo>, BadRequest, NotFound>>(TypedResults.BadRequest());
 
-        if (!_store.Update(id, request.Title, request.Description, request.IsComplete, request.DueDate))
+        if (!_store.Update(id, request.Title, request.Description, request.IsComplete, request.Priority, request.DueDate))
             return Task.FromResult<Results<Ok<Todo>, BadRequest, NotFound>>(TypedResults.NotFound());
 
         var item = _store.Get(id)!.Value;
@@ -27,6 +27,7 @@ public sealed class UpdateTodoHandler : UpdateTodoEndpointBase
             Title = item.Title,
             Description = item.Description,
             IsComplete = item.IsComplete,
+            Priority = item.Priority,
             DueDate = item.DueDate,
             Metadata = item.Metadata?.ToDictionary(
                 kvp => kvp.Key,

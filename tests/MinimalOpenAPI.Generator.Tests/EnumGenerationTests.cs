@@ -246,4 +246,60 @@ public class EnumGenerationTests
         Assert.That(source, Does.Not.Contain("    _0"));
         Assert.That(source, Does.Not.Contain("    _1"));
     }
+
+    // ── [ExcludeFromCodeCoverage] must not be placed on enum declarations ─
+
+    [Test]
+    public void TopLevelEnumSchema_DoesNotEmitExcludeFromCodeCoverageOnEnum()
+    {
+        // [ExcludeFromCodeCoverage] is invalid on enum declarations (CS0592).
+        // Only [GeneratedCode] should appear immediately before the enum keyword.
+        var additionalFiles = new[] { ("openapi.yaml", OpenApiFixtures.GetOrderWithEnumYaml) };
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: string.Empty,
+            additionalFiles: additionalFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+        // Grab the block around the enum declaration and confirm no ExcludeFromCodeCoverage
+        // attribute appears in it.
+        var enumIndex = source.IndexOf("public enum OrderStatus", StringComparison.Ordinal);
+        Assert.That(enumIndex, Is.GreaterThan(0), "Expected to find enum declaration");
+        var preceding = source[..enumIndex];
+        var lastNewline = preceding.LastIndexOf('\n');
+        var block = lastNewline >= 0 ? preceding[lastNewline..] : preceding;
+        Assert.That(block, Does.Not.Contain("ExcludeFromCodeCoverage"));
+    }
+
+    // ── $ref enum in Parameters record must use fully-qualified type ──────
+
+    [Test]
+    public void RefEnumQueryParameter_ParametersRecord_UsesFullyQualifiedType()
+    {
+        var additionalFiles = new[] { ("openapi.yaml", OpenApiFixtures.ListOrdersWithEnumQueryParamYaml) };
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: string.Empty,
+            additionalFiles: additionalFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "ListOrdersEndpointBase.g.cs");
+
+        // The Parameters record must reference OrderStatus with the full contracts namespace.
+        Assert.That(source, Does.Contain("global::TestProject.Openapi.Contracts.OrderStatus"));
+    }
+
+    // ── $ref enum in inline request body must use fully-qualified type ────
+
+    [Test]
+    public void RefEnumInInlineRequestBody_UsesFullyQualifiedType()
+    {
+        var additionalFiles = new[] { ("openapi.yaml", OpenApiFixtures.CreateOrderWithEnumRequestBodyYaml) };
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: string.Empty,
+            additionalFiles: additionalFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateOrderEndpointBase.g.cs");
+
+        // The inline Request record must reference OrderStatus with the full contracts namespace.
+        Assert.That(source, Does.Contain("global::TestProject.Openapi.Contracts.OrderStatus"));
+    }
 }

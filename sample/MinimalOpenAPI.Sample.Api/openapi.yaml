@@ -16,6 +16,11 @@ paths:
           required: false
           schema:
             type: boolean
+        - name: priority
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TodoPriority'
       responses:
         "200":
           description: OK
@@ -43,11 +48,16 @@ paths:
               properties:
                 title:
                   type: string
+                  minLength: 1
+                  maxLength: 200
                 description:
                   type: string
                   nullable: true
+                  maxLength: 2000
                 isComplete:
                   type: boolean
+                priority:
+                  $ref: '#/components/schemas/TodoPriority'
                 dueDate:
                   type: string
                   format: date
@@ -119,16 +129,20 @@ paths:
               properties:
                 title:
                   type: string
+                  minLength: 1
+                  maxLength: 200
                 description:
                   type: string
                   nullable: true
+                  maxLength: 2000
                 isComplete:
                   type: boolean
+                priority:
+                  $ref: '#/components/schemas/TodoPriority'
                 dueDate:
                   type: string
                   format: date
                   nullable: true
-
       responses:
         "200":
           description: OK
@@ -160,6 +174,12 @@ paths:
           description: Not found
 components:
   schemas:
+    TodoPriority:
+      type: string
+      enum:
+        - low
+        - medium
+        - high
     Todo:
       type: object
       required:
@@ -173,11 +193,16 @@ components:
           nullable: true
         title:
           type: string
+          minLength: 1
+          maxLength: 200
         description:
           type: string
           nullable: true
+          maxLength: 2000
         isComplete:
           type: boolean
+        priority:
+          $ref: '#/components/schemas/TodoPriority'
         dueDate:
           type: string
           format: date
