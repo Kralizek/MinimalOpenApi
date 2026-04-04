@@ -133,7 +133,7 @@ internal static class DtoGenerator
             return; // already emitted
 
         sb.AppendLine($"/// <summary>Generated enum for schema <c>{name}</c>.</summary>");
-        TypeMapper.AppendGeneratedAttributes(sb);
+        sb.AppendLine($"[global::System.CodeDom.Compiler.GeneratedCode(\"{TypeMapper.GeneratorName}\", \"{TypeMapper.GeneratorVersion}\")]");
         sb.AppendLine("[JsonConverter(typeof(JsonStringEnumConverter))]");
         sb.AppendLine($"public enum {name}");
         sb.AppendLine("{");

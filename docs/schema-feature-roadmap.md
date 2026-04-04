@@ -17,13 +17,13 @@ already covers.
 | Field | Supported |
 |-------|-----------|
 | `type` | ✅ |
-| `format` (`uuid`, `date-time`, `int64`, `float`, …) | ✅ |
+| `format` (`uuid`, `date-time`, `date`, `int64`, `float`, …) | ✅ |
 | `nullable` | ✅ |
 | `$ref` | ✅ |
 | `items` (array element type) | ✅ |
 | `properties` (object properties) | ✅ |
 | `required` (required property list) | ✅ |
-| `enum` | ❌ |
+| `enum` | ✅ |
 | `default` | ❌ |
 | `minLength` / `maxLength` | ✅ |
 | `minimum` / `maximum` | ✅ |
@@ -31,7 +31,7 @@ already covers.
 | `minItems` / `maxItems` | ✅ |
 | `deprecated` | ❌ |
 | `readOnly` / `writeOnly` | ❌ |
-| `additionalProperties` | ❌ |
+| `additionalProperties` | ✅ |
 | `allOf` / `oneOf` / `anyOf` | ❌ |
 
 ### Operation model (`OpenApiOperation`)
@@ -70,6 +70,16 @@ already covers.
 | Multiple content types per operation | ❌ |
 | `application/problem+json` detection | ❌ |
 
+### Multi-spec and versioning
+
+| Feature | Supported |
+|---------|-----------|
+| Multiple `<OpenApi>` items per project | ✅ |
+| OpenAPI 3.0 | ✅ |
+| OpenAPI 3.1 | ✅ |
+| Spec publishing (`<OpenApi Publish="true" />`) | ✅ |
+| HTTP schema serving (`MapOpenApiSchemas()`) | ✅ |
+
 ---
 
 ## 2. Categorised analysis
@@ -79,48 +89,9 @@ already covers.
 These features have a clear, clean mapping to C# constructs, require no
 external packages, and provide immediate consumer value.
 
-#### A. Enum support
+#### A. ~~Enum support~~ ✅ Implemented
 
-**OpenAPI keyword**: `enum` on a schema.
-
-Maps cleanly to a C# `enum` type at the DTO and parameter level.  The
-generated C# enum can have `[JsonStringEnumConverter]` applied for
-serialisation.
-
-- **Scope**: `OpenApiSchema.Enum` list; `DtoGenerator` emits top-level enums;
-  `TypeMapper.MapSchema` maps an enum schema to its generated enum name.
-- **Pitfall**: OpenAPI enums are values, not named types; the generator must
-  derive a name from context (schema name, property name, or parameter name).
-  Inline enum schemas on parameters or properties need a stable naming
-  convention.
-- **Validation**: no extra validation needed — the enum type itself enforces
-  the constraint at bind time.
-
-#### B. Validation attributes (constraint keywords)
-
-**OpenAPI keywords**: `minLength`, `maxLength`, `pattern`, `minimum`,
-`maximum`, `minItems`, `maxItems`.
-
-These map directly to `System.ComponentModel.DataAnnotations` attributes that
-ASP.NET Core respects during model binding:
-
-| OpenAPI keyword | C# attribute |
-|-----------------|-------------|
-| `minLength` / `maxLength` on `string` | `[StringLength(max, MinimumLength = min)]` or `[MinLength]` / `[MaxLength]` |
-| `pattern` | `[RegularExpression(pattern)]` |
-| `minimum` / `maximum` on `integer` / `number` | `[Range(min, max)]` |
-| `minItems` / `maxItems` on `array` | `[MinLength]` / `[MaxLength]` |
-
-No external validation library is required — `DataAnnotations` validation is
-built into ASP.NET Core.  Constraints apply to DTO properties and `Parameters`
-record properties.
-
-- **Scope**: `OpenApiSchema` gains numeric/string constraint fields; `DtoGenerator`
-  and the `Parameters` record emitter apply the relevant attributes.
-- **Note**: ASP.NET Core minimal APIs do not run `DataAnnotations` validation
-  automatically; consumers must call `app.UseDataAnnotationsValidation()` or use
-  the built-in filter.  The generated attributes still provide OpenAPI metadata
-  and IDE-level hints even without runtime enforcement.
+#### B. ~~Validation attributes (constraint keywords)~~ ✅ Implemented
 
 #### C. `deprecated` → `[Obsolete]`
 
@@ -139,33 +110,7 @@ Maps cleanly to the `[Obsolete]` attribute.  Applied to:
   Parameters emitter apply `[Obsolete]`.
 - **Value**: low implementation cost, high signal quality for consumers.
 
-#### D. Nested inline object schemas in DTO properties
-
-**Situation**: a component schema has a property whose schema is itself an
-inline object (no `$ref`).  Currently `TypeMapper.MapSchema` falls through to
-`object` for such schemas when no `InlineSchemaResolver` is provided.
-
-Generated code for:
-
-```yaml
-components:
-  schemas:
-    Order:
-      type: object
-      properties:
-        address:
-          type: object
-          properties:
-            street: { type: string }
-            city:   { type: string }
-```
-
-should emit a nested record `Order.Address` rather than `object`.
-
-- **Scope**: `DtoGenerator` must recursively emit nested records and use their
-  short names in the parent record.
-- **Pitfall**: name conflicts if two sibling properties are both inline objects
-  with the same shape; naming must be derived from the property name.
+#### D. ~~Nested inline object schemas in DTO properties~~ ✅ Implemented
 
 #### E. Parameter `default` values
 
@@ -203,24 +148,7 @@ public int PageSize { get; init; } = 20;
 These features fit the framework's philosophy but require more design thought
 or have lower priority because they cover edge cases.
 
-#### F. `additionalProperties` → `Dictionary<string, T>`
-
-**OpenAPI keyword**: `additionalProperties` on an object schema.
-
-Maps to `Dictionary<string, T>` where `T` is the value schema type.
-
-```yaml
-labels:
-  type: object
-  additionalProperties:
-    type: string
-```
-
-Generated: `Dictionary<string, string> Labels`.
-
-- **Pitfall**: `additionalProperties: true` (allow any extra property) is
-  ambiguous.  Only `additionalProperties: { schema }` can be mapped
-  deterministically.
+#### F. ~~`additionalProperties` → `Dictionary<string, T>`~~ ✅ Implemented
 
 #### G. `readOnly` and `writeOnly` properties
 
@@ -244,17 +172,7 @@ names in a case-insensitive way as HTTP headers require, and the route
 constraint builder ignores them.  Closing this gap is a refinement rather than
 a new feature.
 
-#### I. `format: date` → `DateOnly`
-
-Currently `format: date` maps to `string`.  .NET 6+ has `DateOnly` and
-ASP.NET Core 10 supports its binding out of the box.  Mapping `format: date`
-to `DateOnly` is a clean improvement.
-
-- **Scope**: one-line change in `TypeMapper.MapSchema`, but gated behind an
-  MSBuild property (`<OpenApiUseDateOnly>true</OpenApiUseDateOnly>`) or
-  introduced in a minor version bump with a clear migration note.
-- **Risk**: breaking change for consumers who expect `string` today; must not
-  be made silently.
+#### I. ~~`format: date` → `DateOnly`~~ ✅ Implemented
 
 #### J. `format: email` / `format: uri` → annotations
 
@@ -262,7 +180,7 @@ to `DateOnly` is a clean improvement.
 `[EmailAddress]` and `[Url]` data annotation attributes respectively, adding
 validation metadata without changing the property type (`string`).
 
-- **Scope**: small addition to the annotation-emitting logic (see §2.1.B).
+- **Scope**: small addition to the annotation-emitting logic.
 
 ---
 
@@ -311,12 +229,6 @@ tool (Scalar, Swashbuckle) alongside MinimalOpenAPI.
 #### `externalDocs`
 
 Documentation-only.  No code generation value.
-
-#### OpenAPI 3.1 JSON Schema dialect
-
-OpenAPI 3.1 changes the schema model significantly (e.g. `nullable` is
-replaced by `null` in the `type` array).  Supporting 3.1 is a separate,
-sizeable effort and should be tracked as its own feature.
 
 ---
 
@@ -384,13 +296,6 @@ redundant error DTOs.
   consumer experience simple but may surprise consumers who have a custom
   problem details extension schema.
 
-#### N. Multiple OpenAPI specs per project
-
-The current model assumes one `<OpenApi>` item per project.  Supporting
-multiple specs would require namespace isolation (e.g.
-`{RootNamespace}.{SpecName}.Contracts` and `{RootNamespace}.{SpecName}.Endpoints`)
-to prevent type name collisions.
-
 ---
 
 ## 3. Prioritised recommendation list
@@ -399,171 +304,16 @@ The following order balances consumer value, implementation cost, and risk.
 
 | Priority | Feature | Section | Effort |
 |----------|---------|---------|--------|
-| 1 | Enum support | §2.1.A | Medium |
-| 2 | ~~Constraint validation attributes (`minLength` / `maxLength` / `pattern` / `minimum` / `maximum`)~~ ✅ | §2.1.B | Medium |
+| 1 | ~~Enum support~~ ✅ | §2.1.A | — |
+| 2 | ~~Constraint validation attributes~~ ✅ | §2.1.B | — |
 | 3 | `deprecated` → `[Obsolete]` | §2.1.C | Small |
-| 4 | Nested inline object schemas in DTO properties | §2.1.D | Medium |
+| 4 | ~~Nested inline object schemas in DTO properties~~ ✅ | §2.1.D | — |
 | 5 | Parameter `default` values | §2.1.E | Small |
-| 6 | `additionalProperties` → `Dictionary<string, T>` | §2.2.F | Small |
-| 7 | `format: date` → `DateOnly` | §2.2.I | Trivial (breaking) |
+| 6 | ~~`additionalProperties` → `Dictionary<string, T>`~~ ✅ | §2.2.F | — |
+| 7 | ~~`format: date` → `DateOnly`~~ ✅ | §2.2.I | — |
 | 8 | `format: email` / `format: uri` → annotation | §2.2.J | Small |
 | 9 | `allOf` flattening | §2.4.K | Large |
 | 10 | `readOnly` / `writeOnly` property filtering | §2.2.G | Small |
 | — | Problem Details detection | §2.4.M | Design first |
 | — | `oneOf` / `anyOf` | §2.4.K | Design first |
 | — | Security requirements → authorization | §2.4.L | Design first |
-
----
-
-## 4. Implementation notes
-
-### 4.1 Enum support (Priority 1)
-
-**Affects**: `OpenApiSchema`, both parsers, `DtoGenerator`, `TypeMapper`.
-
-1. Add `List<string>? Enum` to `OpenApiSchema`.
-2. Both parsers read the `enum` YAML/JSON array and populate it.
-3. `DtoGenerator`: when a component schema has a non-null `Enum` list, emit a
-   C# `enum` instead of a record.  Apply `[JsonConverter(typeof(JsonStringEnumConverter))]`
-   at the declaration site.
-4. `TypeMapper.MapSchema`: when a schema has a non-null `Enum` list and a
-   `Reference` is resolvable, map to the generated enum name.
-5. Inline enum schemas (on properties or parameters): derive the enum name from
-   the containing schema name + property name (e.g. `Order.Status` property
-   with `enum: [pending, shipped, delivered]` → emit a top-level
-   `OrderStatus` enum in the Contracts namespace, or a nested enum inside the
-   parent record).
-
-**No external packages required.** `System.Text.Json` supports
-`JsonStringEnumConverter` out of the box.
-
----
-
-### 4.2 Constraint validation attributes (Priority 2)
-
-**Affects**: `OpenApiSchema`, both parsers, `DtoGenerator`, `HandlerBaseGenerator`
-(Parameters record emitter).
-
-1. Add the following nullable fields to `OpenApiSchema`:
-   - `int? MinLength`, `int? MaxLength` (strings and arrays)
-   - `string? Pattern` (strings)
-   - `double? Minimum`, `double? Maximum` (numbers / integers)
-   - `int? MinItems`, `int? MaxItems` (arrays)
-2. Both parsers read these fields.
-3. Create a helper `ValidationAttributeEmitter` (or extend `TypeMapper`) that
-   converts the schema fields to `[StringLength]`, `[Range]`, `[RegularExpression]`,
-   `[MinLength]`, `[MaxLength]` attribute strings.
-4. Apply the helper in `DtoGenerator.GenerateRecord` (for DTO properties) and
-   in the Parameters record emitter in `HandlerBaseGenerator`.
-
-**Runtime enforcement**: ASP.NET Core 10 does not run `DataAnnotations`
-validation on minimal API parameters by default.  Generated attributes will
-appear in OpenAPI metadata (via the endpoint metadata pipeline) and are
-respected if the consumer enables filter-based validation.  Document this
-clearly in XML comments on the generated properties.
-
----
-
-### 4.3 `deprecated` → `[Obsolete]` (Priority 3)
-
-**Affects**: `OpenApiSchema`, `OpenApiOperation`, `OpenApiParameter`, both
-parsers, `DtoGenerator`, `HandlerBaseGenerator`, `EndpointMappingGenerator`.
-
-1. Add `bool Deprecated` to `OpenApiSchema`, `OpenApiOperation`,
-   `OpenApiParameter`.
-2. Parsers read the `deprecated` boolean from each object.
-3. `DtoGenerator`: emit `[Obsolete]` before deprecated properties.
-4. `HandlerBaseGenerator`: emit `[Obsolete]` before the class declaration when
-   `operation.Deprecated` is true.
-5. `EndpointMappingGenerator`: no change needed — the deprecation is expressed
-   on the base class already.
-
----
-
-### 4.4 Nested inline object schemas in DTO properties (Priority 4)
-
-**Affects**: `DtoGenerator`.
-
-Currently `DtoGenerator.GenerateRecord` calls `TypeMapper.MapSchema` with no
-`resolveInline` delegate, so inline object properties resolve to `object`.
-
-The fix is to:
-
-1. Pre-scan each record's properties for inline object schemas.
-2. Assign each a derived name: `{RecordName}{PascalCase(PropertyName)}` emitted
-   as a **top-level** record in the Contracts namespace (or as a nested record
-   inside the parent — top-level is simpler and avoids deeply nested types).
-3. Emit the nested type before the parent record.
-4. Pass a resolver delegate to `TypeMapper.MapSchema` that maps each inline
-   schema to its derived name.
-
-**Pitfall**: recursive inline objects (an inline object whose property is
-itself an inline object) require recursive pre-scanning with cycle detection.
-
----
-
-### 4.5 Parameter `default` values (Priority 5)
-
-**Affects**: `OpenApiSchema`, both parsers, `HandlerBaseGenerator` (Parameters
-record emitter).
-
-1. Add `string? Default` to `OpenApiSchema`.  Store it as a raw string so that
-   the generator can emit it verbatim or with appropriate C# literal syntax.
-2. Parsers read the `default` field.
-3. The Parameters record emitter writes `= <CSharpLiteral(default)>` after the
-   property type, where `CSharpLiteral` converts the raw string to a valid C#
-   expression using `TypeMapper.GetDefaultValue` or a similar helper.
-
----
-
-### 4.6 `additionalProperties` (Priority 6)
-
-**Affects**: `OpenApiSchema`, both parsers, `DtoGenerator`, `TypeMapper`.
-
-1. Add `OpenApiSchema? AdditionalProperties` to `OpenApiSchema`.
-2. Parsers read `additionalProperties`.
-3. `TypeMapper.MapSchema`: when `schema.AdditionalProperties is not null` and
-   `schema.Properties.Count == 0`, map to
-   `Dictionary<string, {MapSchema(schema.AdditionalProperties)}>`.
-4. `DtoGenerator`: treat such schemas as dictionary properties rather than
-   record properties.
-
----
-
-### 4.7 `allOf` flattening (Priority 9)
-
-**Affects**: `OpenApiSchema`, both parsers, `DtoGenerator`.
-
-1. Add `List<OpenApiSchema> AllOf` to `OpenApiSchema`.
-2. Parsers resolve each subschema in `allOf` (may be `$ref` or inline).
-3. `DtoGenerator`: when `schema.AllOf.Count > 0`, flatten all properties from
-   all subschemas into a single generated record.  Resolve `$ref` subschemas
-   by looking up `allSchemas`.  Required lists are unioned.
-4. **Breaking constraint**: if two subschemas declare a property with the same
-   name and incompatible types, emit a diagnostic warning (`MOA006`?) and fall
-   back to `object` for the conflicting property.
-
----
-
-### 4.8 Format additions — `date`, `email`, `uri` (Priorities 7–8)
-
-**Affects**: `TypeMapper.MapSchema` only.
-
-- `("string", "date") => "global::System.DateOnly"` — **breaking change**;
-  gate behind a new `<OpenApiUseDateOnly>true</OpenApiUseDateOnly>` MSBuild
-  property or introduce in a minor version bump with a clear migration note.
-- For `email` and `uri`: keep the C# type as `string` but emit
-  `[EmailAddress]` / `[Url]` attributes in the property emitters.
-
----
-
-## 5. What is explicitly out of scope
-
-- **External validation libraries** (FluentValidation, MinimalApiValidator, etc.)
-- **Runtime OpenAPI document serving** (Swashbuckle, Scalar, NSwag)
-- **OpenAPI 3.1** (tracked separately)
-- **Code-first path** (out of scope by design)
-- **`explode` / `style` on parameters**
-- **Multiple content types per operation**
-- **Response headers**
-- **Cookie auto-binding**

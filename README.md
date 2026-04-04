@@ -90,7 +90,7 @@ dotnet add package MinimalOpenAPI
 Or manually in your `.csproj`:
 
 ```xml
-<PackageReference Include="MinimalOpenAPI" Version="1.0.0-alpha" />
+<PackageReference Include="MinimalOpenAPI" Version="1.0.0-beta.1" />
 ```
 
 ---
@@ -184,332 +184,49 @@ public sealed class GetItemEndpoint(IItemRepository repo) : GetItemEndpointBase
 
 That's it. No manual route registration, no manual DI wiring.
 
-### Inline request and response schemas
-
-When a request body or response schema is defined inline (without a `$ref`), the generator emits a nested record inside the handler base class instead of a top-level DTO. The record name is derived from context: `Request` for request bodies, and a status-code-based name for responses (`OkResponse`, `CreatedResponse`, etc.).
-
-For example, given this inline response spec:
-
-```yaml
-paths:
-  /items/count:
-    get:
-      operationId: getItemCount
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [count]
-                properties:
-                  count:
-                    type: integer
-```
-
-The generator produces `GetItemCountEndpointBase.OkResponse`. The handler uses it directly:
-
-```csharp
-// GetItemCountEndpoint.cs
-public sealed class GetItemCountEndpoint(IItemRepository repo) : GetItemCountEndpointBase
-{
-    public override async Task<Ok<OkResponse>> HandleAsync(CancellationToken cancellationToken)
-    {
-        var count = await repo.CountAsync(cancellationToken);
-        return TypedResults.Ok(new OkResponse { Count = count });
-    }
-}
-```
-
 ---
 
-### `additionalProperties` — typed dictionaries
+## Supported features
 
-When a schema property uses `additionalProperties`, the generator maps it to a strongly-typed `Dictionary<string, T>`.
+| Feature | Notes |
+|---------|-------|
+| YAML and JSON specs | `<OpenApi Include="openapi.yaml" />` or `openapi.json` |
+| OpenAPI 3.0 and 3.1 | Both versions normalised to the same internal model |
+| Multiple spec files | Each spec gets its own `{RootNamespace}.{SpecName}` sub-namespace |
+| DTO records | One `sealed record` per `components/schemas` object |
+| Enum types | `enum` schemas produce C# `enum` with `[JsonStringEnumConverter]` |
+| Inline object schemas | Nested object properties produce named sibling records |
+| `additionalProperties` | Maps to `Dictionary<string, T>`; inline object value types get a generated record |
+| Validation attributes | `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `minItems`, `maxItems` → `DataAnnotations` |
+| `format: date` | Maps to `DateOnly` |
+| Path parameters | Typed with route constraints (`{id:guid}`, `{page:int}`, …) |
+| Query / header / cookie params | Grouped into a `Parameters` record with `[AsParameters]` |
+| Spec publishing | `<OpenApi Publish="true" />` copies spec to build and publish output |
+| HTTP schema serving | `MapOpenApiSchemas()` serves `GET /.openapi/schemas/{version}/{name}.{ext}` |
+| Endpoint customizers | Optional `<OperationId>EndpointRegistration` base for per-route metadata |
 
-**Primitive or array value types** map directly:
-
-```yaml
-components:
-  schemas:
-    Deployment:
-      type: object
-      properties:
-        labels:
-          type: object
-          additionalProperties:
-            type: string     # → Dictionary<string, string>
-        env:
-          type: object
-          additionalProperties:
-            type: string     # → Dictionary<string, string>
-```
-
-**Inline object value types** generate a dedicated named record for the value:
-
-```yaml
-components:
-  schemas:
-    Todo:
-      type: object
-      properties:
-        metadata:
-          type: object
-          additionalProperties:
-            type: object     # inline complex value type
-            properties:
-              value:
-                type: string
-              color:
-                type: string
-                nullable: true
-```
-
-This produces a `TodoMetadataValue` record in the `Contracts` namespace and types
-`Todo.Metadata` as `Dictionary<string, TodoMetadataValue>?`.
-
-The same rule applies to **inline request and response schemas**: if an inline
-`Request` schema has a `labels` dict property with an object value type, the
-generator emits a `RequestLabelsValue` nested record inside the handler base class
-alongside the `Request` record:
-
-```yaml
-paths:
-  /items:
-    post:
-      operationId: createItem
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                labels:
-                  type: object
-                  additionalProperties:
-                    type: object
-                    properties:
-                      name:
-                        type: string
-                      color:
-                        type: string
-                        nullable: true
-      responses:
-        "201":
-          description: Created
-```
-
-Generated handler base:
-
-```csharp
-public class CreateItemEndpointBase
-{
-    public sealed record RequestLabelsValue
-    {
-        [JsonPropertyName("name")]
-        public string? Name { get; init; }
-
-        [JsonPropertyName("color")]
-        public string? Color { get; init; }
-    }
-
-    public sealed record Request
-    {
-        [JsonPropertyName("labels")]
-        public Dictionary<string, RequestLabelsValue>? Labels { get; init; }
-    }
-
-    public virtual Task<Created> HandleAsync(Request request, CancellationToken cancellationToken) …
-}
-```
-
----
-
-### Realistic example — query parameters, path parameters, and request body
-
-The following example is based on the bundled [sample app](sample/MinimalOpenAPI.Sample.Api) (a simple Todo CRUD API).
-
-
-**`openapi.yaml` (relevant excerpts):**
-
-```yaml
-paths:
-  /todos:
-    get:
-      operationId: listTodos
-      summary: List all todos
-      parameters:
-        - name: isComplete
-          in: query
-          required: false
-          schema:
-            type: boolean
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Todo'
-    post:
-      operationId: createTodo
-      summary: Create a todo
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [title, isComplete]
-              properties:
-                title:
-                  type: string
-                description:
-                  type: string
-                  nullable: true
-                isComplete:
-                  type: boolean
-      responses:
-        "201":
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Todo'
-        "400":
-          description: Bad Request
-  /todos/{id}:
-    get:
-      operationId: getTodo
-      summary: Get a todo by ID
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Todo'
-        "404":
-          description: Not found
-```
-
-**Handler for `listTodos` — query parameter via `Parameters` record:**
-
-Non-path parameters (query, header, cookie) are grouped into a nested `Parameters` record decorated with `[AsParameters]`, keeping handler signatures clean.
-
-```csharp
-// ListTodosEndpoint.cs
-public sealed class ListTodosEndpoint(ITodoStore store) : ListTodosEndpointBase
-{
-    public override Task<Ok<Todo[]>> HandleAsync(
-        ListTodosEndpointBase.Parameters parameters,  // generated; wraps isComplete
-        CancellationToken cancellationToken)
-    {
-        var items = store.List(parameters.IsComplete)
-                         .Select(t => new Todo { Id = t.Id, Title = t.Title, IsComplete = t.IsComplete })
-                         .ToArray();
-
-        return Task.FromResult(TypedResults.Ok(items));
-    }
-}
-```
-
-**Handler for `createTodo` — request body:**
-
-```csharp
-// CreateTodoEndpoint.cs
-public sealed class CreateTodoEndpoint(ITodoStore store) : CreateTodoEndpointBase
-{
-    public override Task<Results<Created<Todo>, BadRequest>> HandleAsync(
-        Request request,        // generated DTO — mirrors the requestBody schema
-        CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(request.Title))
-            return Task.FromResult<Results<Created<Todo>, BadRequest>>(TypedResults.BadRequest());
-
-        var id = store.Add(request.Title, request.Description);
-        var todo = new Todo { Id = id, Title = request.Title, IsComplete = false };
-
-        return Task.FromResult<Results<Created<Todo>, BadRequest>>(
-            TypedResults.Created($"/todos/{id}", todo));
-    }
-}
-```
-
-**Handler for `getTodo` — path parameter:**
-
-```csharp
-// GetTodoEndpoint.cs
-public sealed class GetTodoEndpoint(ITodoStore store) : GetTodoEndpointBase
-{
-    public override Task<Results<Ok<Todo>, NotFound>> HandleAsync(
-        Guid id,                // path parameter; type inferred from schema format: uuid
-        CancellationToken cancellationToken)
-    {
-        var item = store.Get(id);
-        return item is null
-            ? Task.FromResult<Results<Ok<Todo>, NotFound>>(TypedResults.NotFound())
-            : Task.FromResult<Results<Ok<Todo>, NotFound>>(TypedResults.Ok(item));
-    }
-}
-```
+See the [sample app](sample/MinimalOpenAPI.Sample.Api) for a complete end-to-end example covering all of these.
 
 ---
 
 ## Publishing the OpenAPI spec
 
-MinimalOpenAPI can copy the original OpenAPI spec file(s) into the build and publish output and serve them as static HTTP endpoints.
-
-### 1 — Mark the spec for publishing:
+Mark the spec for publishing in the project file:
 
 ```xml
-<!-- MyApi.csproj -->
 <ItemGroup>
   <OpenApi Include="openapi.yaml" Publish="true" />
 </ItemGroup>
 ```
 
-The `Publish="true"` metadata triggers two MSBuild targets:
-- `CopyMinimalOpenApiFilesToOutput` — copies the file to `openapi/schemas/<filename>.<ext>` in the build output directory (e.g. `bin/Debug/net10.0/openapi/schemas/openapi.yaml`).
-- `AddMinimalOpenApiFilesToPublishOutput` — includes the file at the same relative path when running `dotnet publish`.
-
-### 2 — Serve the spec via HTTP in `Program.cs`:
+Then serve it in `Program.cs`:
 
 ```csharp
-using MinimalOpenAPI;
-
-var app = builder.Build();
 app.MapMinimalOpenApiEndpoints();
 app.MapOpenApiSchemas();  // GET /.openapi/schemas/{version}/{name}.{ext}
-app.Run();
 ```
 
-At startup `MapOpenApiSchemas` scans `openapi/schemas/` in the application base directory, extracts the `info.version` field from each file, and registers one endpoint per file. For a spec with `info.version: "1.0.0"` and filename `openapi.yaml` the endpoint is:
-
-```
-GET /.openapi/schemas/1.0.0/openapi.yaml
-```
-
-When `info.version` cannot be determined the version segment is omitted:
-
-```
-GET /.openapi/schemas/openapi.yaml
-```
-
-### 3 — Securing schema endpoints:
-
-`MapOpenApiSchemas` returns a `RouteGroupBuilder`:
+`MapOpenApiSchemas` extracts the `info.version` field from each file and registers one endpoint per spec. It returns a `RouteGroupBuilder` for further configuration:
 
 ```csharp
 app.MapOpenApiSchemas().RequireAuthorization("InternalOnly");
@@ -521,22 +238,38 @@ An OpenAPI spec can be shipped in a separate NuGet "contracts" package (the same
 
 ---
 
+## Multiple spec files
+
+Each `<OpenApi>` item generates code in its own sub-namespace, preventing type-name collisions across specs:
+
+```xml
+<ItemGroup>
+  <OpenApi Include="orders.yaml" />
+  <OpenApi Include="payments.yaml" Namespace="Payment" />
+</ItemGroup>
+```
+
+Generated namespaces:
+- `{RootNamespace}.Orders.Contracts` / `{RootNamespace}.Orders.Endpoints`
+- `{RootNamespace}.Payment.Contracts` / `{RootNamespace}.Payment.Endpoints`
+
+---
+
 ## Limitations and non-goals
 
-- **OpenAPI 3.0.x only.** OpenAPI 3.1.x support may be added in a future release. OpenAPI 2.0 (Swagger) is not supported.
-- **No runtime OpenAPI document serving via Swashbuckle/Scalar.** MinimalOpenAPI does not integrate with Swashbuckle or Scalar. To serve the original OpenAPI spec file as a static HTTP endpoint, use `<OpenApi Publish="true" />` and `MapOpenApiSchemas()` (see [Publishing the OpenAPI spec](#publishing-the-openapi-spec) below).
-- **Schema composition not supported.** Keywords such as `allOf`, `oneOf`, and `anyOf` are not yet supported. Both `$ref` schemas and inline object schemas (for request bodies and responses) are fully supported.
-- **Single spec file per project.** Each `<OpenApi>` item produces generated code in the same namespace. Multiple spec files may conflict if they define the same operation IDs or schema names.
-- **No runtime validation.** The generated code uses ASP.NET Core's built-in model binding. It does not perform OpenAPI-level request validation (e.g. pattern, min/max constraints).
-- **No code-first path.** If you start from C# and want to generate an OpenAPI document, use Swashbuckle, NSwag, or Microsoft.AspNetCore.OpenApi instead.
+- **No Swashbuckle/Scalar integration.** MinimalOpenAPI does not generate an OpenAPI document at runtime. To serve the original spec file as a static HTTP endpoint use `<OpenApi Publish="true" />` and `MapOpenApiSchemas()`.
+- **Schema composition not supported.** `allOf`, `oneOf`, and `anyOf` are not yet implemented.
+- **No runtime validation.** Validation attributes on generated properties are informational. ASP.NET Core Minimal APIs do not run `DataAnnotations` validation automatically.
+- **No code-first path.** Use Swashbuckle, NSwag, or `Microsoft.AspNetCore.OpenApi` if you want to generate an OpenAPI document from C# code.
+- **OpenAPI 2.0 (Swagger) not supported.**
 
 ---
 
 ## Troubleshooting
 
-**Build error MOA001 — no handler implementation found**
+**Warning MOA001 — no handler implementation found**
 
-The generator emits a warning when it cannot find a class that inherits from a generated `<OperationId>EndpointBase`. Add a concrete handler class:
+The generator emits a *warning* when it cannot find a class that inherits from a generated `<OperationId>EndpointBase`. The app will still compile, but `HandleAsync` will throw `NotImplementedException` at runtime. Add a concrete handler class:
 
 ```csharp
 public sealed class GetItemEndpoint : GetItemEndpointBase
@@ -551,6 +284,10 @@ public sealed class GetItemEndpoint : GetItemEndpointBase
 
 Only one class may inherit from a given generated base. Remove or consolidate the duplicate.
 
+**Build error MOA003 — multiple customizer implementations**
+
+At most one class may inherit from a given generated `<OperationId>EndpointRegistration` base. Remove or consolidate the duplicate.
+
 **Build error MOA004 — OpenAPI file could not be parsed**
 
 Check the spec file for YAML/JSON syntax errors. Validate it with a tool like the [Swagger Editor](https://editor.swagger.io) before referencing it in the project.
@@ -558,6 +295,10 @@ Check the spec file for YAML/JSON syntax errors. Validate it with a tool like th
 **Build error MOA005 — unrecognised file extension**
 
 Only `.yaml`, `.yml`, and `.json` are supported. Rename the file or use the correct extension in the `<OpenApi>` item.
+
+**Warning MOA006 — unknown OpenAPI version**
+
+The `openapi` field is absent or not recognised as a 3.0.x or 3.1.x version string. Code is still generated, but behaviour may be incorrect. Add or correct the `openapi` field at the top of the spec file (e.g. `openapi: "3.1.0"`).
 
 **Handler `HandleAsync` throws `NotImplementedException` at runtime**
 
@@ -593,6 +334,7 @@ src/
   MinimalOpenAPI.Parser.Json/   ← JSON parser implementation
 sample/
   MinimalOpenAPI.Sample.Api/    ← end-to-end Todo CRUD example
+  MinimalOpenAPI.SmokeTest.Api/ ← minimal consumer built against the packed NuGet artifact
 tests/
   MinimalOpenAPI.Generator.Tests/
   MinimalOpenAPI.Runtime.Tests/
@@ -600,6 +342,8 @@ tests/
 docs/
   architecture.md               ← internals, design decisions, extensibility
   releasing.md                  ← versioning and release process
+  schema-feature-roadmap.md     ← OpenAPI schema feature coverage and backlog
+  consumer-agents.md            ← guide for coding agents integrating this library
 ```
 
 For a deep-dive into the design, architecture, and internals see [docs/architecture.md](docs/architecture.md).

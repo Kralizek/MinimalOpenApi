@@ -76,13 +76,13 @@ internal static class HandlerBaseGenerator
         // of the parent inline schemas that reference them.
         foreach (var (schema, typeName) in valueSchemas)
         {
-            AppendNestedRecord(sb, typeName, schema, localResolver);
+            AppendNestedRecord(sb, typeName, schema, contractsNs, localResolver);
             sb.AppendLine();
         }
 
         foreach (var (schema, typeName) in inlineSchemas)
         {
-            AppendNestedRecord(sb, typeName, schema, localResolver);
+            AppendNestedRecord(sb, typeName, schema, contractsNs, localResolver);
             sb.AppendLine();
         }
 
@@ -92,7 +92,7 @@ internal static class HandlerBaseGenerator
             .ToList();
         if (nonPathParams.Count > 0)
         {
-            AppendParametersRecord(sb, nonPathParams);
+            AppendParametersRecord(sb, nonPathParams, contractsNs);
             sb.AppendLine();
         }
 
@@ -147,7 +147,7 @@ internal static class HandlerBaseGenerator
     }
 
     /// <summary>Appends a nested <c>sealed record</c> for an inline schema.</summary>
-    private static void AppendNestedRecord(StringBuilder sb, string typeName, OpenApiSchema schema, InlineSchemaResolver? resolveInline = null)
+    private static void AppendNestedRecord(StringBuilder sb, string typeName, OpenApiSchema schema, string contractsNamespace, InlineSchemaResolver? resolveInline = null)
     {
         sb.AppendLine($"    /// <summary>Inline DTO for the <c>{typeName}</c> schema of this operation.</summary>");
         TypeMapper.AppendGeneratedAttributes(sb, "    ");
@@ -160,7 +160,7 @@ internal static class HandlerBaseGenerator
             var propSchema = propKvp.Value;
             var isRequired = schema.Required.Contains(propName, StringComparer.OrdinalIgnoreCase);
             var nullable = propSchema.Nullable || !isRequired;
-            var csharpTypeName = TypeMapper.MapSchema(propSchema, nullable: nullable, resolveInline: resolveInline);
+            var csharpTypeName = TypeMapper.MapSchema(propSchema, nullable: nullable, contractsNamespace: contractsNamespace, resolveInline: resolveInline);
             var csharpName = TypeMapper.ToPascalCase(propName);
 
             sb.AppendLine($"        [global::System.Text.Json.Serialization.JsonPropertyName(\"{propName}\")]");
@@ -186,7 +186,7 @@ internal static class HandlerBaseGenerator
     /// (query, header and cookie) so they can be bound via <c>[AsParameters]</c> without
     /// breaking existing handler implementations when new optional parameters are added.
     /// </summary>
-    private static void AppendParametersRecord(StringBuilder sb, List<OpenApiParameter> parameters)
+    private static void AppendParametersRecord(StringBuilder sb, List<OpenApiParameter> parameters, string contractsNamespace)
     {
         sb.AppendLine("    /// <summary>Aggregates all query, header and cookie parameters for this operation.</summary>");
         TypeMapper.AppendGeneratedAttributes(sb, "    ");
@@ -195,7 +195,7 @@ internal static class HandlerBaseGenerator
 
         foreach (var p in parameters)
         {
-            var type = TypeMapper.MapSchema(p.Schema, nullable: !p.Required);
+            var type = TypeMapper.MapSchema(p.Schema, nullable: !p.Required, contractsNamespace: contractsNamespace);
             var propName = TypeMapper.ToPascalCase(p.Name);
             var bindingAttr = GetBindingAttribute(p);
             if (bindingAttr is not null)

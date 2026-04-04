@@ -1406,4 +1406,91 @@ internal static class OpenApiFixtures
           }
         }
         """;
+
+    /// <summary>
+    /// A list endpoint with a query parameter typed via <c>$ref</c> to a top-level enum schema.
+    /// Used to verify that the generated <c>Parameters</c> record uses the fully-qualified
+    /// contracts-namespace type for the enum property.
+    /// </summary>
+    public const string ListOrdersWithEnumQueryParamYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /orders:
+            get:
+              operationId: listOrders
+              parameters:
+                - name: status
+                  in: query
+                  required: false
+                  schema:
+                    $ref: '#/components/schemas/OrderStatus'
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Order'
+        components:
+          schemas:
+            OrderStatus:
+              type: string
+              enum:
+                - pending
+                - active
+                - cancelled
+            Order:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                status:
+                  $ref: '#/components/schemas/OrderStatus'
+        """;
+
+    /// <summary>
+    /// A POST endpoint whose inline request body contains a property typed via <c>$ref</c>
+    /// to a top-level enum schema.  Used to verify that the generated inline <c>Request</c>
+    /// record uses the fully-qualified contracts-namespace type for the enum property.
+    /// </summary>
+    public const string CreateOrderWithEnumRequestBodyYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /orders:
+            post:
+              operationId: createOrder
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      required: [title]
+                      properties:
+                        title:
+                          type: string
+                        status:
+                          $ref: '#/components/schemas/OrderStatus'
+              responses:
+                "201":
+                  description: Created
+        components:
+          schemas:
+            OrderStatus:
+              type: string
+              enum:
+                - pending
+                - active
+                - cancelled
+        """;
 }
