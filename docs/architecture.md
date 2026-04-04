@@ -443,6 +443,30 @@ If none exists, the customizer lookup is simply skipped.
 | `boolean` | `bool` |
 | `array` | `<itemType>[]` |
 | `$ref` | the referenced schema name (resolved to last path segment) |
+| `object` + `additionalProperties: { primitive/array schema }` | `global::System.Collections.Generic.Dictionary<string, T>` where `T` is the mapped value type |
+| `object` + `additionalProperties: { inline object schema }` | `global::System.Collections.Generic.Dictionary<string, TValue>` where `TValue` is a generated record (see below) |
+| `object` + `additionalProperties: true` + `properties: …` | record with named properties + `[JsonExtensionData] Dictionary<string, JsonElement>? Extensions` |
+
+**`additionalProperties` with an inline object value type**
+
+When `additionalProperties` is itself an inline object schema the generator emits a
+dedicated named record for the value type:
+
+- **Component schemas** — the value record is emitted as a top-level type in the
+  `Contracts` namespace and named `{SchemaName}{PropertyName}Value`.
+  For example, `additionalProperties` on `Todo.metadata` produces a
+  `TodoMetadataValue` record and types the property as
+  `Dictionary<string, TodoMetadataValue>`.
+
+- **Inline request / response schemas** — the value record is emitted as a
+  sibling nested type inside the handler base class and named
+  `{InlineTypeName}{PropertyName}Value`.
+  For example, a `labels` dict property on an inline `Request` schema produces a
+  `RequestLabelsValue` nested record and types the property as
+  `Dictionary<string, RequestLabelsValue>`.
+
+Value records are always emitted *before* the record that references them so that
+the generated file is a valid single-pass compilation unit.
 
 **Nullability**: a type is made nullable (`?`) when the OpenAPI schema has
 `nullable: true` or when the property is not listed in the parent schema's

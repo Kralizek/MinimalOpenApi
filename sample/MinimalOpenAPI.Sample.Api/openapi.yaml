@@ -52,6 +52,16 @@ paths:
                   type: string
                   format: date
                   nullable: true
+                metadata:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    properties:
+                      value:
+                        type: string
+                      color:
+                        type: string
+                        nullable: true
       responses:
         "201":
           description: Created
@@ -172,3 +182,13 @@ components:
           type: string
           format: date
           nullable: true
+        metadata:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              value:
+                type: string
+              color:
+                type: string
+                nullable: true

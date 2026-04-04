@@ -14,3 +14,37 @@ paths:
             application/json:
               schema:
                 type: string
+  /labels:
+    put:
+      operationId: setLabels
+      summary: Attach typed labels to a resource
+      description: >
+        Demonstrates inline complex additionalProperties: the request body has a
+        `labels` property whose value schema is an inline object, causing the
+        generator to emit a `RequestLabelsValue` nested record and type the
+        property as `Dictionary<string, RequestLabelsValue>`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - resourceId
+              properties:
+                resourceId:
+                  type: string
+                  format: uuid
+                labels:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      color:
+                        type: string
+                        nullable: true
+      responses:
+        "204":
+          description: No Content
