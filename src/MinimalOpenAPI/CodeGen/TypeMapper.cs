@@ -122,7 +122,7 @@ internal static class TypeMapper
             if (schema.AdditionalProperties is not null)
                 valueType = MapSchema(schema.AdditionalProperties, contractsNamespace: contractsNamespace, resolveInline: resolveInline);
             else
-                valueType = "object"; // additionalProperties: true — values may be of any type
+                valueType = "global::System.Text.Json.JsonElement"; // additionalProperties: true — payloads are assumed to be JSON
             var dictType = $"global::System.Collections.Generic.Dictionary<string, {valueType}>";
             return nullable || schema.Nullable ? $"{dictType}?" : dictType;
         }

@@ -227,5 +227,41 @@ public class AdditionalPropertiesTests
             // No named record should be generated for a schema that only has additionalProperties: true.
             Assert.That(source, Does.Not.Contain("public sealed record FreeMap"));
         }
+
+        [Test]
+        public void InlineFreeFormRequestBodyMapsToJsonElementDictionary()
+        {
+            const string InlineFreeMapYaml = """
+                openapi: "3.0.0"
+                info:
+                  title: Test API
+                  version: "1.0.0"
+                paths:
+                  /items:
+                    post:
+                      operationId: createItem
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema:
+                              type: object
+                              additionalProperties: true
+                      responses:
+                        "204":
+                          description: No content
+                """;
+
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: NoOpHandlerImpl,
+                additionalFiles: [("openapi.yaml", InlineFreeMapYaml)]);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateItemEndpointBase.g.cs");
+
+            // Free-form maps (additionalProperties: true) default to Dictionary<string, JsonElement>
+            // because payloads are assumed to be JSON.
+            Assert.That(source, Does.Contain(
+                "global::System.Collections.Generic.Dictionary<string, global::System.Text.Json.JsonElement>"));
+        }
     }
 }
