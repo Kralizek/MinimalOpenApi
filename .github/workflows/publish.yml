@@ -45,6 +45,7 @@ jobs:
           name: nuget-packages
           path: |
             ./artifacts/*.nupkg
+            ./artifacts/*.snupkg
           if-no-files-found: error
 
       # ── Manual execution ────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ jobs:
         run: |
           gh release upload "${{ github.event.release.tag_name }}" \
             ./artifacts/*.nupkg \
+            ./artifacts/*.snupkg \
             --repo "${{ github.repository }}"
 
       - name: NuGet Login
