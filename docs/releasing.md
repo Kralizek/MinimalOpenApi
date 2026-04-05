@@ -78,8 +78,9 @@ No repository secret is required after this one-time step.
 
 ### How it works in CI
 
-The [`publish.yml`](../.github/workflows/publish.yml) workflow has `id-token: write` permission, which allows it to request a short-lived GitHub OIDC token with audience `nuget.org`.
-That token is passed directly as the `--api-key` to `dotnet nuget push`; NuGet.org validates the OIDC claims against the registered Trusted Publisher and accepts or rejects the push.
+The [`publish.yml`](../.github/workflows/publish.yml) workflow has `id-token: write` permission, which allows it to request a short-lived GitHub OIDC token.
+The [`nuget/login`](https://github.com/NuGet/login) action exchanges that token with the NuGet.org token service and outputs a short-lived `NUGET_API_KEY` that is passed to `dotnet nuget push`.
+NuGet.org validates the OIDC claims against the registered Trusted Publisher and accepts or rejects the push.
 
 ---
 
