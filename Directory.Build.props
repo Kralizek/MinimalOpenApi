@@ -6,6 +6,18 @@
   </PropertyGroup>
 
   <PropertyGroup>
+    <!--
+      DotNet.ReproducibleBuilds defaults DebugType to "embedded", which bakes symbols
+      into the DLL and produces no separate .pdb file.  That leaves the generated
+      .snupkg empty, causing NuGet.org to reject the symbol-package push with
+      "The package does not contain any symbol (.pdb) files."
+      Setting this here (before package props are imported) keeps portable PDBs so
+      the .snupkg is populated correctly.
+    -->
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <Authors>Renato Golia</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/Kralizek/MinimalOpenApi</RepositoryUrl>
