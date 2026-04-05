@@ -17,6 +17,9 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/MinimalOpenAPI/MinimalOpenAPI.csproj" />
+    <ProjectReference Include="../../src/MinimalOpenAPI.Abstractions/MinimalOpenAPI.Abstractions.csproj" />
+    <ProjectReference Include="../../src/MinimalOpenAPI.Parser.Yaml/MinimalOpenAPI.Parser.Yaml.csproj" />
+    <ProjectReference Include="../../src/MinimalOpenAPI.Parser.Json/MinimalOpenAPI.Parser.Json.csproj" />
   </ItemGroup>
 
 </Project>

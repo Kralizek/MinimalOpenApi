@@ -1,3 +1,4 @@
+#if NET10_0_OR_GREATER
 using System.ComponentModel;
 using System.Text.RegularExpressions;
 
@@ -256,3 +257,4 @@ public static class ServiceCollectionExtensions
         }
     }
 }
+#endif

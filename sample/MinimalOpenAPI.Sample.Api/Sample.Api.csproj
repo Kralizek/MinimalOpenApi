@@ -16,7 +16,7 @@
 
     In this project-reference dev scenario we import the targets explicitly.
     The targets file adds the generator as a Roslyn analyzer and also adds a
-    ProjectReference to MinimalOpenAPI.Runtime so the runtime APIs are available.
+    ProjectReference to MinimalOpenAPI (net10.0) so the runtime APIs are available.
   -->
   <Import Project="../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
 

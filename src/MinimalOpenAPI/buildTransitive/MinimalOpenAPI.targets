@@ -70,7 +70,6 @@
   -->
   <PropertyGroup>
     <_MinimalOpenApiProj>$(MSBuildThisFileDirectory)..\MinimalOpenAPI.csproj</_MinimalOpenApiProj>
-    <_MinimalOpenApiRuntimeProj>$(MSBuildThisFileDirectory)..\..\MinimalOpenAPI.Runtime\MinimalOpenAPI.Runtime.csproj</_MinimalOpenApiRuntimeProj>
     <_MinimalOpenApiGenDir>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\netstandard2.0\</_MinimalOpenApiGenDir>
   </PropertyGroup>
 
@@ -83,9 +82,9 @@
     Properties="TargetFramework=netstandard2.0": MinimalOpenAPI is multi-targeted
     (netstandard2.0 + net10.0).  Without this override MSBuild picks the net10.0
     TFM for a net10.0 consumer, loading net10.0/MinimalOpenAPI.dll as the analyzer.
-    That DLL depends on MinimalOpenAPI.Runtime → ASP.NET Core, which Roslyn's
-    isolated AssemblyLoadContext cannot load, causing a FileNotFoundException and a
-    silent generator initialization failure.  Forcing netstandard2.0 ensures Roslyn
+    That DLL depends on Microsoft.AspNetCore.App, which Roslyn's isolated
+    AssemblyLoadContext cannot load, causing a FileNotFoundException and a silent
+    generator initialization failure.  Forcing netstandard2.0 ensures Roslyn
     always receives the netstandard2.0 analyzer DLL regardless of the consumer's TFM.
   -->
   <ItemGroup>
@@ -97,14 +96,15 @@
   </ItemGroup>
 
   <!--
-    Add MinimalOpenAPI.Runtime so the consuming project can compile against
-    AddMinimalOpenApi(), MapEndpoints(), and the other runtime APIs.
-    In the NuGet scenario the Runtime package is a declared dependency of
-    MinimalOpenAPI and is installed automatically.
+    Add MinimalOpenAPI (net10.0 build) as a compile reference so the consuming
+    project can use AddMinimalOpenApi(), MapMinimalOpenApiEndpoints(), and the
+    other runtime APIs.
+    In the NuGet scenario lib/net10.0/MinimalOpenAPI.dll is added automatically.
   -->
   <ItemGroup>
-    <ProjectReference Include="$(_MinimalOpenApiRuntimeProj)"
-                      Condition="Exists('$(_MinimalOpenApiRuntimeProj)')" />
+    <ProjectReference Include="$(_MinimalOpenApiProj)"
+                      Properties="TargetFramework=net10.0"
+                      Condition="Exists('$(_MinimalOpenApiProj)')" />
   </ItemGroup>
 
   <!--

@@ -19,11 +19,19 @@
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <LangVersion>latest</LangVersion>
-    <Description>Contract-first OpenAPI framework for ASP.NET Core. Includes the Roslyn source generator and a dependency on the runtime package.</Description>
-    <!-- Suppress NU5128: expected for Roslyn analyzer packages that set IncludeBuildOutput=false -->
+    <Description>Contract-first OpenAPI framework for ASP.NET Core. Includes the Roslyn source generator and runtime services (AddMinimalOpenApi, MapMinimalOpenApiEndpoints).</Description>
+    <!--
+      developmentDependency=true causes NuGet to add PrivateAssets="all" automatically
+      when consumers install this package, preventing it from leaking transitively.
+    -->
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <!-- Suppress NU5128: expected for Roslyn analyzer packages with no netstandard2.0 lib/ entry -->
     <NoWarn>$(NoWarn);NU5128</NoWarn>
-    <!-- Pack the generator as an analyzer; no build output for either TFM -->
-    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!--
+      Only suppress build output for the analyzer TFM (netstandard2.0).
+      The net10.0 build produces the runtime DLL that lands in lib/net10.0/.
+    -->
+    <IncludeBuildOutput Condition="'$(TargetFramework)' == 'netstandard2.0'">false</IncludeBuildOutput>
   </PropertyGroup>
 
   <ItemGroup>
@@ -36,42 +44,37 @@
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
     <PackageReference Include="PolySharp" PrivateAssets="all" />
     <!--
-      YamlDotNet: no PrivateAssets so it flows transitively via project-references
-      (e.g. the test project).  The None items below bundle the DLL into the package.
+      YamlDotNet: PrivateAssets="all" so it is not emitted as a NuGet dependency
+      (it is bundled inside analyzers/dotnet/cs/).  GeneratePathProperty is kept
+      so $(PkgYamlDotNet) is available for the CopyYamlDotNetToOutput target below.
     -->
-    <PackageReference Include="YamlDotNet" GeneratePathProperty="true" />
+    <PackageReference Include="YamlDotNet" GeneratePathProperty="true" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
     <!--
-      No PrivateAssets so these flow transitively via project-references.
-      Packing is handled by the None items below.
+      PrivateAssets="all": these DLLs are bundled under analyzers/dotnet/cs/ and loaded
+      by Roslyn in its isolated AssemblyLoadContext.  They are not needed by consumers
+      as compile or runtime references, so we suppress them as NuGet dependencies.
     -->
-    <ProjectReference Include="../MinimalOpenAPI.Abstractions/MinimalOpenAPI.Abstractions.csproj" />
-    <ProjectReference Include="../MinimalOpenAPI.Parser.Yaml/MinimalOpenAPI.Parser.Yaml.csproj" />
-    <ProjectReference Include="../MinimalOpenAPI.Parser.Json/MinimalOpenAPI.Parser.Json.csproj" />
+    <ProjectReference Include="../MinimalOpenAPI.Abstractions/MinimalOpenAPI.Abstractions.csproj" PrivateAssets="all" />
+    <ProjectReference Include="../MinimalOpenAPI.Parser.Yaml/MinimalOpenAPI.Parser.Yaml.csproj" PrivateAssets="all" />
+    <ProjectReference Include="../MinimalOpenAPI.Parser.Json/MinimalOpenAPI.Parser.Json.csproj" PrivateAssets="all" />
   </ItemGroup>
 
-  <!-- ── net10.0 only: declare MinimalOpenAPI.Runtime as a NuGet dependency ── -->
-  <!--
-    A netstandard2.0 project cannot directly reference a net10.0 project, so we
-    add the Runtime reference only under the net10.0 TFM.
-
-    NOTE: ReferenceOutputAssembly is intentionally left at its default (true) so
-    that NuGet pack will emit:
-        <dependency id="MinimalOpenAPI.Runtime" .../>
-    in the net10.0 dependency group.  Setting ReferenceOutputAssembly="false"
-    would cause NuGet to skip the dependency entirely.
-
-    The net10.0 build of the generator does compile against the Runtime, but:
-      - The generator code does not USE any Runtime APIs.
-      - IncludeBuildOutput=false ensures the Runtime DLL is never packed.
-    The sole visible effect is the NuGet dependency entry, which guarantees
-    that net10.0 consumers get MinimalOpenAPI.Runtime installed automatically.
-  -->
+  <!-- ── net10.0 only: ASP.NET Core for the runtime extension methods ─────── -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
-    <ProjectReference Include="../MinimalOpenAPI.Runtime/MinimalOpenAPI.Runtime.csproj" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
+
+  <!--
+    RS1035 (banned File/Directory I/O in analyzers) is enforced by EnforceExtendedAnalyzerRules
+    across all TFMs.  The runtime code in lib/net10.0/ is not an analyzer, so the restriction
+    does not apply there.
+  -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <NoWarn>$(NoWarn);RS1035</NoWarn>
+  </PropertyGroup>
 
   <!-- ── Pack analyzer DLLs — always from the netstandard2.0 output ────── -->
   <!--
