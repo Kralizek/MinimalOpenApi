@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>MinimalOpenAPI.Parser.Json</PackageId>
     <Title>MinimalOpenAPI JSON Parser</Title>
-    <IsPackable>true</IsPackable>
+    <IsPackable>false</IsPackable>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>openapi;json;parser;contract-first</PackageTags>
     <RootNamespace>MinimalOpenAPI</RootNamespace>

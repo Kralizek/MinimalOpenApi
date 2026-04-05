@@ -40,11 +40,10 @@ versioned separately from the server code.
 
 ```
 src/
-  MinimalOpenAPI/     ← NuGet entry point: Roslyn source generator + runtime dep
-  MinimalOpenAPI.Runtime/       ← runtime: AddMinimalOpenApi, MapMinimalOpenApiEndpoints
-  MinimalOpenAPI.Abstractions/  ← OpenAPI document model + IOpenApiParser
-  MinimalOpenAPI.Parser.Yaml/   ← YAML parser (IOpenApiParser implementation)
-  MinimalOpenAPI.Parser.Json/   ← JSON parser (IOpenApiParser implementation)
+  MinimalOpenAPI/               ← NuGet package: Roslyn source generator + runtime services
+  MinimalOpenAPI.Abstractions/  ← OpenAPI document model + IOpenApiParser (internal, not published)
+  MinimalOpenAPI.Parser.Yaml/   ← YAML parser (internal, bundled in the package)
+  MinimalOpenAPI.Parser.Json/   ← JSON parser (internal, bundled in the package)
 sample/
   MinimalOpenAPI.Sample.Api/    ← end-to-end working example (Todo CRUD)
   MinimalOpenAPI.SmokeTest.Api/ ← minimal consumer that builds against the packed NuGet artifact
@@ -105,17 +104,17 @@ Runtime startup
 
 ### 4.1 `MinimalOpenAPI`
 
-NuGet entry point and Roslyn source generator.  The project lives in
-`src/MinimalOpenAPI/` and is packed as the **`MinimalOpenAPI`**
-package (the package ID matches the `.csproj` filename `MinimalOpenAPI.csproj`).
+The single published NuGet package.  The project lives in `src/MinimalOpenAPI/`
+and is packed as the **`MinimalOpenAPI`** package.
 
 The project is multi-targeted:
 
 - `netstandard2.0` — builds the Roslyn analyzer DLL (required by the Roslyn host).
-- `net10.0` — no output is packed from this TFM; it exists solely so that the
-  `ProjectReference` to `MinimalOpenAPI.Runtime` is emitted as a NuGet
-  `<dependency>` in the `net10.0` dependency group, giving consumers the runtime
-  automatically.
+  All parser and abstractions DLLs are bundled here under `analyzers/dotnet/cs/`
+  alongside the generator.
+- `net10.0` — builds the runtime DLL (`lib/net10.0/MinimalOpenAPI.dll`) which
+  contains the ASP.NET Core extension methods (`AddMinimalOpenApi`,
+  `MapMinimalOpenApiEndpoints`, `MapOpenApiSchemas`) and supporting types.
 
 A consumer only needs:
 
@@ -123,14 +122,17 @@ A consumer only needs:
 <PackageReference Include="MinimalOpenAPI" Version="*" />
 ```
 
-to receive both the source generator *and* the runtime dependency automatically.
+Because `<DevelopmentDependency>true</DevelopmentDependency>` is set, NuGet
+automatically adds `PrivateAssets="all"` when consumers install the package,
+preventing it from leaking into their transitive dependency closure.
 
-The package also ships `buildTransitive/MinimalOpenAPI.targets` which handles the
+The package ships `buildTransitive/MinimalOpenAPI.targets` which handles the
 MSBuild plumbing described in §5.
 
-### 4.2 `MinimalOpenAPI.Runtime`
+#### Runtime services (`ServiceCollectionExtensions`)
 
-Contains a single class, `ServiceCollectionExtensions`, with six public methods:
+The `net10.0` DLL contains a single class, `ServiceCollectionExtensions`, with
+six public methods (in namespace `MinimalOpenAPI`):
 
 - **`RegisterGeneratedServices(Action<IServiceCollection>)`** — called once per spec by the
   source-generated `[ModuleInitializer]` (§6.4) to register a callback that
@@ -160,26 +162,13 @@ Contains a single class, `ServiceCollectionExtensions`, with six public methods:
 The indirection through static callback lists is what lets the *generated*
 code (which lives in a different conceptual layer from the runtime) hook into
 two single user-facing API calls without requiring reflection or a `using` for
-the generated namespace.  Because all registered callbacks are accumulated in
-thread-safe lists, calling `RegisterGeneratedServices` and
-`RegisterEndpointMapping` multiple times (once per spec) is expected and safe.
+the generated namespace.
 
-Because `MapMinimalOpenApiEndpoints` and `MapOpenApiSchemas` are defined in the
-`MinimalOpenAPI` runtime namespace (the same one as `AddMinimalOpenApi`), users
-only need:
+### 4.2 `MinimalOpenAPI.Abstractions` (internal, not published)
 
-```csharp
-using MinimalOpenAPI;
-// ...
-app.MapMinimalOpenApiEndpoints();
-app.MapOpenApiSchemas();
-```
-
-No `using {RootNamespace}.Generated;` is required.
-
-### 4.3 `MinimalOpenAPI.Abstractions`
-
-Defines the object model and the parser abstraction:
+Defines the object model and the parser abstraction used internally by the
+generator and parsers.  Not published as a separate NuGet package; its DLL is
+bundled under `analyzers/dotnet/cs/` in the `MinimalOpenAPI` package.
 
 - `OpenApiDocument` — top-level container (title, version, operations, schemas).
 - `OpenApiOperation` — one path+method combination (operationId, route, HTTP
@@ -193,15 +182,17 @@ Defines the object model and the parser abstraction:
   references, `nullable`, `format`.
 - `IOpenApiParser` — `bool CanParse(OpenApiParserRequest request)` to declare which format and version range a parser handles, and `Task<OpenApiDocument> ParseAsync(string content, CancellationToken)` to perform the parse.
 
-### 4.4 `MinimalOpenAPI.Parser.Yaml`
+### 4.3 `MinimalOpenAPI.Parser.Yaml` (internal, not published)
 
 Implements `IOpenApiParser` using **YamlDotNet**.  Supports OpenAPI 3.x YAML
 files.  The parser is stateless and can be instantiated once per file.
+Not published as a separate NuGet package; bundled under `analyzers/dotnet/cs/`.
 
-### 4.5 `MinimalOpenAPI.Parser.Json`
+### 4.4 `MinimalOpenAPI.Parser.Json` (internal, not published)
 
 Implements `IOpenApiParser` using **System.Text.Json**.  Supports OpenAPI 3.x JSON
 files.  The parser is stateless and can be instantiated once per file.
+Not published as a separate NuGet package; bundled under `analyzers/dotnet/cs/`.
 
 ---
 
@@ -548,24 +539,30 @@ app.MapMinimalOpenApiEndpoints();
 without needing to reference any generated type directly and without needing a
 `using {RootNamespace}.Generated;` import.  The generated code stores callbacks,
 and the runtime methods invoke them.  The public `MapMinimalOpenApiEndpoints` is
-defined entirely in `MinimalOpenAPI.Runtime` (namespace `MinimalOpenAPI`), just
-like `AddMinimalOpenApi`.
+defined in the `MinimalOpenAPI` namespace (inside `lib/net10.0/MinimalOpenAPI.dll`),
+just like `AddMinimalOpenApi`.
 
 ---
 
-## 10. Adding a new parser (extensibility point)
+## 10. Adding a new parser
+
+New parsers are added directly to this repository — they are not an external
+extensibility point.  Because parser DLLs are bundled inside `analyzers/dotnet/cs/`
+in the package, a third-party parser cannot be injected without repackaging.
 
 ### 10.1 New format (e.g. TOML)
 
 To support a new OpenAPI file format:
 
-1. Create a new project (e.g. `MinimalOpenAPI.Parser.Toml`).
+1. Create a new project (e.g. `MinimalOpenAPI.Parser.Toml`) inside `src/`.
 2. Reference `MinimalOpenAPI.Abstractions` and implement both methods of `IOpenApiParser`:
    - `CanParse(OpenApiParserRequest request)` — return `true` for `request.Format == OpenApiFormat.Toml`
      (after also adding `Toml` to the `OpenApiFormat` enum and the `DetectFormat` switch).
    - `ParseAsync(content)` — parse and return an `OpenApiDocument`.
 3. Add the new parser instance to `_parsers` in `MinimalOpenApiGenerator`.
 4. Add the new DLL as an `<Analyzer>` in `MinimalOpenAPI.targets` so Roslyn can load it.
+5. Add the new `ProjectReference` (with `PrivateAssets="all"`) to `MinimalOpenAPI.csproj`.
+6. Set `<IsPackable>false</IsPackable>` in the new project — it is bundled, not published separately.
 
 ### 10.2 Version-specific parser (e.g. OpenAPI 4.0)
 
