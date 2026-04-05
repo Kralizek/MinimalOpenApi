@@ -12,6 +12,7 @@ jobs:
     permissions:
       packages: write   # push to GitHub Packages (nightly builds)
       contents: write   # upload assets to a GitHub Release
+      id-token: write   # obtain a short-lived OIDC token for NuGet trusted publishing
 
     steps:
       - uses: actions/checkout@v6
@@ -65,10 +66,17 @@ jobs:
             ./artifacts/*.nupkg \
             --repo "${{ github.repository }}"
 
+      - name: NuGet Login
+        if: github.event_name == 'release'
+        id: nuget-login
+        uses: nuget/login@v1
+        with:
+          user: Kralizek
+
       - name: Push to NuGet.org
         if: github.event_name == 'release'
         run: |
           dotnet nuget push "./artifacts/*.nupkg" \
-            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
