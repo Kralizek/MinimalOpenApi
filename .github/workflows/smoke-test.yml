@@ -4,7 +4,7 @@ name: Smoke Test (package consumption)
 # project that uses <PackageReference> instead of project references.
 #
 # Steps:
-#   1. Build and pack the solution into artifacts/
+#   1. Build the solution, then pack src/MinimalOpenAPI/MinimalOpenAPI.csproj into artifacts/
 #   2. Restore the smoke-test consumer (uses artifacts/ as its NuGet source)
 #   3. Build the smoke-test consumer — exercises the source generator and runtime
 
@@ -38,7 +38,9 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Pack packages into artifacts/
-        run: dotnet pack --no-build --configuration Release --output artifacts
+        run: >
+          dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj
+          --no-build --configuration Release --output artifacts
 
       - name: Restore smoke-test consumer
         run: dotnet restore sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj

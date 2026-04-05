@@ -52,7 +52,7 @@ You only write the business logic.
 
 ## Runtime requirements
 
-- **.NET 10** is required at runtime. The `MinimalOpenAPI` package targets `net10.0` for its runtime dependency (`MinimalOpenAPI.Runtime`) and `netstandard2.0` for the Roslyn analyzer host.
+- **.NET 10** is required at runtime. The `MinimalOpenAPI` package targets `net10.0` for its runtime services and `netstandard2.0` for the Roslyn analyzer host.
 - **ASP.NET Core** (via `Microsoft.AspNetCore.App` framework reference) is required in the consuming project.
 
 ---
@@ -61,13 +61,11 @@ You only write the business logic.
 
 | Package | NuGet | Description |
 |---------|-------|-------------|
-| [`MinimalOpenAPI`](src/MinimalOpenAPI) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI)](https://www.nuget.org/packages/MinimalOpenAPI) | **Start here.** Bundles the Roslyn source generator and declares `MinimalOpenAPI.Runtime` as a dependency. One reference is all you need. |
-| [`MinimalOpenAPI.Runtime`](src/MinimalOpenAPI.Runtime) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Runtime)](https://www.nuget.org/packages/MinimalOpenAPI.Runtime) | ASP.NET Core runtime services: `AddMinimalOpenApi()` and `MapMinimalOpenApiEndpoints()`. Pulled in automatically by the main package. |
-| [`MinimalOpenAPI.Abstractions`](src/MinimalOpenAPI.Abstractions) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Abstractions)](https://www.nuget.org/packages/MinimalOpenAPI.Abstractions) | OpenAPI document model (`OpenApiDocument`, `OpenApiOperation`, …) and the `IOpenApiParser` interface. Useful when writing a custom parser. |
-| [`MinimalOpenAPI.Parser.Yaml`](src/MinimalOpenAPI.Parser.Yaml) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Parser.Yaml)](https://www.nuget.org/packages/MinimalOpenAPI.Parser.Yaml) | YAML OpenAPI spec parser, built on YamlDotNet. Included automatically via the main package. |
-| [`MinimalOpenAPI.Parser.Json`](src/MinimalOpenAPI.Parser.Json) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI.Parser.Json)](https://www.nuget.org/packages/MinimalOpenAPI.Parser.Json) | JSON OpenAPI spec parser, built on `System.Text.Json`. Included automatically via the main package. |
+| [`MinimalOpenAPI`](src/MinimalOpenAPI) | [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI)](https://www.nuget.org/packages/MinimalOpenAPI) | **The only package you need.** Bundles the Roslyn source generator and the ASP.NET Core runtime services (`AddMinimalOpenApi`, `MapMinimalOpenApiEndpoints`). |
 
-Most consumers only need the top-level `MinimalOpenAPI` package. The remaining packages are split out for composability and are pulled in transitively.
+The `MinimalOpenAPI.Abstractions`, `MinimalOpenAPI.Parser.Yaml`, and
+`MinimalOpenAPI.Parser.Json` projects are internal implementation details — their
+DLLs are bundled inside the package and are not published separately.
 
 ### Pre-release packages
 
@@ -327,8 +325,7 @@ Until `1.0.0` is tagged, minor version bumps may include breaking changes. Pin t
 
 ```
 src/
-  MinimalOpenAPI/               ← MinimalOpenAPI NuGet package (generator + runtime dep)
-  MinimalOpenAPI.Runtime/       ← runtime services
+  MinimalOpenAPI/               ← MinimalOpenAPI NuGet package (generator + runtime services)
   MinimalOpenAPI.Abstractions/  ← document model & parser contracts
   MinimalOpenAPI.Parser.Yaml/   ← YAML parser implementation
   MinimalOpenAPI.Parser.Json/   ← JSON parser implementation

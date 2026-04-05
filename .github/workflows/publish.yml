@@ -36,8 +36,8 @@ jobs:
 
       - name: Pack
         run: |
-          PACK_ARGS="--no-build --configuration Release --output ./artifacts"
-          dotnet pack $PACK_ARGS
+          dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj \
+            --no-build --configuration Release --output ./artifacts
 
       - name: Upload packages as workflow artifact
         uses: actions/upload-artifact@v7

@@ -18,8 +18,8 @@
     The only source for this package is the local-artifacts feed defined in
     nuget.config, so it always picks up the just-packed artifact.
 
-    The MinimalOpenAPI package declares MinimalOpenAPI.Runtime as a dependency for
-    net10.0 consumers, so the runtime package is restored automatically.
+    The MinimalOpenAPI package bundles both the source generator and the runtime
+    services, so no additional package references are needed.
   -->
   <ItemGroup>
     <PackageReference Include="MinimalOpenAPI" Version="*-*" />

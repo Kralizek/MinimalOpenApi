@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>MinimalOpenAPI.Parser.Yaml</PackageId>
     <Title>MinimalOpenAPI YAML Parser</Title>
-    <IsPackable>true</IsPackable>
+    <IsPackable>false</IsPackable>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>openapi;yaml;parser;contract-first</PackageTags>
     <RootNamespace>MinimalOpenAPI</RootNamespace>

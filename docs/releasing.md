@@ -113,22 +113,21 @@ Before tagging, do a local pack to confirm metadata looks correct:
 ```shell
 dotnet restore
 dotnet build --configuration Release --warnaserror
-dotnet pack --no-build --configuration Release --output ./artifacts
+dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj --no-build --configuration Release --output ./artifacts
 ```
 
-Inspect the generated `.nupkg` files:
+Inspect the generated `.nupkg` file:
 
 ```shell
-# List package metadata (requires the NuGet CLI or dotnet-nuget-search)
-dotnet nuget list source
 unzip -p ./artifacts/MinimalOpenAPI.*.nupkg '*.nuspec' | less
 ```
 
 Check that:
 - `<version>` matches the intended release version
 - `<authors>`, `<licenseExpression>`, `<repositoryUrl>` are correct
-- `<releaseNotes>` or `<description>` are accurate
-- Symbol packages (`.snupkg`) are present alongside `.nupkg` files
+- `<description>` is accurate
+- `<developmentDependency>true</developmentDependency>` is present
+- `lib/net10.0/MinimalOpenAPI.dll` and all expected analyzer DLLs are present
 
 ### 3. Create and push the version tag
 
@@ -154,7 +153,11 @@ Pushing the tag triggers the [Publish workflow](#publishing-workflow) automatica
 
 ## Publishing workflow
 
-The [`publish.yml`](../.github/workflows/publish.yml) workflow handles all publishing. It is triggered in two ways:
+The [`publish.yml`](../.github/workflows/publish.yml) workflow handles all publishing.
+Only the `MinimalOpenAPI` package is published; the `MinimalOpenAPI.Abstractions`,
+`MinimalOpenAPI.Parser.Yaml`, and `MinimalOpenAPI.Parser.Json` projects have
+`<IsPackable>false</IsPackable>` and are not published — their DLLs are bundled
+inside the main package.
 
 | Trigger | What happens |
 |---------|-------------|
@@ -191,7 +194,7 @@ To test a local pack before pushing any tag:
 
 ```shell
 # Build and pack in Release configuration
-dotnet pack --configuration Release --output /tmp/local-packages
+dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj --configuration Release --output /tmp/local-packages
 
 # Add a local NuGet source (one-time)
 dotnet nuget add source /tmp/local-packages --name local-MinimalOpenAPI
