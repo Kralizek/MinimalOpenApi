@@ -5,12 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
-
-### Fixed
-
-- Removed `developmentDependency=true` from the NuGet package. When that flag was present, `dotnet add package` automatically set `IncludeAssets` to exclude `compile`, which prevented the runtime assembly (`lib/net10.0/MinimalOpenAPI.dll`) from being available as a compile reference. As a result, the generated `DependencyInjection.g.cs` file failed to compile with `CS0400: The type or namespace name 'MinimalOpenAPI' could not be found in the global namespace`.
-
 ## 1.0.0
 
 ### Added
