@@ -20,11 +20,6 @@
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <LangVersion>latest</LangVersion>
     <Description>Contract-first OpenAPI framework for ASP.NET Core. Includes the Roslyn source generator and runtime services (AddMinimalOpenApi, MapMinimalOpenApiEndpoints).</Description>
-    <!--
-      developmentDependency=true causes NuGet to add PrivateAssets="all" automatically
-      when consumers install this package, preventing it from leaking transitively.
-    -->
-    <DevelopmentDependency>true</DevelopmentDependency>
     <!-- Suppress NU5128: expected for Roslyn analyzer packages with no netstandard2.0 lib/ entry -->
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <!--
