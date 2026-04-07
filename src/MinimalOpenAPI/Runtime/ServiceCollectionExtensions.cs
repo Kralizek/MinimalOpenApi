@@ -16,7 +16,7 @@ public static class ServiceCollectionExtensions
 {
     private static readonly List<Action<IServiceCollection>> _generatedRegistrations = new();
     private static readonly List<Action<IEndpointRouteBuilder, RouteGroupBuilder>> _generatedEndpointMappings = new();
-    private static readonly List<string> _registeredSchemaFiles = new();
+    private static readonly List<(string RelPath, string? PublishPathOverride)> _registeredSchemaFiles = new();
     private static readonly object _registrationLock = new();
 
     /// <summary>
@@ -58,11 +58,17 @@ public static class ServiceCollectionExtensions
     /// Path relative to <see cref="AppContext.BaseDirectory"/>, using forward slashes,
     /// e.g. <c>openapi/schemas/987654321/openapi.yaml</c>.
     /// </param>
+    /// <param name="publishPathOverride">
+    /// When non-<see langword="null"/>, the HTTP route path at which this schema file is
+    /// exposed by <see cref="MapOpenApiSchemas"/>.  This value is accepted verbatim and
+    /// becomes the final endpoint URL, bypassing the default <c>schemas/{version}/{name}.{ext}</c>
+    /// derivation.  When <see langword="null"/> the default routing behaviour applies.
+    /// </param>
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void RegisterSchemaFile(string relPath)
+    public static void RegisterSchemaFile(string relPath, string? publishPathOverride = null)
     {
         lock (_registrationLock)
-            _registeredSchemaFiles.Add(relPath);
+            _registeredSchemaFiles.Add((relPath, publishPathOverride));
     }
 
     /// <summary>
@@ -123,13 +129,22 @@ public static class ServiceCollectionExtensions
 
     /// <summary>
     /// Maps endpoints that serve each <c>&lt;OpenApi Publish="true" /&gt;</c> spec file as a
-    /// static HTTP response, making each schema accessible at
-    /// <c>{prefix}/schemas/{version}/{name}.{ext}</c>
+    /// static HTTP response.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Default routing</b>: when no <c>PublishPathOverride</c> is set on an item, the
+    /// schema is accessible at <c>{prefix}/schemas/{version}/{name}.{ext}</c>
     /// (e.g. <c>/.openapi/schemas/1.0.0/clients.yaml</c>).
     /// When the <c>info.version</c> field cannot be determined the version segment is
     /// omitted and the endpoint is registered at <c>{prefix}/schemas/{name}.{ext}</c>.
-    /// </summary>
-    /// <remarks>
+    /// </para>
+    /// <para>
+    /// <b>Override routing</b>: when <c>PublishPathOverride</c> is set on an item, that
+    /// path is used verbatim as the HTTP endpoint path, bypassing the default derivation.
+    /// The override path is registered directly on the root endpoint builder, not under
+    /// the <paramref name="prefix"/>.
+    /// </para>
     /// <para>
     /// When the source generator has emitted <c>RegisterSchemaFile</c> calls (the normal case
     /// for projects that reference the <c>MinimalOpenAPI</c> package), those registered paths
@@ -146,7 +161,8 @@ public static class ServiceCollectionExtensions
     /// </remarks>
     /// <param name="builder">The endpoint route builder.</param>
     /// <param name="prefix">
-    /// Route prefix for all schema endpoints.  Defaults to <c>"/.openapi"</c>.
+    /// Route prefix for all schema endpoints that use the default routing.  Defaults to <c>"/.openapi"</c>.
+    /// This prefix does <em>not</em> apply to schema endpoints that have a <c>PublishPathOverride</c>.
     /// </param>
     /// <param name="schemasDirectory">
     /// Absolute path to the directory that contains the spec files used by the fallback scan.
@@ -161,20 +177,41 @@ public static class ServiceCollectionExtensions
     {
         var group = builder.MapGroup(prefix ?? "/.openapi");
 
-        List<string> registeredFiles;
+        List<(string RelPath, string? PublishPathOverride)> registeredFiles;
         lock (_registrationLock)
-            registeredFiles = new List<string>(_registeredSchemaFiles);
+            registeredFiles = new List<(string, string?)>(_registeredSchemaFiles);
 
         if (registeredFiles.Count > 0)
         {
+            // Defensive duplicate detection: fail fast if two registered files share the same
+            // PublishPathOverride.  MSBuild validation catches this at build time; this check
+            // guards against edge cases where the generated initializer is invoked outside of a
+            // normal build (e.g. hand-crafted or reflection-based invocations).
+            var overridePaths = registeredFiles
+                .Where(f => f.PublishPathOverride is not null)
+                .Select(f => f.PublishPathOverride!)
+                .ToList();
+            var duplicates = overridePaths
+                .GroupBy(p => p, StringComparer.Ordinal)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToList();
+            if (duplicates.Count > 0)
+                throw new InvalidOperationException(
+                    $"Duplicate PublishPathOverride values detected: {string.Join(", ", duplicates)}. " +
+                    "Each published schema must have a unique HTTP path.");
+
             // Use files registered by the source-generated module initializer.
-            // Each path is relative to AppContext.BaseDirectory and uses forward slashes.
-            foreach (var relPath in registeredFiles)
+            foreach (var (relPath, publishPathOverride) in registeredFiles)
             {
                 var absolutePath = Path.Combine(
                     AppContext.BaseDirectory,
                     relPath.Replace('/', Path.DirectorySeparatorChar));
-                MapSchemaFileEndpoint(group, absolutePath);
+
+                if (publishPathOverride is not null)
+                    MapSchemaFileEndpointAtPath(builder, absolutePath, publishPathOverride);
+                else
+                    MapSchemaFileEndpoint(group, absolutePath);
             }
         }
         else
@@ -222,6 +259,26 @@ public static class ServiceCollectionExtensions
             routePath,
             // FileStreamHttpResult (returned by Results.File) disposes the stream
             // after the response is written, so the FileStream is correctly cleaned up.
+            () => Results.File(File.OpenRead(absolutePath), contentType));
+    }
+
+    /// <summary>
+    /// Registers a single GET endpoint directly on <paramref name="builder"/> that serves
+    /// <paramref name="absolutePath"/> at the verbatim <paramref name="overridePath"/>.
+    /// The content type is derived from the source file extension.
+    /// </summary>
+    private static void MapSchemaFileEndpointAtPath(IEndpointRouteBuilder builder, string absolutePath, string overridePath)
+    {
+        var extension = Path.GetExtension(absolutePath).ToLowerInvariant();
+        var contentType = extension switch
+        {
+            ".yaml" or ".yml" => "text/yaml",
+            ".json" => "application/json",
+            _ => "application/octet-stream",
+        };
+
+        builder.MapGet(
+            overridePath,
             () => Results.File(File.OpenRead(absolutePath), contentType));
     }
 

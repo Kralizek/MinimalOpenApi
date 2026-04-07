@@ -27,6 +27,7 @@
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiNamespace" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiSchemaId" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiPublish" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiPublishPathOverride" />
     <CompilerVisibleProperty Include="RootNamespace" />
   </ItemGroup>
 
@@ -59,8 +60,38 @@
                        MinimalOpenApiFile="true"
                        MinimalOpenApiNamespace="%(OpenApi.Namespace)"
                        MinimalOpenApiSchemaId="$([System.Math]::Abs($([MSBuild]::StableStringHash('%(FullPath)'))))"
-                       MinimalOpenApiPublish="%(OpenApi.Publish)" />
+                       MinimalOpenApiPublish="%(OpenApi.Publish)"
+                       MinimalOpenApiPublishPathOverride="%(OpenApi.PublishPathOverride)" />
     </ItemGroup>
+  </Target>
+
+  <!-- ── PublishPathOverride validation ────────────────────────────────── -->
+  <!--
+    Validate that PublishPathOverride is only used when Publish="true".
+    Fail the build if PublishPathOverride is set on an item without Publish="true".
+  -->
+  <Target Name="ValidateMinimalOpenApiPublishPathOverrideRequiresPublish"
+          BeforeTargets="Build">
+    <Error Condition="'%(OpenApi.PublishPathOverride)' != '' and '%(OpenApi.Publish)' != 'true'"
+           Text="OpenApi item '%(OpenApi.Identity)' has PublishPathOverride='%(OpenApi.PublishPathOverride)' but Publish is not 'true'. Set Publish=&quot;true&quot; on the item or remove PublishPathOverride." />
+  </Target>
+
+  <!--
+    Validate that no two published OpenApi items share the same PublishPathOverride.
+    Duplicate override paths would map two files to the same HTTP endpoint, which is
+    not allowed.  If duplicates are detected, the build fails with a clear error.
+  -->
+  <Target Name="ValidateMinimalOpenApiPublishPathOverrideDuplicates"
+          BeforeTargets="Build">
+    <ItemGroup>
+      <_OpenApiOverridePaths Include="%(OpenApi.PublishPathOverride)"
+                             Condition="'%(OpenApi.Publish)' == 'true' and '%(OpenApi.PublishPathOverride)' != ''" />
+    </ItemGroup>
+    <RemoveDuplicates Inputs="@(_OpenApiOverridePaths)">
+      <Output TaskParameter="Filtered" ItemName="_UniqueOverridePaths" />
+    </RemoveDuplicates>
+    <Error Condition="@(_OpenApiOverridePaths->Count()) != @(_UniqueOverridePaths->Count())"
+           Text="Duplicate PublishPathOverride values found across OpenApi items: '@(_OpenApiOverridePaths)'. Each PublishPathOverride must be unique. Check your &lt;OpenApi&gt; items and ensure no two items share the same PublishPathOverride." />
   </Target>
 
   <!-- ── Project-reference development scenario ──────────────────────── -->

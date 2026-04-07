@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Multiple spec files per project**: each `<OpenApi>` item generates code into its own `{RootNamespace}.{SpecName}` sub-namespace, with the spec name derived from the file name or the `Namespace` MSBuild item metadata.
 
-- **Spec publishing and serving**: `<OpenApi Publish="true" />` copies spec files to the build and publish output; `MapOpenApiSchemas()` registers `GET /.openapi/schemas/{version}/{name}.{ext}` endpoints at startup and supports the gRPC-style contracts-package pattern.
+- **Spec publishing and serving**: `<OpenApi Publish="true" />` copies spec files to the build and publish output; `MapOpenApiSchemas()` registers `GET /.openapi/schemas/{version}/{name}.{ext}` endpoints at startup and supports the gRPC-style contracts-package pattern. The optional `PublishPathOverride` item metadata lets consumers specify a custom HTTP route for a published spec file.
 
 - **Endpoint customizer pattern**: a generated `<OperationId>EndpointRegistration` base class lets consumers configure individual endpoints (authorization, rate limiting, etc.) without touching generated code.
 

@@ -21,6 +21,11 @@
   <Import Project="../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
 
   <ItemGroup>
+    <!--
+      The default routing exposes this spec at /.openapi/schemas/1.0.0/openapi.yaml.
+      To use a custom HTTP path instead, set PublishPathOverride:
+        <OpenApi Include="openapi.yaml" Publish="true" PublishPathOverride="/openapi/schema.yaml" />
+    -->
     <OpenApi Include="openapi.yaml" Publish="true" />
   </ItemGroup>
 

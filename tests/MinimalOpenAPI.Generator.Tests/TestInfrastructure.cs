@@ -32,10 +32,12 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
     private readonly string _namespaceMetadataKey;
     private readonly string _schemaIdMetadataKey;
     private readonly string _publishMetadataKey;
+    private readonly string _publishPathOverrideMetadataKey;
     private readonly string _namespaceKey;
     private readonly string? _specNameOverride;
     private readonly string? _schemaIdOverride;
     private readonly bool _publish;
+    private readonly string? _publishPathOverride;
 
     public TestAnalyzerConfigOptionsProvider(
         AdditionalText[] additionalTexts,
@@ -44,10 +46,12 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         string namespaceMetadataKey,
         string schemaIdMetadataKey,
         string publishMetadataKey,
+        string publishPathOverrideMetadataKey,
         string namespaceKey,
         string? specNameOverride = null,
         string? schemaId = null,
-        bool publish = false)
+        bool publish = false,
+        string? publishPathOverride = null)
     {
         _additionalTexts = additionalTexts;
         _rootNamespace = rootNamespace;
@@ -55,10 +59,12 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         _namespaceMetadataKey = namespaceMetadataKey;
         _schemaIdMetadataKey = schemaIdMetadataKey;
         _publishMetadataKey = publishMetadataKey;
+        _publishPathOverrideMetadataKey = publishPathOverrideMetadataKey;
         _namespaceKey = namespaceKey;
         _specNameOverride = specNameOverride;
         _schemaIdOverride = schemaId;
         _publish = publish;
+        _publishPathOverride = publishPathOverride;
     }
 
     public override AnalyzerConfigOptions GlobalOptions
@@ -87,6 +93,9 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
 
         if (isOpenApi)
             options[_publishMetadataKey] = _publish ? "true" : "false";
+
+        if (isOpenApi && _publishPathOverride is not null)
+            options[_publishPathOverrideMetadataKey] = _publishPathOverride;
 
         return new TestAnalyzerConfigOptions(options);
     }
