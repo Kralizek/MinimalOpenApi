@@ -8,6 +8,8 @@ builder.Services.AddMinimalOpenApi();
 
 var app = builder.Build();
 
+app.MapGet("/", () => Results.Redirect("/swagger/index.html", permanent: false));
+
 app.MapMinimalOpenApiEndpoints();
 
 // Map every <OpenApi Publish="true" /> spec file as a static GET endpoint and get back
