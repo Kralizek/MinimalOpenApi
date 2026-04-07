@@ -206,6 +206,42 @@ public class GetEndpointGenerationTests
     }
 
     [Test]
+    public void GeneratesDiRegistration_WithPublishPathOverride_EmitsRegisterSchemaFileWithOverridePath()
+    {
+        // schemaId + publish=true + publishPathOverride → RegisterSchemaFile must be emitted with both paths.
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: GetClientHandlerImpl,
+            additionalFiles: AdditionalFiles,
+            schemaId: "987654321",
+            publish: true,
+            publishPathOverride: "/contracts/public/v1/openapi.yaml");
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
+
+        Assert.That(source, Does.Contain("RegisterSchemaFile("));
+        Assert.That(source, Does.Contain("openapi/schemas/987654321/openapi.yaml"));
+        Assert.That(source, Does.Contain("/contracts/public/v1/openapi.yaml"));
+        // The override path must be the second argument.
+        Assert.That(source, Does.Contain("RegisterSchemaFile(\"openapi/schemas/987654321/openapi.yaml\", \"/contracts/public/v1/openapi.yaml\")"));
+    }
+
+    [Test]
+    public void GeneratesDiRegistration_WithPublishAndNoOverride_EmitsRegisterSchemaFileWithoutSecondArgument()
+    {
+        // publish=true but no publishPathOverride → RegisterSchemaFile uses single-argument form.
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: GetClientHandlerImpl,
+            additionalFiles: AdditionalFiles,
+            schemaId: "987654321",
+            publish: true);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
+
+        Assert.That(source, Does.Contain("RegisterSchemaFile(\"openapi/schemas/987654321/openapi.yaml\")"));
+        Assert.That(source, Does.Not.Contain("RegisterSchemaFile(\"openapi/schemas/987654321/openapi.yaml\","));
+    }
+
+    [Test]
     public void ReportsMissingHandlerImplementationDiagnostic()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(

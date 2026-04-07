@@ -16,6 +16,7 @@ internal static class GeneratorTestHelper
     private static readonly string NamespaceMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiNamespace";
     private static readonly string SchemaIdMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiSchemaId";
     private static readonly string PublishMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiPublish";
+    private static readonly string PublishPathOverrideMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiPublishPathOverride";
     private static readonly string RootNamespaceKey = "build_property.RootNamespace";
 
     /// <summary>
@@ -37,13 +38,19 @@ internal static class GeneratorTestHelper
     /// When <see langword="true"/>, simulates <c>Publish="true"</c> on all provided OpenAPI files,
     /// causing the generator to emit a <c>RegisterSchemaFile</c> call in the module initializer.
     /// </param>
+    /// <param name="publishPathOverride">
+    /// When non-null, simulates the <c>PublishPathOverride</c> MSBuild metadata on all provided
+    /// OpenAPI files, causing the generator to emit a <c>RegisterSchemaFile</c> call with the
+    /// override path in the module initializer.
+    /// </param>
     public static (GeneratorDriverRunResult Result, Compilation OutputCompilation) RunGenerator(
         string userSource,
         IEnumerable<(string FileName, string Content)> additionalFiles,
         string rootNamespace = "TestProject",
         string? specNameOverride = null,
         string? schemaId = null,
-        bool publish = false)
+        bool publish = false,
+        string? publishPathOverride = null)
     {
         // Create a minimal compilation for the generator
         var references = new List<MetadataReference>
@@ -77,10 +84,12 @@ internal static class GeneratorTestHelper
             NamespaceMetadataKey,
             SchemaIdMetadataKey,
             PublishMetadataKey,
+            PublishPathOverrideMetadataKey,
             RootNamespaceKey,
             specNameOverride,
             schemaId,
-            publish);
+            publish,
+            publishPathOverride);
 
         var driver = CSharpGeneratorDriver
             .Create(generator)

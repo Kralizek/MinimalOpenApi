@@ -17,6 +17,7 @@ internal static class DependencyInjectionRegistrationGenerator
         string specName,
         string schemaId,
         bool publish,
+        string? publishPathOverride,
         string specFileName)
     {
         var sb = new StringBuilder();
@@ -84,7 +85,15 @@ internal static class DependencyInjectionRegistrationGenerator
         sb.AppendLine($"            (builder, group) => global::{rootNamespace}.{specName}.Endpoints.MinimalOpenApiGeneratedEndpointRouteBuilderExtensions.MapEndpoints(builder, group));");
         if (publish && !string.IsNullOrEmpty(schemaId))
         {
-            sb.AppendLine($"        global::MinimalOpenAPI.ServiceCollectionExtensions.RegisterSchemaFile(\"openapi/schemas/{schemaId}/{specFileName}\");");
+            var relPath = $"openapi/schemas/{schemaId}/{specFileName}";
+            if (!string.IsNullOrWhiteSpace(publishPathOverride))
+            {
+                sb.AppendLine($"        global::MinimalOpenAPI.ServiceCollectionExtensions.RegisterSchemaFile(\"{relPath}\", \"{publishPathOverride}\");");
+            }
+            else
+            {
+                sb.AppendLine($"        global::MinimalOpenAPI.ServiceCollectionExtensions.RegisterSchemaFile(\"{relPath}\");");
+            }
         }
         sb.AppendLine("    }");
         sb.AppendLine("}");

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- **`PublishPathOverride` support**: consumers can now specify a verbatim HTTP route path for a published schema file using the `PublishPathOverride` MSBuild item metadata:
+
+  ```xml
+  <OpenApi Include="openapi.yaml" Publish="true" PublishPathOverride="/contracts/public/v1/openapi.yaml" />
+  ```
+
+  When set, `MapOpenApiSchemas()` registers the schema at the override path instead of the default `/.openapi/schemas/{version}/{name}.{ext}` path.  The override path is accepted verbatim and registered directly on the root endpoint builder (bypassing the `prefix` parameter).  The physical output location of the file on disk is not affected.
+
+- **Build-time validation for `PublishPathOverride`**:
+  - Setting `PublishPathOverride` without `Publish="true"` is a build error.
+  - Duplicate `PublishPathOverride` values across multiple `<OpenApi>` items are a build error.
+
+- **Defensive runtime duplicate detection**: `MapOpenApiSchemas()` throws `InvalidOperationException` if duplicate `PublishPathOverride` values are detected at runtime (guards against hand-crafted module initializer invocations that bypass the MSBuild validation).
+
 ## 1.0.0
 
 ### Added

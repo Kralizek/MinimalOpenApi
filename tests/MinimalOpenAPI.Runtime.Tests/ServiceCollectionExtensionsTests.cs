@@ -311,4 +311,84 @@ public class ServiceCollectionExtensionsTests
             Directory.Delete(tempDir, recursive: true);
         }
     }
+
+    [Test]
+    public void RegisterSchemaFile_WithPublishPathOverride_DoesNotThrow()
+    {
+        Assert.DoesNotThrow(() =>
+            ServiceCollectionExtensions.RegisterSchemaFile(
+                "openapi/schemas/123456789/openapi.yaml",
+                "/contracts/public/v1/openapi.yaml"));
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_WithPublishPathOverride_RegistersEndpointOnBuilder()
+    {
+        // A registered file with a PublishPathOverride should be mapped directly on the
+        // root builder (bypassing the group prefix) so the endpoint is accessible at the
+        // exact override path.
+        ServiceCollectionExtensions.RegisterSchemaFile(
+            "openapi/schemas/987654321/myapi.yaml",
+            "/contracts/public/v1/openapi.yaml");
+
+        var app = WebApplication.CreateBuilder().Build();
+        var group = app.MapOpenApiSchemas();
+
+        Assert.That(group, Is.Not.Null);
+        // The override endpoint is registered on the root app, not on the prefixed group.
+        // The group itself should have no data sources for this file.
+        Assert.That(((IEndpointRouteBuilder)group).DataSources, Is.Empty,
+            "Override-path endpoint must be registered on the root builder, not inside the prefixed group.");
+        // The root app should have endpoints registered (one group from MapGroup + override route).
+        Assert.That(((IEndpointRouteBuilder)app).DataSources, Is.Not.Empty);
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_MixedRegistrations_RegistersCorrectEndpoints()
+    {
+        // File without override goes into the prefixed group; file with override goes to root.
+        ServiceCollectionExtensions.RegisterSchemaFile("openapi/schemas/111111111/api.yaml");
+        ServiceCollectionExtensions.RegisterSchemaFile(
+            "openapi/schemas/222222222/billing.yaml",
+            "/swagger/billing/v2/schema.yaml");
+
+        var app = WebApplication.CreateBuilder().Build();
+        var group = app.MapOpenApiSchemas();
+
+        Assert.That(group, Is.Not.Null);
+        // The default-routed file contributes a data source to the prefixed group.
+        Assert.That(((IEndpointRouteBuilder)group).DataSources, Is.Not.Empty,
+            "Default-routed schema should be registered in the prefixed group.");
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_WithDuplicatePublishPathOverride_Throws()
+    {
+        // Two files with the same PublishPathOverride should cause MapOpenApiSchemas to throw.
+        ServiceCollectionExtensions.RegisterSchemaFile(
+            "openapi/schemas/111111111/api-v1.yaml",
+            "/contracts/v1/schema.yaml");
+        ServiceCollectionExtensions.RegisterSchemaFile(
+            "openapi/schemas/222222222/api-v2.yaml",
+            "/contracts/v1/schema.yaml");
+
+        var app = WebApplication.CreateBuilder().Build();
+
+        Assert.Throws<InvalidOperationException>(() => app.MapOpenApiSchemas(),
+            "Duplicate PublishPathOverride values must cause MapOpenApiSchemas to throw.");
+    }
+
+    [Test]
+    public void RegisterSchemaFile_WithPublishPathOverride_CalledMultipleTimes_DoesNotThrow()
+    {
+        Assert.DoesNotThrow(() =>
+        {
+            ServiceCollectionExtensions.RegisterSchemaFile(
+                "openapi/schemas/111111111/api-v1.yaml",
+                "/contracts/v1/schema.yaml");
+            ServiceCollectionExtensions.RegisterSchemaFile(
+                "openapi/schemas/222222222/api-v2.yaml",
+                "/contracts/v2/schema.yaml");
+        });
+    }
 }

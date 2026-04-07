@@ -26,6 +26,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     private const string NamespaceMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiNamespace";
     private const string SchemaIdMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiSchemaId";
     private const string PublishMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiPublish";
+    private const string PublishPathOverrideMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiPublishPathOverride";
     private const string RootNamespaceKey = "build_property.RootNamespace";
 
     /// <summary>
@@ -50,9 +51,11 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 options.TryGetValue(NamespaceMetadataKey, out var explicitNamespace);
                 options.TryGetValue(SchemaIdMetadataKey, out var schemaId);
                 options.TryGetValue(PublishMetadataKey, out var publishRaw);
+                options.TryGetValue(PublishPathOverrideMetadataKey, out var publishPathOverride);
                 var publish = string.Equals(publishRaw, "true", StringComparison.OrdinalIgnoreCase);
                 var specName = DeriveSpecName(path, explicitNamespace);
-                return (Content: content, Path: path, SpecName: specName, SchemaId: schemaId ?? string.Empty, Publish: publish);
+                return (Content: content, Path: path, SpecName: specName, SchemaId: schemaId ?? string.Empty, Publish: publish,
+                        PublishPathOverride: string.IsNullOrWhiteSpace(publishPathOverride) ? null : publishPathOverride);
             });
 
         // 2. Get root namespace
@@ -68,14 +71,14 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             .Combine(rootNamespace)
             .Select((pair, _) =>
             {
-                var ((content, path, specName, schemaId, publish), ns) = pair;
+                var ((content, path, specName, schemaId, publish, publishPathOverride), ns) = pair;
 
                 var parser = SelectParser(path, content);
                 if (parser is null)
                 {
                     var ext = System.IO.Path.GetExtension(path);
                     return (Doc: (OpenApiDocument?)null, Path: path, Namespace: ns, SpecName: specName,
-                            SchemaId: schemaId, Publish: publish,
+                            SchemaId: schemaId, Publish: publish, PublishPathOverride: publishPathOverride,
                             Error: (string?)null, UnsupportedExtension: ext);
                 }
 
@@ -83,13 +86,13 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 {
                     var doc = parser.ParseAsync(content).GetAwaiter().GetResult();
                     return (Doc: (OpenApiDocument?)doc, Path: path, Namespace: ns, SpecName: specName,
-                            SchemaId: schemaId, Publish: publish,
+                            SchemaId: schemaId, Publish: publish, PublishPathOverride: publishPathOverride,
                             Error: (string?)null, UnsupportedExtension: (string?)null);
                 }
                 catch (Exception ex)
                 {
                     return (Doc: (OpenApiDocument?)null, Path: path, Namespace: ns, SpecName: specName,
-                            SchemaId: schemaId, Publish: publish,
+                            SchemaId: schemaId, Publish: publish, PublishPathOverride: publishPathOverride,
                             Error: ex.Message, UnsupportedExtension: (string?)null);
                 }
             });
@@ -129,7 +132,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         // 6. Generate source files
         context.RegisterSourceOutput(combined, (spc, pair) =>
         {
-            var ((doc, path, ns, specName, schemaId, publish, error, unsupportedExtension), classes) = pair;
+            var ((doc, path, ns, specName, schemaId, publish, publishPathOverride, error, unsupportedExtension), classes) = pair;
 
             if (unsupportedExtension is not null)
             {
@@ -160,7 +163,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     path));
             }
 
-            GenerateForDocument(spc, doc, ns, specName, path, schemaId, publish, classes.ToArray());
+            GenerateForDocument(spc, doc, ns, specName, path, schemaId, publish, publishPathOverride, classes.ToArray());
         });
     }
 
@@ -275,6 +278,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         string openApiFilePath,
         string schemaId,
         bool publish,
+        string? publishPathOverride,
         ClassInfo[] allClasses)
     {
         // Generate DTOs
@@ -358,7 +362,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         }
 
         // Generate DI registration
-        var diSource = DependencyInjectionRegistrationGenerator.Generate(doc.Operations, handlers, customizers, rootNamespace, specName, schemaId, publish, System.IO.Path.GetFileName(openApiFilePath));
+        var diSource = DependencyInjectionRegistrationGenerator.Generate(doc.Operations, handlers, customizers, rootNamespace, specName, schemaId, publish, publishPathOverride, System.IO.Path.GetFileName(openApiFilePath));
         spc.AddSource($"MinimalOpenApi.{specName}.DependencyInjection.g.cs", diSource);
 
         // Generate endpoint mapping
