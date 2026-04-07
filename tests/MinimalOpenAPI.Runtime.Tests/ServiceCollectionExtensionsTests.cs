@@ -126,26 +126,48 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
-    public void MapOpenApiSchemas_WhenDirectoryDoesNotExist_ReturnsRouteGroupBuilder()
+    public void MapOpenApiSchemas_WhenDirectoryDoesNotExist_ReturnsResult()
     {
         var app = WebApplication.CreateBuilder().Build();
 
-        var group = app.MapOpenApiSchemas(schemasDirectory: Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()));
+        var result = app.MapOpenApiSchemas(schemasDirectory: Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()));
 
-        Assert.That(group, Is.Not.Null);
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.Schemas, Is.Empty);
     }
 
     [Test]
-    public void MapOpenApiSchemas_WhenDirectoryIsEmpty_ReturnsRouteGroupBuilder()
+    public void MapOpenApiSchemas_WhenDirectoryIsEmpty_ReturnsResultWithNoSchemas()
     {
         var tempDir = Directory.CreateTempSubdirectory().FullName;
         try
         {
             var app = WebApplication.CreateBuilder().Build();
 
-            var group = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
 
-            Assert.That(group, Is.Not.Null);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Schemas, Is.Empty);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_ReturnValueCanBeIgnored()
+    {
+        // Calling MapOpenApiSchemas() and discarding the return value must remain valid.
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: My API\n  version: '1.0.0'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+
+            Assert.DoesNotThrow(() => app.MapOpenApiSchemas(schemasDirectory: tempDir));
         }
         finally
         {
@@ -164,13 +186,12 @@ public class ServiceCollectionExtensionsTests
 
             var app = WebApplication.CreateBuilder().Build();
 
-            var group = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
 
-            Assert.That(group, Is.Not.Null);
-            // Verify an endpoint was registered in the group for the discovered schema file.
+            // Verify an endpoint descriptor was returned for the discovered schema file.
             // HTTP-level assertions (status code, content-type, body) are covered by
             // the integration test GetOpenApiSchema_ReturnsYamlWithCorrectContentType.
-            Assert.That(((IEndpointRouteBuilder)group).DataSources, Is.Not.Empty);
+            Assert.That(result.Schemas, Has.Count.EqualTo(1));
         }
         finally
         {
@@ -188,10 +209,9 @@ public class ServiceCollectionExtensionsTests
 
             var app = WebApplication.CreateBuilder().Build();
 
-            var group = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
 
-            Assert.That(group, Is.Not.Null);
-            Assert.That(((IEndpointRouteBuilder)group).DataSources, Is.Not.Empty);
+            Assert.That(result.Schemas, Has.Count.EqualTo(1));
         }
         finally
         {
@@ -210,10 +230,9 @@ public class ServiceCollectionExtensionsTests
 
             var app = WebApplication.CreateBuilder().Build();
 
-            var group = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
 
-            Assert.That(group, Is.Not.Null);
-            Assert.That(((IEndpointRouteBuilder)group).DataSources, Is.Not.Empty);
+            Assert.That(result.Schemas, Has.Count.EqualTo(1));
         }
         finally
         {
@@ -232,10 +251,9 @@ public class ServiceCollectionExtensionsTests
 
             var app = WebApplication.CreateBuilder().Build();
 
-            var group = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
 
-            Assert.That(group, Is.Not.Null);
-            Assert.That(((IEndpointRouteBuilder)group).DataSources, Is.Empty);
+            Assert.That(result.Schemas, Is.Empty);
         }
         finally
         {
@@ -273,10 +291,9 @@ public class ServiceCollectionExtensionsTests
         var emptyDir = Directory.CreateTempSubdirectory().FullName;
         try
         {
-            var group = app.MapOpenApiSchemas(schemasDirectory: emptyDir);
+            var result = app.MapOpenApiSchemas(schemasDirectory: emptyDir);
 
-            Assert.That(group, Is.Not.Null);
-            Assert.That(((IEndpointRouteBuilder)group).DataSources, Is.Not.Empty,
+            Assert.That(result.Schemas, Is.Not.Empty,
                 "An endpoint should be registered from the registered schema file, not from the empty schemasDirectory.");
         }
         finally
@@ -296,15 +313,14 @@ public class ServiceCollectionExtensionsTests
             ServiceCollectionExtensions.RegisterSchemaFile("openapi/schemas/111111111/registered.yaml");
 
             // Put an extra file in the scan directory — it should be ignored because registered
-            // files take precedence, so only 1 DataSource (from the registered file) is added.
+            // files take precedence, so only 1 descriptor (from the registered file) is returned.
             File.WriteAllText(Path.Combine(tempDir, "extra.yaml"),
                 "openapi: '3.0.0'\ninfo:\n  title: Extra\n  version: '9.9.9'\npaths: {}");
 
             var app = WebApplication.CreateBuilder().Build();
-            var group = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
 
-            // DataSources count reflects registered files only (1), not the extra scan file.
-            Assert.That(((IEndpointRouteBuilder)group).DataSources, Has.Count.EqualTo(1));
+            Assert.That(result.Schemas, Has.Count.EqualTo(1));
         }
         finally
         {
@@ -322,23 +338,24 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
-    public void MapOpenApiSchemas_WithPublishPathOverride_RegistersEndpointOnBuilder()
+    public void MapOpenApiSchemas_WithPublishPathOverride_ReturnsDescriptorWithHasOverrideTrue()
     {
         // A registered file with a PublishPathOverride should be mapped directly on the
-        // root builder (bypassing the group prefix) so the endpoint is accessible at the
-        // exact override path.
+        // root builder (bypassing the group prefix) and reported in the result with HasOverride = true.
         ServiceCollectionExtensions.RegisterSchemaFile(
             "openapi/schemas/987654321/myapi.yaml",
             "/contracts/public/v1/openapi.yaml");
 
         var app = WebApplication.CreateBuilder().Build();
-        var group = app.MapOpenApiSchemas();
+        var result = app.MapOpenApiSchemas();
 
-        Assert.That(group, Is.Not.Null);
-        // The override endpoint is registered on the root app, not on the prefixed group.
-        // The group itself should have no data sources for this file.
-        Assert.That(((IEndpointRouteBuilder)group).DataSources, Is.Empty,
-            "Override-path endpoint must be registered on the root builder, not inside the prefixed group.");
+        Assert.That(result.Schemas, Has.Count.EqualTo(1));
+        Assert.That(result.Schemas[0].HasOverride, Is.True,
+            "Descriptor for an override-routed schema must have HasOverride = true.");
+        Assert.That(result.Schemas[0].PublicPath, Is.EqualTo("/contracts/public/v1/openapi.yaml"),
+            "PublicPath must equal the verbatim PublishPathOverride.");
+        Assert.That(result.Schemas[0].Endpoint, Is.Not.Null,
+            "Endpoint must be a non-null RouteHandlerBuilder.");
         // The root app should have endpoints registered (one group from MapGroup + override route).
         Assert.That(((IEndpointRouteBuilder)app).DataSources, Is.Not.Empty);
     }
@@ -353,12 +370,13 @@ public class ServiceCollectionExtensionsTests
             "/swagger/billing/v2/schema.yaml");
 
         var app = WebApplication.CreateBuilder().Build();
-        var group = app.MapOpenApiSchemas();
+        var result = app.MapOpenApiSchemas();
 
-        Assert.That(group, Is.Not.Null);
-        // The default-routed file contributes a data source to the prefixed group.
-        Assert.That(((IEndpointRouteBuilder)group).DataSources, Is.Not.Empty,
-            "Default-routed schema should be registered in the prefixed group.");
+        Assert.That(result.Schemas, Has.Count.EqualTo(2));
+        Assert.That(result.Schemas.Count(s => !s.HasOverride), Is.EqualTo(1),
+            "One descriptor should be for a default-routed schema.");
+        Assert.That(result.Schemas.Count(s => s.HasOverride), Is.EqualTo(1),
+            "One descriptor should be for an override-routed schema.");
     }
 
     [Test]
@@ -390,5 +408,308 @@ public class ServiceCollectionExtensionsTests
                 "openapi/schemas/222222222/api-v2.yaml",
                 "/contracts/v2/schema.yaml");
         });
+    }
+
+    // -------------------------------------------------------------------------
+    // Tests for OpenApiSchemaMapResult descriptor content
+    // -------------------------------------------------------------------------
+
+    [Test]
+    public void MapOpenApiSchemas_DefaultRoute_DescriptorHasExpectedPublicPath()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: My API\n  version: '2.5.0'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(prefix: "/.openapi", schemasDirectory: tempDir);
+
+            Assert.That(result.Schemas, Has.Count.EqualTo(1));
+            var descriptor = result.Schemas[0];
+            Assert.That(descriptor.PublicPath, Is.EqualTo("/.openapi/schemas/2.5.0/myapi.yaml"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_DefaultRoute_NoVersion_DescriptorPublicPathOmitsVersionSegment()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "noversion.yaml"), "openapi: '3.0.0'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(prefix: "/.openapi", schemasDirectory: tempDir);
+
+            Assert.That(result.Schemas, Has.Count.EqualTo(1));
+            var descriptor = result.Schemas[0];
+            Assert.That(descriptor.PublicPath, Is.EqualTo("/.openapi/schemas/noversion.yaml"));
+            Assert.That(descriptor.Version, Is.Null);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_DefaultRoute_DescriptorNameUsesTitleAndVersion()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: My API\n  version: '1.0.0'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            var descriptor = result.Schemas[0];
+            Assert.That(descriptor.Name, Is.EqualTo("My API 1.0.0"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_DefaultRoute_DescriptorNameUsesTitleAndVersion_QuotedTitle()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            // Verify that quoted YAML titles are correctly stripped of their surrounding quotes.
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: \"My API\"\n  version: '2.0.0'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            var descriptor = result.Schemas[0];
+            Assert.That(descriptor.Name, Is.EqualTo("My API 2.0.0"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_DefaultRoute_DescriptorNameUsesTitleOnly_WhenNoVersion()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: My API\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            var descriptor = result.Schemas[0];
+            Assert.That(descriptor.Name, Is.EqualTo("My API"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_DefaultRoute_DescriptorNameFallsBackToFileName_WhenNoTitle()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            var descriptor = result.Schemas[0];
+            Assert.That(descriptor.Name, Is.EqualTo("myapi"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_DefaultRoute_DescriptorHasExpectedVersion()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: My API\n  version: '3.1.0'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            var descriptor = result.Schemas[0];
+            Assert.That(descriptor.Version, Is.EqualTo("3.1.0"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_DefaultRoute_DescriptorHasOverrideFalse()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: My API\n  version: '1.0.0'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            var descriptor = result.Schemas[0];
+            Assert.That(descriptor.HasOverride, Is.False);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_DefaultRoute_DescriptorEndpointIsNotNull()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: My API\n  version: '1.0.0'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            var descriptor = result.Schemas[0];
+            Assert.That(descriptor.Endpoint, Is.Not.Null,
+                "Endpoint must be a non-null RouteHandlerBuilder.");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_OverrideRoute_DescriptorPublicPathMatchesOverride()
+    {
+        const string overridePath = "/api/spec/v2/openapi.yaml";
+        ServiceCollectionExtensions.RegisterSchemaFile(
+            "openapi/schemas/999999999/myapi.yaml",
+            overridePath);
+
+        var app = WebApplication.CreateBuilder().Build();
+        var result = app.MapOpenApiSchemas();
+
+        Assert.That(result.Schemas, Has.Count.EqualTo(1));
+        Assert.That(result.Schemas[0].PublicPath, Is.EqualTo(overridePath));
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_OverrideRoute_DescriptorHasOverrideTrue()
+    {
+        ServiceCollectionExtensions.RegisterSchemaFile(
+            "openapi/schemas/999999999/myapi.yaml",
+            "/api/spec/v2/openapi.yaml");
+
+        var app = WebApplication.CreateBuilder().Build();
+        var result = app.MapOpenApiSchemas();
+
+        Assert.That(result.Schemas[0].HasOverride, Is.True);
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_OverrideRoute_DescriptorEndpointIsNotNull()
+    {
+        ServiceCollectionExtensions.RegisterSchemaFile(
+            "openapi/schemas/999999999/myapi.yaml",
+            "/api/spec/v2/openapi.yaml");
+
+        var app = WebApplication.CreateBuilder().Build();
+        var result = app.MapOpenApiSchemas();
+
+        Assert.That(result.Schemas[0].Endpoint, Is.Not.Null,
+            "Endpoint must be a non-null RouteHandlerBuilder even for override-routed schemas.");
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_DescriptorEndpoint_CanBeConfiguredWithFluentApi()
+    {
+        // Demonstrates that the returned RouteHandlerBuilder can be used for fluent configuration.
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: My API\n  version: '1.0.0'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            // Verify the RouteHandlerBuilder fluent API is accessible (does not throw).
+            Assert.DoesNotThrow(() => result.Schemas[0].Endpoint.WithName("MyApiSchema"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_CustomPrefix_DescriptorPublicPathUsesPrefix()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: My API\n  version: '1.0.0'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(prefix: "/docs", schemasDirectory: tempDir);
+
+            Assert.That(result.Schemas[0].PublicPath, Does.StartWith("/docs/"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_PrefixWithoutLeadingSlash_PublicPathIsNormalized()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: My API\n  version: '1.0.0'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(prefix: "docs", schemasDirectory: tempDir);
+
+            Assert.That(result.Schemas[0].PublicPath, Does.StartWith("/"),
+                "PublicPath must always start with '/' regardless of how prefix is supplied.");
+            Assert.That(result.Schemas[0].PublicPath, Does.StartWith("/docs/"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
     }
 }

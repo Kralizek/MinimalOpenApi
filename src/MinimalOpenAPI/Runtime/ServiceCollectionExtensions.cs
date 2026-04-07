@@ -92,15 +92,13 @@ public static class ServiceCollectionExtensions
     /// <see cref="RouteGroupBuilder"/> that can be further configured
     /// (e.g. <c>.RequireAuthorization()</c> to protect all endpoints at once).
     /// When multiple OpenAPI spec files are registered, all of their endpoints are
-    /// mapped onto the same group under the shared <paramref name="prefix"/>.
+    /// mapped onto the same group.
     /// </summary>
     /// <param name="builder">The endpoint route builder.</param>
-    /// <param name="prefix">Optional route prefix applied to all generated endpoints.</param>
     public static RouteGroupBuilder MapMinimalOpenApiEndpoints(
-        this IEndpointRouteBuilder builder,
-        string? prefix = null)
+        this IEndpointRouteBuilder builder)
     {
-        var group = builder.MapGroup(prefix ?? string.Empty);
+        var group = builder.MapGroup(string.Empty);
 
         List<Action<IEndpointRouteBuilder, RouteGroupBuilder>> mappings;
         lock (_registrationLock)
@@ -169,13 +167,19 @@ public static class ServiceCollectionExtensions
     /// Defaults to <c>AppContext.BaseDirectory/openapi/schemas</c>.
     /// Override this parameter in tests to point at a temporary directory.
     /// </param>
-    /// <returns>A <see cref="RouteGroupBuilder"/> that can be further configured.</returns>
-    public static RouteGroupBuilder MapOpenApiSchemas(
+    /// <returns>
+    /// An <see cref="OpenApiSchemaMapResult"/> describing every mapped schema endpoint,
+    /// including the public HTTP path and the <see cref="RouteHandlerBuilder"/> for further
+    /// configuration.  The return value may be ignored when the endpoint metadata is not needed.
+    /// </returns>
+    public static OpenApiSchemaMapResult MapOpenApiSchemas(
         this IEndpointRouteBuilder builder,
         string? prefix = "/.openapi",
         string? schemasDirectory = null)
     {
-        var group = builder.MapGroup(prefix ?? "/.openapi");
+        var resolvedPrefix = prefix ?? "/.openapi";
+        var group = builder.MapGroup(resolvedPrefix);
+        var descriptors = new List<OpenApiSchemaEndpoint>();
 
         List<(string RelPath, string? PublishPathOverride)> registeredFiles;
         lock (_registrationLock)
@@ -209,9 +213,18 @@ public static class ServiceCollectionExtensions
                     relPath.Replace('/', Path.DirectorySeparatorChar));
 
                 if (publishPathOverride is not null)
-                    MapSchemaFileEndpointAtPath(builder, absolutePath, publishPathOverride);
+                {
+                    var endpoint = MapSchemaFileEndpointAtPath(builder, absolutePath, publishPathOverride);
+                    var (title, version) = ExtractOpenApiInfo(absolutePath);
+                    var name = ComputeDisplayName(title, version, absolutePath);
+                    descriptors.Add(new OpenApiSchemaEndpoint(name, version, publishPathOverride, HasOverride: true, endpoint));
+                }
                 else
-                    MapSchemaFileEndpoint(group, absolutePath);
+                {
+                    var result = MapSchemaFileEndpoint(group, absolutePath, resolvedPrefix);
+                    if (result is not null)
+                        descriptors.Add(result);
+                }
             }
         }
         else
@@ -221,28 +234,32 @@ public static class ServiceCollectionExtensions
             var directory = schemasDirectory ?? Path.Combine(AppContext.BaseDirectory, "openapi", "schemas");
 
             if (!Directory.Exists(directory))
-                return group;
+                return new OpenApiSchemaMapResult(descriptors);
 
             foreach (var schemaFile in Directory.EnumerateFiles(directory))
-                MapSchemaFileEndpoint(group, schemaFile);
+            {
+                var result = MapSchemaFileEndpoint(group, schemaFile, resolvedPrefix);
+                if (result is not null)
+                    descriptors.Add(result);
+            }
         }
 
-        return group;
+        return new OpenApiSchemaMapResult(descriptors);
     }
 
     /// <summary>
     /// Registers a single GET endpoint on <paramref name="group"/> that serves
     /// <paramref name="absolutePath"/> at <c>schemas/{version}/{name}{ext}</c>
     /// (or <c>schemas/{name}{ext}</c> when no version is found).
-    /// Files whose extension is not <c>.yaml</c>, <c>.yml</c>, or <c>.json</c> are skipped.
+    /// Files whose extension is not <c>.yaml</c>, <c>.yml</c>, or <c>.json</c> are skipped
+    /// and <see langword="null"/> is returned.
     /// </summary>
-    private static void MapSchemaFileEndpoint(RouteGroupBuilder group, string absolutePath)
+    private static OpenApiSchemaEndpoint? MapSchemaFileEndpoint(RouteGroupBuilder group, string absolutePath, string resolvedPrefix)
     {
         var extension = Path.GetExtension(absolutePath).ToLowerInvariant();
         if (extension is not (".yaml" or ".yml" or ".json"))
-            return;
+            return null;
 
-        var name = Path.GetFileNameWithoutExtension(absolutePath);
         var contentType = extension switch
         {
             ".yaml" or ".yml" => "text/yaml",
@@ -250,16 +267,22 @@ public static class ServiceCollectionExtensions
             _ => "application/octet-stream",
         };
 
-        var version = ExtractVersion(absolutePath);
+        var (title, version) = ExtractOpenApiInfo(absolutePath);
+        var fileNameWithoutExt = Path.GetFileNameWithoutExtension(absolutePath);
         var routePath = version is not null
-            ? $"schemas/{version}/{name}{extension}"
-            : $"schemas/{name}{extension}";
+            ? $"schemas/{version}/{fileNameWithoutExt}{extension}"
+            : $"schemas/{fileNameWithoutExt}{extension}";
+        var normalizedPrefix = resolvedPrefix.StartsWith('/') ? resolvedPrefix : $"/{resolvedPrefix}";
+        var publicPath = $"{normalizedPrefix.TrimEnd('/')}/{routePath}";
+        var name = ComputeDisplayName(title, version, absolutePath);
 
-        group.MapGet(
+        var endpoint = group.MapGet(
             routePath,
             // FileStreamHttpResult (returned by Results.File) disposes the stream
             // after the response is written, so the FileStream is correctly cleaned up.
             () => Results.File(File.OpenRead(absolutePath), contentType));
+
+        return new OpenApiSchemaEndpoint(name, version, publicPath, HasOverride: false, endpoint);
     }
 
     /// <summary>
@@ -267,7 +290,7 @@ public static class ServiceCollectionExtensions
     /// <paramref name="absolutePath"/> at the verbatim <paramref name="overridePath"/>.
     /// The content type is derived from the source file extension.
     /// </summary>
-    private static void MapSchemaFileEndpointAtPath(IEndpointRouteBuilder builder, string absolutePath, string overridePath)
+    private static RouteHandlerBuilder MapSchemaFileEndpointAtPath(IEndpointRouteBuilder builder, string absolutePath, string overridePath)
     {
         var extension = Path.GetExtension(absolutePath).ToLowerInvariant();
         var contentType = extension switch
@@ -277,41 +300,71 @@ public static class ServiceCollectionExtensions
             _ => "application/octet-stream",
         };
 
-        builder.MapGet(
+        return builder.MapGet(
             overridePath,
             () => Results.File(File.OpenRead(absolutePath), contentType));
     }
 
     /// <summary>
-    /// Extracts the <c>info.version</c> value from an OpenAPI spec file (YAML or JSON)
-    /// using lightweight pattern matching, without a full parser dependency.
-    /// Returns <see langword="null"/> when the version cannot be determined.
+    /// Computes the display name for a schema endpoint.
+    /// Uses <c>info.title</c> combined with <c>info.version</c> when available;
+    /// falls back to the file name without extension.
     /// </summary>
-    private static string? ExtractVersion(string filePath)
+    private static string ComputeDisplayName(string? title, string? version, string filePath)
+    {
+        if (title is not null)
+            return version is not null ? $"{title} {version}" : title;
+        return Path.GetFileNameWithoutExtension(filePath);
+    }
+
+    /// <summary>
+    /// Reads the spec file once and extracts both <c>info.title</c> and <c>info.version</c>.
+    /// Returns <see langword="null"/> for either field when it cannot be determined.
+    /// </summary>
+    private static (string? Title, string? Version) ExtractOpenApiInfo(string filePath)
     {
         try
         {
             var content = File.ReadAllText(filePath);
-
-            // YAML: version: "1.0.0"  or  version: 1.0.0  or  version: '1.0.0'
-            var yamlMatch = Regex.Match(
-                content,
-                @"^\s*version:\s*['""]?([^\s'""\n\r]+)['""]?\s*$",
-                RegexOptions.Multiline);
-            if (yamlMatch.Success)
-                return yamlMatch.Groups[1].Value;
-
-            // JSON: "version": "1.0.0"
-            var jsonMatch = Regex.Match(content, @"""version""\s*:\s*""([^""]+)""");
-            if (jsonMatch.Success)
-                return jsonMatch.Groups[1].Value;
-
-            return null;
+            return (ExtractOpenApiField(content, "title"), ExtractOpenApiField(content, "version"));
         }
         catch
         {
-            return null;
+            return (null, null);
         }
+    }
+
+    /// <summary>
+    /// Extracts a single <c>info</c> field value from already-loaded OpenAPI spec content
+    /// using lightweight pattern matching (YAML and JSON), without a full parser dependency.
+    /// Returns <see langword="null"/> when the field cannot be determined.
+    /// </summary>
+    private static string? ExtractOpenApiField(string content, string fieldName)
+    {
+        // YAML: fieldName: Value  or  fieldName: "Value"  or  fieldName: 'Value'
+        // Use explicit alternation: quoted group (Group 1) or unquoted group (Group 2).
+        // The unquoted variant allows apostrophes while stopping at double-quotes, YAML
+        // comments, and newlines.
+        var yamlMatch = Regex.Match(
+            content,
+            $@"^\s*{Regex.Escape(fieldName)}:\s*(?:['""]([^'""]+)['""]|([^""#\n\r]+?))\s*$",
+            RegexOptions.Multiline);
+        if (yamlMatch.Success)
+        {
+            var value = yamlMatch.Groups[1].Length > 0
+                ? yamlMatch.Groups[1].Value
+                : yamlMatch.Groups[2].Value.Trim();
+            return value.Length > 0 ? value : null;
+        }
+
+        // JSON: "fieldName": "Value"
+        var jsonMatch = Regex.Match(
+            content,
+            $@"""{Regex.Escape(fieldName)}""\s*:\s*""([^""]+)""");
+        if (jsonMatch.Success)
+            return jsonMatch.Groups[1].Value;
+
+        return null;
     }
 }
 #endif

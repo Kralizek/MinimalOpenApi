@@ -21,6 +21,10 @@
   <Import Project="../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
 
   <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!--
       The default routing exposes this spec at /.openapi/schemas/1.0.0/openapi.yaml.
       To use a custom HTTP path instead, set PublishPathOverride:
