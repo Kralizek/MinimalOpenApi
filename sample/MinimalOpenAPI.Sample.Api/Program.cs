@@ -10,10 +10,21 @@ var app = builder.Build();
 
 app.MapMinimalOpenApiEndpoints();
 
-// Serve every <OpenApi Publish="true" /> spec at GET /.openapi/schemas/{version}/{name}.{ext}.
-// The MinimalOpenAPI build targets copy those files to the application base directory
-// at build and publish time; MapOpenApiSchemas() discovers them and registers endpoints.
-app.MapOpenApiSchemas();
+// Map every <OpenApi Publish="true" /> spec file as a static GET endpoint.
+// The returned result describes each mapped endpoint so consumers can wire up
+// documentation UIs (e.g. Swagger UI) without duplicating path calculations.
+var schemas = app.MapOpenApiSchemas();
+
+// Configure Swagger UI to display every published spec as a named endpoint.
+// The public path and display name come directly from the schema map result,
+// so there is a single source of truth for the schema endpoint URLs.
+app.UseSwaggerUI(options =>
+{
+    foreach (var schema in schemas.Schemas)
+    {
+        options.SwaggerEndpoint(schema.PublicPath, schema.Name);
+    }
+});
 
 app.Run();
 

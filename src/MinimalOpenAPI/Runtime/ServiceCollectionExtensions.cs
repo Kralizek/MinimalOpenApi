@@ -169,13 +169,19 @@ public static class ServiceCollectionExtensions
     /// Defaults to <c>AppContext.BaseDirectory/openapi/schemas</c>.
     /// Override this parameter in tests to point at a temporary directory.
     /// </param>
-    /// <returns>A <see cref="RouteGroupBuilder"/> that can be further configured.</returns>
-    public static RouteGroupBuilder MapOpenApiSchemas(
+    /// <returns>
+    /// An <see cref="OpenApiSchemaMapResult"/> describing every mapped schema endpoint,
+    /// including the public HTTP path and the <see cref="RouteHandlerBuilder"/> for further
+    /// configuration.  The return value may be ignored when the endpoint metadata is not needed.
+    /// </returns>
+    public static OpenApiSchemaMapResult MapOpenApiSchemas(
         this IEndpointRouteBuilder builder,
         string? prefix = "/.openapi",
         string? schemasDirectory = null)
     {
-        var group = builder.MapGroup(prefix ?? "/.openapi");
+        var resolvedPrefix = prefix ?? "/.openapi";
+        var group = builder.MapGroup(resolvedPrefix);
+        var descriptors = new List<OpenApiSchemaEndpoint>();
 
         List<(string RelPath, string? PublishPathOverride)> registeredFiles;
         lock (_registrationLock)
@@ -209,9 +215,18 @@ public static class ServiceCollectionExtensions
                     relPath.Replace('/', Path.DirectorySeparatorChar));
 
                 if (publishPathOverride is not null)
-                    MapSchemaFileEndpointAtPath(builder, absolutePath, publishPathOverride);
+                {
+                    var endpoint = MapSchemaFileEndpointAtPath(builder, absolutePath, publishPathOverride);
+                    var name = Path.GetFileNameWithoutExtension(absolutePath);
+                    var version = ExtractVersion(absolutePath);
+                    descriptors.Add(new OpenApiSchemaEndpoint(name, version, publishPathOverride, HasOverride: true, endpoint));
+                }
                 else
-                    MapSchemaFileEndpoint(group, absolutePath);
+                {
+                    var result = MapSchemaFileEndpoint(group, absolutePath, resolvedPrefix);
+                    if (result is not null)
+                        descriptors.Add(result);
+                }
             }
         }
         else
@@ -221,26 +236,31 @@ public static class ServiceCollectionExtensions
             var directory = schemasDirectory ?? Path.Combine(AppContext.BaseDirectory, "openapi", "schemas");
 
             if (!Directory.Exists(directory))
-                return group;
+                return new OpenApiSchemaMapResult(descriptors);
 
             foreach (var schemaFile in Directory.EnumerateFiles(directory))
-                MapSchemaFileEndpoint(group, schemaFile);
+            {
+                var result = MapSchemaFileEndpoint(group, schemaFile, resolvedPrefix);
+                if (result is not null)
+                    descriptors.Add(result);
+            }
         }
 
-        return group;
+        return new OpenApiSchemaMapResult(descriptors);
     }
 
     /// <summary>
     /// Registers a single GET endpoint on <paramref name="group"/> that serves
     /// <paramref name="absolutePath"/> at <c>schemas/{version}/{name}{ext}</c>
     /// (or <c>schemas/{name}{ext}</c> when no version is found).
-    /// Files whose extension is not <c>.yaml</c>, <c>.yml</c>, or <c>.json</c> are skipped.
+    /// Files whose extension is not <c>.yaml</c>, <c>.yml</c>, or <c>.json</c> are skipped
+    /// and <see langword="null"/> is returned.
     /// </summary>
-    private static void MapSchemaFileEndpoint(RouteGroupBuilder group, string absolutePath)
+    private static OpenApiSchemaEndpoint? MapSchemaFileEndpoint(RouteGroupBuilder group, string absolutePath, string resolvedPrefix)
     {
         var extension = Path.GetExtension(absolutePath).ToLowerInvariant();
         if (extension is not (".yaml" or ".yml" or ".json"))
-            return;
+            return null;
 
         var name = Path.GetFileNameWithoutExtension(absolutePath);
         var contentType = extension switch
@@ -254,12 +274,15 @@ public static class ServiceCollectionExtensions
         var routePath = version is not null
             ? $"schemas/{version}/{name}{extension}"
             : $"schemas/{name}{extension}";
+        var publicPath = $"{resolvedPrefix.TrimEnd('/')}/{routePath}";
 
-        group.MapGet(
+        var endpoint = group.MapGet(
             routePath,
             // FileStreamHttpResult (returned by Results.File) disposes the stream
             // after the response is written, so the FileStream is correctly cleaned up.
             () => Results.File(File.OpenRead(absolutePath), contentType));
+
+        return new OpenApiSchemaEndpoint(name, version, publicPath, HasOverride: false, endpoint);
     }
 
     /// <summary>
@@ -267,7 +290,7 @@ public static class ServiceCollectionExtensions
     /// <paramref name="absolutePath"/> at the verbatim <paramref name="overridePath"/>.
     /// The content type is derived from the source file extension.
     /// </summary>
-    private static void MapSchemaFileEndpointAtPath(IEndpointRouteBuilder builder, string absolutePath, string overridePath)
+    private static RouteHandlerBuilder MapSchemaFileEndpointAtPath(IEndpointRouteBuilder builder, string absolutePath, string overridePath)
     {
         var extension = Path.GetExtension(absolutePath).ToLowerInvariant();
         var contentType = extension switch
@@ -277,7 +300,7 @@ public static class ServiceCollectionExtensions
             _ => "application/octet-stream",
         };
 
-        builder.MapGet(
+        return builder.MapGet(
             overridePath,
             () => Results.File(File.OpenRead(absolutePath), contentType));
     }
