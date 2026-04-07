@@ -138,7 +138,28 @@ find /tmp/smoketest-publish/openapi/schemas -name "openapi.yaml" | grep -q . && 
 ### Public API changes
 - Document them in `README.md` (usage examples, limitations).
 - Add XML doc comments to new public members.
-- Consider backward compatibility — until `1.0.0` is tagged, breaking changes are permitted but must be flagged in `CHANGELOG.md`.
+- Consider backward compatibility — until `1.0.0` is tagged, breaking changes are permitted but must be flagged in `CHANGELOG.md` (update or rewrite the relevant existing entry if one exists; add a new entry only if the change is not already represented — see changelog policy below).
+
+### Changelog policy
+
+The changelog describes the **consumer-visible public surface** of the package; it is not an append-only activity log.
+The project is pre-1.0.0, so treat the `## Unreleased` section as a curated description of the planned 1.0.0 surface — revise and consolidate entries freely rather than appending to them.
+
+**Before touching `CHANGELOG.md`, ask two questions in order:**
+
+1. **Is the change visible to package consumers?** If not, skip the changelog entirely.
+2. **Is the change already represented by an existing entry?** If so, update or rewrite that entry instead of adding a new one.
+
+**Do not add changelog items for:**
+- documentation-only changes
+- CI/CD or workflow changes
+- test-only changes
+- refactorings with no consumer-visible effect
+- internal implementation cleanup
+- repository structure changes with no consumer impact
+- dependency updates that do not affect consumers
+
+**Add a new changelog item only when** the change introduces a genuinely new consumer-visible capability or behavior that is not already represented by an existing entry.
 
 ---
 
@@ -151,7 +172,7 @@ Before closing the task, confirm all of the following:
 - [ ] `dotnet test` — all tests pass
 - [ ] New behaviour is covered by tests (generator tests, runtime tests, or integration tests as appropriate)
 - [ ] `README.md`, `docs/`, and XML doc comments are updated if public behaviour changed
-- [ ] `CHANGELOG.md` `## Unreleased` section reflects the change
+- [ ] `CHANGELOG.md` updated only if the change is consumer-visible and not already represented by an existing entry (see changelog policy in §6)
 - [ ] `dotnet pack` output looks correct for packaging/release changes
 - [ ] Sample app runs and the relevant endpoints work for generator/runtime changes
 - [ ] No unrelated files are modified
