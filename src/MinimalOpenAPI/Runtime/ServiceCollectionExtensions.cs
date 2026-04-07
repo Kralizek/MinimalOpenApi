@@ -217,8 +217,8 @@ public static class ServiceCollectionExtensions
                 if (publishPathOverride is not null)
                 {
                     var endpoint = MapSchemaFileEndpointAtPath(builder, absolutePath, publishPathOverride);
-                    var name = Path.GetFileNameWithoutExtension(absolutePath);
                     var version = ExtractVersion(absolutePath);
+                    var name = ComputeDisplayName(absolutePath, version);
                     descriptors.Add(new OpenApiSchemaEndpoint(name, version, publishPathOverride, HasOverride: true, endpoint));
                 }
                 else
@@ -262,7 +262,6 @@ public static class ServiceCollectionExtensions
         if (extension is not (".yaml" or ".yml" or ".json"))
             return null;
 
-        var name = Path.GetFileNameWithoutExtension(absolutePath);
         var contentType = extension switch
         {
             ".yaml" or ".yml" => "text/yaml",
@@ -271,10 +270,12 @@ public static class ServiceCollectionExtensions
         };
 
         var version = ExtractVersion(absolutePath);
+        var fileNameWithoutExt = Path.GetFileNameWithoutExtension(absolutePath);
         var routePath = version is not null
-            ? $"schemas/{version}/{name}{extension}"
-            : $"schemas/{name}{extension}";
+            ? $"schemas/{version}/{fileNameWithoutExt}{extension}"
+            : $"schemas/{fileNameWithoutExt}{extension}";
         var publicPath = $"{resolvedPrefix.TrimEnd('/')}/{routePath}";
+        var name = ComputeDisplayName(absolutePath, version);
 
         var endpoint = group.MapGet(
             routePath,
@@ -303,6 +304,51 @@ public static class ServiceCollectionExtensions
         return builder.MapGet(
             overridePath,
             () => Results.File(File.OpenRead(absolutePath), contentType));
+    }
+
+    /// <summary>
+    /// Computes the display name for a schema endpoint.
+    /// Uses <c>info.title</c> combined with <c>info.version</c> when available;
+    /// falls back to the file name without extension.
+    /// </summary>
+    private static string ComputeDisplayName(string filePath, string? version)
+    {
+        var title = ExtractTitle(filePath);
+        if (title is not null)
+            return version is not null ? $"{title} {version}" : title;
+        return Path.GetFileNameWithoutExtension(filePath);
+    }
+
+    /// <summary>
+    /// Extracts the <c>info.title</c> value from an OpenAPI spec file (YAML or JSON)
+    /// using lightweight pattern matching, without a full parser dependency.
+    /// Returns <see langword="null"/> when the title cannot be determined.
+    /// </summary>
+    private static string? ExtractTitle(string filePath)
+    {
+        try
+        {
+            var content = File.ReadAllText(filePath);
+
+            // YAML: title: My Title  or  title: "My Title"  or  title: 'My Title'
+            var yamlMatch = Regex.Match(
+                content,
+                @"^\s*title:\s*['""]?(.+?)['""]?\s*$",
+                RegexOptions.Multiline);
+            if (yamlMatch.Success)
+                return yamlMatch.Groups[1].Value;
+
+            // JSON: "title": "My Title"
+            var jsonMatch = Regex.Match(content, @"""title""\s*:\s*""([^""]+)""");
+            if (jsonMatch.Success)
+                return jsonMatch.Groups[1].Value;
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     /// <summary>

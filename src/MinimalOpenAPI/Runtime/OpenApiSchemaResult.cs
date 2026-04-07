@@ -8,7 +8,11 @@ namespace MinimalOpenAPI;
 /// <summary>
 /// Describes a single published OpenAPI schema endpoint mapped by <see cref="ServiceCollectionExtensions.MapOpenApiSchemas"/>.
 /// </summary>
-/// <param name="Name">The schema file name without extension (e.g. <c>openapi</c>).</param>
+/// <param name="Name">
+/// The display name of the schema, derived from <c>info.title</c> and <c>info.version</c>
+/// when available (e.g. <c>Todo API 1.0.0</c>), or the file name without extension as a
+/// fallback (e.g. <c>openapi</c>).
+/// </param>
 /// <param name="Version">
 /// The <c>info.version</c> value extracted from the spec file, or <see langword="null"/> when
 /// the version cannot be determined (e.g. the file does not exist at mapping time).

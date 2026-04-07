@@ -459,13 +459,55 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
-    public void MapOpenApiSchemas_DefaultRoute_DescriptorHasExpectedName()
+    public void MapOpenApiSchemas_DefaultRoute_DescriptorNameUsesTitleAndVersion()
     {
         var tempDir = Directory.CreateTempSubdirectory().FullName;
         try
         {
             File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
                 "openapi: '3.0.0'\ninfo:\n  title: My API\n  version: '1.0.0'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            var descriptor = result.Schemas[0];
+            Assert.That(descriptor.Name, Is.EqualTo("My API 1.0.0"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_DefaultRoute_DescriptorNameUsesTitleOnly_WhenNoVersion()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: My API\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            var descriptor = result.Schemas[0];
+            Assert.That(descriptor.Name, Is.EqualTo("My API"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_DefaultRoute_DescriptorNameFallsBackToFileName_WhenNoTitle()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\npaths: {}");
 
             var app = WebApplication.CreateBuilder().Build();
             var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
