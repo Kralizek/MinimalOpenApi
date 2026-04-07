@@ -91,7 +91,7 @@
       <Output TaskParameter="Filtered" ItemName="_UniqueOverridePaths" />
     </RemoveDuplicates>
     <Error Condition="@(_OpenApiOverridePaths->Count()) != @(_UniqueOverridePaths->Count())"
-           Text="Duplicate PublishPathOverride values found across OpenApi items. Each PublishPathOverride must be unique across all published OpenApi items." />
+           Text="Duplicate PublishPathOverride values found across OpenApi items: '@(_OpenApiOverridePaths)'. Each PublishPathOverride must be unique. Check your &lt;OpenApi&gt; items and ensure no two items share the same PublishPathOverride." />
   </Target>
 
   <!-- ── Project-reference development scenario ──────────────────────── -->

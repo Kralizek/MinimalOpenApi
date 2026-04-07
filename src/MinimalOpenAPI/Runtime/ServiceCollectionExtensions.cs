@@ -192,7 +192,7 @@ public static class ServiceCollectionExtensions
                 .Select(f => f.PublishPathOverride!)
                 .ToList();
             var duplicates = overridePaths
-                .GroupBy(p => p, StringComparer.OrdinalIgnoreCase)
+                .GroupBy(p => p, StringComparer.Ordinal)
                 .Where(g => g.Count() > 1)
                 .Select(g => g.Key)
                 .ToList();
