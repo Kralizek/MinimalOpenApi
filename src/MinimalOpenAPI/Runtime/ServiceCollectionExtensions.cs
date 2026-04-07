@@ -215,8 +215,8 @@ public static class ServiceCollectionExtensions
                 if (publishPathOverride is not null)
                 {
                     var endpoint = MapSchemaFileEndpointAtPath(builder, absolutePath, publishPathOverride);
-                    var version = ExtractVersion(absolutePath);
-                    var name = ComputeDisplayName(absolutePath, version);
+                    var (title, version) = ExtractOpenApiInfo(absolutePath);
+                    var name = ComputeDisplayName(title, version, absolutePath);
                     descriptors.Add(new OpenApiSchemaEndpoint(name, version, publishPathOverride, HasOverride: true, endpoint));
                 }
                 else
@@ -267,13 +267,14 @@ public static class ServiceCollectionExtensions
             _ => "application/octet-stream",
         };
 
-        var version = ExtractVersion(absolutePath);
+        var (title, version) = ExtractOpenApiInfo(absolutePath);
         var fileNameWithoutExt = Path.GetFileNameWithoutExtension(absolutePath);
         var routePath = version is not null
             ? $"schemas/{version}/{fileNameWithoutExt}{extension}"
             : $"schemas/{fileNameWithoutExt}{extension}";
-        var publicPath = $"{resolvedPrefix.TrimEnd('/')}/{routePath}";
-        var name = ComputeDisplayName(absolutePath, version);
+        var normalizedPrefix = resolvedPrefix.StartsWith('/') ? resolvedPrefix : $"/{resolvedPrefix}";
+        var publicPath = $"{normalizedPrefix.TrimEnd('/')}/{routePath}";
+        var name = ComputeDisplayName(title, version, absolutePath);
 
         var endpoint = group.MapGet(
             routePath,
@@ -309,84 +310,61 @@ public static class ServiceCollectionExtensions
     /// Uses <c>info.title</c> combined with <c>info.version</c> when available;
     /// falls back to the file name without extension.
     /// </summary>
-    private static string ComputeDisplayName(string filePath, string? version)
+    private static string ComputeDisplayName(string? title, string? version, string filePath)
     {
-        var title = ExtractTitle(filePath);
         if (title is not null)
             return version is not null ? $"{title} {version}" : title;
         return Path.GetFileNameWithoutExtension(filePath);
     }
 
     /// <summary>
-    /// Extracts the <c>info.title</c> value from an OpenAPI spec file (YAML or JSON)
-    /// using lightweight pattern matching, without a full parser dependency.
-    /// Returns <see langword="null"/> when the title cannot be determined.
+    /// Reads the spec file once and extracts both <c>info.title</c> and <c>info.version</c>.
+    /// Returns <see langword="null"/> for either field when it cannot be determined.
     /// </summary>
-    private static string? ExtractTitle(string filePath)
+    private static (string? Title, string? Version) ExtractOpenApiInfo(string filePath)
     {
         try
         {
             var content = File.ReadAllText(filePath);
-
-            // YAML: title: My Title  or  title: "My Title"  or  title: 'My Title'
-            // Use explicit alternation: quoted group (Group 1) or unquoted group (Group 2).
-            // The unquoted variant allows apostrophes (e.g. "My API's Guide") while stopping
-            // at double-quotes, YAML comments, and newlines.
-            var yamlMatch = Regex.Match(
-                content,
-                @"^\s*title:\s*(?:['""]([^'""]+)['""]|([^""#\n\r]+?))\s*$",
-                RegexOptions.Multiline);
-            if (yamlMatch.Success)
-            {
-                var title = yamlMatch.Groups[1].Length > 0
-                    ? yamlMatch.Groups[1].Value
-                    : yamlMatch.Groups[2].Value.Trim();
-                return title.Length > 0 ? title : null;
-            }
-
-            // JSON: "title": "My Title"
-            var jsonMatch = Regex.Match(content, @"""title""\s*:\s*""([^""]+)""");
-            if (jsonMatch.Success)
-                return jsonMatch.Groups[1].Value;
-
-            return null;
+            return (ExtractOpenApiField(content, "title"), ExtractOpenApiField(content, "version"));
         }
         catch
         {
-            return null;
+            return (null, null);
         }
     }
 
     /// <summary>
-    /// Extracts the <c>info.version</c> value from an OpenAPI spec file (YAML or JSON)
-    /// using lightweight pattern matching, without a full parser dependency.
-    /// Returns <see langword="null"/> when the version cannot be determined.
+    /// Extracts a single <c>info</c> field value from already-loaded OpenAPI spec content
+    /// using lightweight pattern matching (YAML and JSON), without a full parser dependency.
+    /// Returns <see langword="null"/> when the field cannot be determined.
     /// </summary>
-    private static string? ExtractVersion(string filePath)
+    private static string? ExtractOpenApiField(string content, string fieldName)
     {
-        try
+        // YAML: fieldName: Value  or  fieldName: "Value"  or  fieldName: 'Value'
+        // Use explicit alternation: quoted group (Group 1) or unquoted group (Group 2).
+        // The unquoted variant allows apostrophes while stopping at double-quotes, YAML
+        // comments, and newlines.
+        var yamlMatch = Regex.Match(
+            content,
+            $@"^\s*{Regex.Escape(fieldName)}:\s*(?:['""]([^'""]+)['""]|([^""#\n\r]+?))\s*$",
+            RegexOptions.Multiline);
+        if (yamlMatch.Success)
         {
-            var content = File.ReadAllText(filePath);
-
-            // YAML: version: "1.0.0"  or  version: 1.0.0  or  version: '1.0.0'
-            var yamlMatch = Regex.Match(
-                content,
-                @"^\s*version:\s*['""]?([^\s'""\n\r]+)['""]?\s*$",
-                RegexOptions.Multiline);
-            if (yamlMatch.Success)
-                return yamlMatch.Groups[1].Value;
-
-            // JSON: "version": "1.0.0"
-            var jsonMatch = Regex.Match(content, @"""version""\s*:\s*""([^""]+)""");
-            if (jsonMatch.Success)
-                return jsonMatch.Groups[1].Value;
-
-            return null;
+            var value = yamlMatch.Groups[1].Length > 0
+                ? yamlMatch.Groups[1].Value
+                : yamlMatch.Groups[2].Value.Trim();
+            return value.Length > 0 ? value : null;
         }
-        catch
-        {
-            return null;
-        }
+
+        // JSON: "fieldName": "Value"
+        var jsonMatch = Regex.Match(
+            content,
+            $@"""{Regex.Escape(fieldName)}""\s*:\s*""([^""]+)""");
+        if (jsonMatch.Success)
+            return jsonMatch.Groups[1].Value;
+
+        return null;
     }
 }
 #endif

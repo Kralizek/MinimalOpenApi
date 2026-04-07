@@ -690,4 +690,26 @@ public class ServiceCollectionExtensionsTests
             Directory.Delete(tempDir, recursive: true);
         }
     }
+
+    [Test]
+    public void MapOpenApiSchemas_PrefixWithoutLeadingSlash_PublicPathIsNormalized()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: My API\n  version: '1.0.0'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(prefix: "docs", schemasDirectory: tempDir);
+
+            Assert.That(result.Schemas[0].PublicPath, Does.StartWith("/"),
+                "PublicPath must always start with '/' regardless of how prefix is supplied.");
+            Assert.That(result.Schemas[0].PublicPath, Does.StartWith("/docs/"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
 }
