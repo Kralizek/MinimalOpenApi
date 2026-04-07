@@ -8,10 +8,6 @@ builder.Services.AddMinimalOpenApi();
 
 var app = builder.Build();
 
-// Note: if you pass a prefix to MapMinimalOpenApiEndpoints (e.g. "/api"), the paths
-// in the published spec file will not reflect that prefix. In that case Swagger UI's
-// "Try it out" will use the paths from the spec, which may not match the actual routes.
-// For Swagger UI integration, use the default (no prefix) or update the spec accordingly.
 app.MapMinimalOpenApiEndpoints();
 
 // Map every <OpenApi Publish="true" /> spec file as a static GET endpoint and get back

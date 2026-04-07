@@ -480,6 +480,28 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
+    public void MapOpenApiSchemas_DefaultRoute_DescriptorNameUsesTitleAndVersion_QuotedTitle()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            // Verify that quoted YAML titles are correctly stripped of their surrounding quotes.
+            File.WriteAllText(Path.Combine(tempDir, "myapi.yaml"),
+                "openapi: '3.0.0'\ninfo:\n  title: \"My API\"\n  version: '2.0.0'\npaths: {}");
+
+            var app = WebApplication.CreateBuilder().Build();
+            var result = app.MapOpenApiSchemas(schemasDirectory: tempDir);
+
+            var descriptor = result.Schemas[0];
+            Assert.That(descriptor.Name, Is.EqualTo("My API 2.0.0"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
     public void MapOpenApiSchemas_DefaultRoute_DescriptorNameUsesTitleOnly_WhenNoVersion()
     {
         var tempDir = Directory.CreateTempSubdirectory().FullName;

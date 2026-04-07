@@ -92,15 +92,13 @@ public static class ServiceCollectionExtensions
     /// <see cref="RouteGroupBuilder"/> that can be further configured
     /// (e.g. <c>.RequireAuthorization()</c> to protect all endpoints at once).
     /// When multiple OpenAPI spec files are registered, all of their endpoints are
-    /// mapped onto the same group under the shared <paramref name="prefix"/>.
+    /// mapped onto the same group.
     /// </summary>
     /// <param name="builder">The endpoint route builder.</param>
-    /// <param name="prefix">Optional route prefix applied to all generated endpoints.</param>
     public static RouteGroupBuilder MapMinimalOpenApiEndpoints(
-        this IEndpointRouteBuilder builder,
-        string? prefix = null)
+        this IEndpointRouteBuilder builder)
     {
-        var group = builder.MapGroup(prefix ?? string.Empty);
+        var group = builder.MapGroup(string.Empty);
 
         List<Action<IEndpointRouteBuilder, RouteGroupBuilder>> mappings;
         lock (_registrationLock)
@@ -331,12 +329,20 @@ public static class ServiceCollectionExtensions
             var content = File.ReadAllText(filePath);
 
             // YAML: title: My Title  or  title: "My Title"  or  title: 'My Title'
+            // Use explicit alternation: quoted group (Group 1) or unquoted group (Group 2).
+            // The unquoted variant allows apostrophes (e.g. "My API's Guide") while stopping
+            // at double-quotes, YAML comments, and newlines.
             var yamlMatch = Regex.Match(
                 content,
-                @"^\s*title:\s*['""]?(.+?)['""]?\s*$",
+                @"^\s*title:\s*(?:['""]([^'""]+)['""]|([^""#\n\r]+?))\s*$",
                 RegexOptions.Multiline);
             if (yamlMatch.Success)
-                return yamlMatch.Groups[1].Value;
+            {
+                var title = yamlMatch.Groups[1].Length > 0
+                    ? yamlMatch.Groups[1].Value
+                    : yamlMatch.Groups[2].Value.Trim();
+                return title.Length > 0 ? title : null;
+            }
 
             // JSON: "title": "My Title"
             var jsonMatch = Regex.Match(content, @"""title""\s*:\s*""([^""]+)""");
