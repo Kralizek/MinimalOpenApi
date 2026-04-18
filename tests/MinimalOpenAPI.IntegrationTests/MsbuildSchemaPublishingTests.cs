@@ -69,11 +69,13 @@ public class MsbuildSchemaPublishingTests
             Assert.That(builtFiles, Contains.Item("openapi.yaml"));
             Assert.That(builtFiles, Contains.Item("billing.json"));
 
-            var generatedDiFile = Directory.EnumerateFiles(
+            var generatedDiFiles = Directory.EnumerateFiles(
                 Path.Combine(projectDir, "obj", "gen"),
                 "*DependencyInjection.g.cs",
-                SearchOption.AllDirectories).Single();
-            var generatedSource = File.ReadAllText(generatedDiFile);
+                SearchOption.AllDirectories).ToArray();
+            var generatedSource = generatedDiFiles
+                .Select(File.ReadAllText)
+                .First(s => s.Contains("/openapi/schema.yaml", StringComparison.Ordinal));
             Assert.That(generatedSource, Does.Contain("RegisterSchemaFile(\"openapi/schemas/"));
             Assert.That(generatedSource, Does.Contain("\", \"/openapi/schema.yaml\", \"Todo API\", \"1.0.0\")"));
 

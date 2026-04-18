@@ -84,8 +84,8 @@
   <Target Name="ValidateMinimalOpenApiPublishAsDuplicates"
           BeforeTargets="Build">
     <ItemGroup>
-      <_OpenApiPublishAsValues Include="%(OpenApi.PublishAs)"
-                               Condition="'%(OpenApi.PublishAs)' != ''" />
+      <_OpenApiWithPublishAs Include="@(OpenApi)" Condition="'%(OpenApi.PublishAs)' != ''" />
+      <_OpenApiPublishAsValues Include="@(_OpenApiWithPublishAs->'%(PublishAs)')" />
     </ItemGroup>
     <RemoveDuplicates Inputs="@(_OpenApiPublishAsValues)">
       <Output TaskParameter="Filtered" ItemName="_UniquePublishAsValues" />
