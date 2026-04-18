@@ -199,8 +199,8 @@ That's it. No manual route registration, no manual DI wiring.
 | `format: date` | Maps to `DateOnly` |
 | Path parameters | Typed with route constraints (`{id:guid}`, `{page:int}`, …) |
 | Query / header / cookie params | Grouped into a `Parameters` record with `[AsParameters]` |
-| Spec publishing | `<OpenApi Publish="true" />` copies spec to build and publish output |
-| HTTP schema serving | `MapOpenApiSchemas()` serves `GET /.openapi/schemas/{version}/{name}.{ext}` |
+| Spec publishing | Every `<OpenApi ... />` item is copied to build and publish output (hashed internal path) |
+| HTTP schema serving | `MapOpenApiSchemas()` serves only schemas with `PublishAs="..."` at that exact path |
 | Endpoint customizers | Optional `<OperationId>EndpointRegistration` base for per-route metadata |
 
 See the [sample app](sample/MinimalOpenAPI.Sample.Api) for a complete end-to-end example covering all of these.
@@ -209,11 +209,14 @@ See the [sample app](sample/MinimalOpenAPI.Sample.Api) for a complete end-to-end
 
 ## Publishing the OpenAPI spec
 
-Mark the spec for publishing in the project file:
+Declare the schema metadata in the project file:
 
 ```xml
 <ItemGroup>
-  <OpenApi Include="openapi.yaml" Publish="true" />
+  <OpenApi Include="openapi.yaml"
+           PublishAs="/openapi/schema.yaml"
+           DisplayName="Todo API"
+           DisplayVersion="1.0.0" />
 </ItemGroup>
 ```
 
@@ -221,13 +224,17 @@ Then serve it in `Program.cs`:
 
 ```csharp
 app.MapMinimalOpenApiEndpoints();
-app.MapOpenApiSchemas();  // GET /.openapi/schemas/{version}/{name}.{ext}
+app.MapOpenApiSchemas();  // GET /openapi/schema.yaml
 ```
 
-`MapOpenApiSchemas` extracts the `info.version` field from each file and registers one endpoint per spec. It returns a `RouteGroupBuilder` for further configuration:
+`MapOpenApiSchemas` maps only items that declare `PublishAs`, and the endpoint path is exactly the `PublishAs` value. It returns descriptors that include `schema.PublicPath` and `schema.Name`:
 
 ```csharp
-app.MapOpenApiSchemas().RequireAuthorization("InternalOnly");
+var schemas = app.MapOpenApiSchemas();
+foreach (var schema in schemas.Schemas)
+{
+    // e.g. options.SwaggerEndpoint(schema.PublicPath, schema.Name);
+}
 ```
 
 ### Contract-package pattern
@@ -255,7 +262,7 @@ Generated namespaces:
 
 ## Limitations and non-goals
 
-- **No Swashbuckle/Scalar integration.** MinimalOpenAPI does not generate an OpenAPI document at runtime. To serve the original spec file as a static HTTP endpoint use `<OpenApi Publish="true" />` and `MapOpenApiSchemas()`.
+- **No Swashbuckle/Scalar integration.** MinimalOpenAPI does not generate an OpenAPI document at runtime. To serve original spec files as static HTTP endpoints, set `PublishAs` on `<OpenApi ... />` items and call `MapOpenApiSchemas()`.
 - **Schema composition not supported.** `allOf`, `oneOf`, and `anyOf` are not yet implemented.
 - **No runtime validation.** Validation attributes on generated properties are informational. ASP.NET Core Minimal APIs do not run `DataAnnotations` validation automatically.
 - **No code-first path.** Use Swashbuckle, NSwag, or `Microsoft.AspNetCore.OpenApi` if you want to generate an OpenAPI document from C# code.

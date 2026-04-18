@@ -12,9 +12,9 @@ app.MapGet("/", () => Results.Redirect("/swagger/index.html", permanent: false))
 
 app.MapMinimalOpenApiEndpoints();
 
-// Map every <OpenApi Publish="true" /> spec file as a static GET endpoint and get back
+// Map every <OpenApi PublishAs="..." /> spec file as a static GET endpoint and get back
 // descriptors for each one. The descriptor carries the public HTTP path, display name,
-// and the RouteHandlerBuilder so you can further configure individual schema endpoints.
+// version metadata, and the RouteHandlerBuilder so you can further configure schema endpoints.
 var schemas = app.MapOpenApiSchemas();
 
 // Configure Swagger UI to display every published spec as a named endpoint.

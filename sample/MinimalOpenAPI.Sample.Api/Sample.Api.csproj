@@ -26,11 +26,12 @@
 
   <ItemGroup>
     <!--
-      The default routing exposes this spec at /.openapi/schemas/1.0.0/openapi.yaml.
-      To use a custom HTTP path instead, set PublishPathOverride:
-        <OpenApi Include="openapi.yaml" Publish="true" PublishPathOverride="/openapi/schema.yaml" />
+      Schema files are always copied internally; PublishAs controls public HTTP exposure.
     -->
-    <OpenApi Include="openapi.yaml" Publish="true" />
+    <OpenApi Include="openapi.yaml"
+             PublishAs="/openapi/schema.yaml"
+             DisplayName="Todo API"
+             DisplayVersion="1.0.0" />
   </ItemGroup>
 
 </Project>

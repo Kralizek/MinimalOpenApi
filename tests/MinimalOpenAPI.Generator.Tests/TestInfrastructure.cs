@@ -31,13 +31,15 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
     private readonly string _metadataKey;
     private readonly string _namespaceMetadataKey;
     private readonly string _schemaIdMetadataKey;
-    private readonly string _publishMetadataKey;
-    private readonly string _publishPathOverrideMetadataKey;
+    private readonly string _publishAsMetadataKey;
+    private readonly string _displayNameMetadataKey;
+    private readonly string _displayVersionMetadataKey;
     private readonly string _namespaceKey;
     private readonly string? _specNameOverride;
     private readonly string? _schemaIdOverride;
-    private readonly bool _publish;
-    private readonly string? _publishPathOverride;
+    private readonly string? _publishAs;
+    private readonly string? _displayName;
+    private readonly string? _displayVersion;
 
     public TestAnalyzerConfigOptionsProvider(
         AdditionalText[] additionalTexts,
@@ -45,26 +47,30 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         string metadataKey,
         string namespaceMetadataKey,
         string schemaIdMetadataKey,
-        string publishMetadataKey,
-        string publishPathOverrideMetadataKey,
+        string publishAsMetadataKey,
+        string displayNameMetadataKey,
+        string displayVersionMetadataKey,
         string namespaceKey,
         string? specNameOverride = null,
         string? schemaId = null,
-        bool publish = false,
-        string? publishPathOverride = null)
+        string? publishAs = null,
+        string? displayName = null,
+        string? displayVersion = null)
     {
         _additionalTexts = additionalTexts;
         _rootNamespace = rootNamespace;
         _metadataKey = metadataKey;
         _namespaceMetadataKey = namespaceMetadataKey;
         _schemaIdMetadataKey = schemaIdMetadataKey;
-        _publishMetadataKey = publishMetadataKey;
-        _publishPathOverrideMetadataKey = publishPathOverrideMetadataKey;
+        _publishAsMetadataKey = publishAsMetadataKey;
+        _displayNameMetadataKey = displayNameMetadataKey;
+        _displayVersionMetadataKey = displayVersionMetadataKey;
         _namespaceKey = namespaceKey;
         _specNameOverride = specNameOverride;
         _schemaIdOverride = schemaId;
-        _publish = publish;
-        _publishPathOverride = publishPathOverride;
+        _publishAs = publishAs;
+        _displayName = displayName;
+        _displayVersion = displayVersion;
     }
 
     public override AnalyzerConfigOptions GlobalOptions
@@ -91,11 +97,14 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         if (isOpenApi && _schemaIdOverride is not null)
             options[_schemaIdMetadataKey] = _schemaIdOverride;
 
-        if (isOpenApi)
-            options[_publishMetadataKey] = _publish ? "true" : "false";
+        if (isOpenApi && _publishAs is not null)
+            options[_publishAsMetadataKey] = _publishAs;
 
-        if (isOpenApi && _publishPathOverride is not null)
-            options[_publishPathOverrideMetadataKey] = _publishPathOverride;
+        if (isOpenApi && _displayName is not null)
+            options[_displayNameMetadataKey] = _displayName;
+
+        if (isOpenApi && _displayVersion is not null)
+            options[_displayVersionMetadataKey] = _displayVersion;
 
         return new TestAnalyzerConfigOptions(options);
     }

@@ -208,19 +208,22 @@ Non-path parameters (query, header, cookie) are grouped into a nested `Parameter
 
 ## 4.1. Publishing the OpenAPI spec as a static HTTP endpoint
 
-MinimalOpenAPI can copy the original spec file into the build/publish output and serve it via HTTP.
+MinimalOpenAPI always copies OpenAPI files into build/publish output and can expose selected schemas via explicit HTTP paths.
 
-**Step 1 — Mark the spec for publishing in the `.csproj`:**
+**Step 1 — Declare explicit schema publishing metadata in the `.csproj`:**
 
 ```xml
 <ItemGroup>
-  <OpenApi Include="openapi.yaml" Publish="true" />
+  <OpenApi Include="openapi.yaml"
+           PublishAs="/openapi/schema.yaml"
+           DisplayName="Todo API"
+           DisplayVersion="1.0.0" />
 </ItemGroup>
 ```
 
 This triggers two MSBuild targets:
-- `CopyMinimalOpenApiFilesToOutput` — copies the file to `openapi/schemas/<filename>.<ext>` next to the output binary.
-- `AddMinimalOpenApiFilesToPublishOutput` — includes the file at the same relative path in `dotnet publish` output.
+- `CopyMinimalOpenApiFilesToOutput` — copies every OpenAPI file to `openapi/schemas/<SchemaId>/<filename>.<ext>` next to the output binary.
+- `AddMinimalOpenApiFilesToPublishOutput` — includes every OpenAPI file at the same hashed relative path in `dotnet publish` output.
 
 **Step 2 — Call `MapOpenApiSchemas()` in `Program.cs`:**
 
@@ -233,12 +236,16 @@ app.MapOpenApiSchemas();
 app.Run();
 ```
 
-At startup `MapOpenApiSchemas` scans `openapi/schemas/` in the application base directory, reads the `info.version` field from each file, and registers one endpoint per file at `GET /.openapi/schemas/{version}/{name}.{ext}` — for example `/.openapi/schemas/1.0.0/openapi.yaml`. When the version cannot be determined the version segment is omitted.
+At startup `MapOpenApiSchemas` maps only entries that have `PublishAs`, and each endpoint path is exactly that value. Descriptor metadata comes from project metadata (`DisplayName`, `DisplayVersion`) with fallbacks.
 
-The method returns a `RouteGroupBuilder`, so endpoints can be secured in one call:
+The method returns schema descriptors that can be used directly by Swagger UI:
 
 ```csharp
-app.MapOpenApiSchemas().RequireAuthorization("InternalOnly");
+var schemas = app.MapOpenApiSchemas();
+foreach (var schema in schemas.Schemas)
+{
+    options.SwaggerEndpoint(schema.PublicPath, schema.Name);
+}
 ```
 
 ---
@@ -259,7 +266,7 @@ Agents **must not** violate these rules:
 ## 6. Non-goals and limitations
 
 - **OpenAPI 3.0.x only.** OpenAPI 3.1.x and Swagger 2.0 are not supported.
-- **No Swashbuckle/Scalar integration.** The framework does not integrate with Swashbuckle or Scalar. To serve the original spec file as a static HTTP endpoint use `<OpenApi Publish="true" />` and `MapOpenApiSchemas()` (see §4.1 below).
+- **No Swashbuckle/Scalar integration.** The framework does not integrate with Swashbuckle or Scalar. To serve original spec files as static HTTP endpoints, set `PublishAs` on `<OpenApi ... />` items and call `MapOpenApiSchemas()` (see §4.1 below).
 - **No schema composition.** `allOf`, `oneOf`, and `anyOf` are not supported. Use `$ref` or inline object schemas.
 - **Single spec file per project.** Multiple `<OpenApi>` items may conflict when operation IDs or schema names clash.
 - **No runtime request validation.** Model binding uses ASP.NET Core defaults. OpenAPI-level constraints (pattern, min/max) are not enforced at runtime.

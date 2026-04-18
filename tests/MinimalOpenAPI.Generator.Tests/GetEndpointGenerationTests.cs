@@ -161,9 +161,9 @@ public class GetEndpointGenerationTests
     }
 
     [Test]
-    public void GeneratesDiRegistration_WithoutPublish_DoesNotEmitRegisterSchemaFile()
+    public void GeneratesDiRegistration_WithoutSchemaId_DoesNotEmitRegisterSchemaFile()
     {
-        // No schemaId / publish=false → RegisterSchemaFile must NOT appear.
+        // No schemaId means there is no generated internal copied path to register.
         var (result, _) = GeneratorTestHelper.RunGenerator(
             userSource: GetClientHandlerImpl,
             additionalFiles: AdditionalFiles);
@@ -174,14 +174,13 @@ public class GetEndpointGenerationTests
     }
 
     [Test]
-    public void GeneratesDiRegistration_WithPublish_EmitsRegisterSchemaFile()
+    public void GeneratesDiRegistration_WithSchemaId_EmitsRegisterSchemaFile()
     {
-        // schemaId + publish=true → RegisterSchemaFile must be emitted with the correct path.
+        // schemaId present -> RegisterSchemaFile must be emitted with the internal copied path.
         var (result, _) = GeneratorTestHelper.RunGenerator(
             userSource: GetClientHandlerImpl,
             additionalFiles: AdditionalFiles,
-            schemaId: "987654321",
-            publish: true);
+            schemaId: "987654321");
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
 
@@ -190,55 +189,37 @@ public class GetEndpointGenerationTests
     }
 
     [Test]
-    public void GeneratesDiRegistration_PublishTrueButNoSchemaId_DoesNotEmitRegisterSchemaFile()
+    public void GeneratesDiRegistration_WithPublishAs_EmitsRegisterSchemaFileWithExactPublicPath()
     {
-        // publish=true but no schemaId → RegisterSchemaFile must NOT be emitted
-        // (the file was not copied by the targets, so there is nothing to serve).
-        var (result, _) = GeneratorTestHelper.RunGenerator(
-            userSource: GetClientHandlerImpl,
-            additionalFiles: AdditionalFiles,
-            schemaId: null,
-            publish: true);
-
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
-
-        Assert.That(source, Does.Not.Contain("RegisterSchemaFile("));
-    }
-
-    [Test]
-    public void GeneratesDiRegistration_WithPublishPathOverride_EmitsRegisterSchemaFileWithOverridePath()
-    {
-        // schemaId + publish=true + publishPathOverride → RegisterSchemaFile must be emitted with both paths.
+        // PublishAs is passed through verbatim.
         var (result, _) = GeneratorTestHelper.RunGenerator(
             userSource: GetClientHandlerImpl,
             additionalFiles: AdditionalFiles,
             schemaId: "987654321",
-            publish: true,
-            publishPathOverride: "/contracts/public/v1/openapi.yaml");
+            publishAs: "/contracts/public/v1/openapi.yaml");
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
 
-        Assert.That(source, Does.Contain("RegisterSchemaFile("));
-        Assert.That(source, Does.Contain("openapi/schemas/987654321/openapi.yaml"));
-        Assert.That(source, Does.Contain("/contracts/public/v1/openapi.yaml"));
-        // The override path must be the second argument.
-        Assert.That(source, Does.Contain("RegisterSchemaFile(\"openapi/schemas/987654321/openapi.yaml\", \"/contracts/public/v1/openapi.yaml\")"));
+        Assert.That(source, Does.Contain(
+            "RegisterSchemaFile(\"openapi/schemas/987654321/openapi.yaml\", \"/contracts/public/v1/openapi.yaml\", null, null)"));
     }
 
     [Test]
-    public void GeneratesDiRegistration_WithPublishAndNoOverride_EmitsRegisterSchemaFileWithoutSecondArgument()
+    public void GeneratesDiRegistration_WithDisplayMetadata_EmitsRegisterSchemaFileWithDisplayArguments()
     {
-        // publish=true but no publishPathOverride → RegisterSchemaFile uses single-argument form.
+        // Display metadata should be forwarded without parsing the file.
         var (result, _) = GeneratorTestHelper.RunGenerator(
             userSource: GetClientHandlerImpl,
             additionalFiles: AdditionalFiles,
             schemaId: "987654321",
-            publish: true);
+            publishAs: "/openapi/schema.yaml",
+            displayName: "Todo API",
+            displayVersion: "1.0.0");
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
 
-        Assert.That(source, Does.Contain("RegisterSchemaFile(\"openapi/schemas/987654321/openapi.yaml\")"));
-        Assert.That(source, Does.Not.Contain("RegisterSchemaFile(\"openapi/schemas/987654321/openapi.yaml\","));
+        Assert.That(source, Does.Contain(
+            "RegisterSchemaFile(\"openapi/schemas/987654321/openapi.yaml\", \"/openapi/schema.yaml\", \"Todo API\", \"1.0.0\")"));
     }
 
     [Test]

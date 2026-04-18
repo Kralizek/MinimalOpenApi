@@ -149,12 +149,19 @@ public class EndpointIntegrationTests
     [Test]
     public async Task GetOpenApiSchema_ReturnsYamlWithCorrectContentType()
     {
-        var response = await _client.GetAsync("/.openapi/schemas/1.0.0/openapi.yaml");
+        var response = await _client.GetAsync("/openapi/schema.yaml");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/yaml"));
         var body = await response.Content.ReadAsStringAsync();
         Assert.That(body, Does.Contain("openapi:"));
+    }
+
+    [Test]
+    public async Task GetOpenApiSchema_DefaultImplicitRoute_IsNotMapped()
+    {
+        var response = await _client.GetAsync("/.openapi/schemas/1.0.0/openapi.yaml");
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
     [Test]
