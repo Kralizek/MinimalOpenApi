@@ -17,9 +17,6 @@ namespace MinimalOpenAPI;
 /// <param name="PublicPath">
 /// The full HTTP path at which the schema is accessible, exactly matching the configured <c>PublishAs</c> value.
 /// </param>
-/// <param name="HasOverride">
-/// <see langword="true"/> when the endpoint path is explicitly configured by project metadata.
-/// </param>
 /// <param name="Endpoint">
 /// The <see cref="RouteHandlerBuilder"/> returned when the schema endpoint was registered,
 /// allowing further configuration such as <c>.RequireAuthorization()</c>.
@@ -28,8 +25,10 @@ public sealed record OpenApiSchemaEndpoint(
     string Name,
     string? Version,
     string PublicPath,
-    bool HasOverride,
-    RouteHandlerBuilder Endpoint);
+    RouteHandlerBuilder Endpoint)
+{
+    public string FullName => $"{Name} {Version}";
+}
 
 /// <summary>
 /// The result returned by <see cref="ServiceCollectionExtensions.MapOpenApiSchemas"/>,

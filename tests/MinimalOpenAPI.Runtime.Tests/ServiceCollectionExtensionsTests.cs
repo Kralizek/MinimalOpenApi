@@ -169,8 +169,22 @@ public class ServiceCollectionExtensionsTests
         var app = WebApplication.CreateBuilder().Build();
         var result = app.MapOpenApiSchemas();
 
-        Assert.That(result.Schemas[0].HasOverride, Is.True);
         Assert.That(result.Schemas[0].Endpoint, Is.Not.Null);
         Assert.DoesNotThrow(() => result.Schemas[0].Endpoint.WithName("schema"));
+    }
+
+    [Test]
+    public void MapOpenApiSchemas_DescriptorFullName_ReturnsNameAndVersion()
+    {
+        ServiceCollectionExtensions.RegisterSchemaFile(
+            "openapi/schemas/987654321/openapi.yaml",
+            "/openapi/schema.yaml",
+            "Todo API",
+            "1.0.0");
+
+        var app = WebApplication.CreateBuilder().Build();
+        var result = app.MapOpenApiSchemas();
+
+        Assert.That(result.Schemas[0].FullName, Is.EqualTo("Todo API 1.0.0"));
     }
 }

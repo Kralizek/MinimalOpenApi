@@ -192,7 +192,7 @@ public static class ServiceCollectionExtensions
             var fallbackName = Path.GetFileNameWithoutExtension(relPath);
             var name = string.IsNullOrWhiteSpace(displayName) ? fallbackName : displayName;
             var version = string.IsNullOrWhiteSpace(displayVersion) ? null : displayVersion;
-            descriptors.Add(new OpenApiSchemaEndpoint(name, version, publishAs, HasOverride: true, endpoint));
+            descriptors.Add(new OpenApiSchemaEndpoint(name, version, publishAs, endpoint));
         }
 
         return new OpenApiSchemaMapResult(descriptors);
