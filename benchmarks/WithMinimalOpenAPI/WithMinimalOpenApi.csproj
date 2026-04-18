@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <Import Project="../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
+
+  <ItemGroup>
+    <OpenApi Include="todo.yaml"
+             PublishAs="/openapi/todo.yaml"
+             DisplayName="Todo API"
+             DisplayVersion="1.0.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,166 @@
+$schema: "https://spec.openapis.org/oas/3.1/schema/2022-10-07"
+openapi: 3.1.0
+info:
+  title: "Todo API"
+  version: "1.0.0"
+  description: "API for managing todo items"
+components:
+  schemas:
+    TodoItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        completed:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        dueDate:
+          type: string
+          format: date
+        notes:
+          type: string
+          maxLength: 1000
+      required:
+        - id
+        - title
+        - completed
+        - createdAt
+paths:
+  /todos:
+    get:
+      operationId: listTodos
+      summary: "List all todo items"
+      parameters:
+        - name: completed
+          in: query
+          description: "Filter by completion status"
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: "A list of todo items"
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                  - count
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TodoItem'
+                  count:
+                    type: integer
+                    minimum: 0
+    post:
+      operationId: createTodo
+      summary: "Create a new todo item"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - dueDate
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                dueDate:
+                  type: string
+                  format: date
+                notes:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '201':
+          description: "Todo item created successfully"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoItem'
+  /todos/{id}:
+    get:
+      operationId: getTodo
+      summary: "Get a specific todo item by ID"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: "The requested todo item"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoItem'
+        '404':
+          description: "Todo item not found"
+    put:
+      operationId: updateTodo
+      summary: "Update an existing todo item"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                completed:
+                  type: boolean
+                dueDate:
+                  type: string
+                  format: date
+                notes:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          description: "Todo item updated successfully"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoItem'
+        '404':
+          description: "Todo item not found"
+    delete:
+      operationId: deleteTodo
+      summary: "Delete a specific todo item by ID"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: "Todo item deleted successfully"
+        '404':
+          description: "Todo item not found"
