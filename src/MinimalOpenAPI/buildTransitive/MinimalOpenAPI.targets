@@ -17,8 +17,8 @@
       3. Add the generator's runtime dependencies as analyzers so Roslyn can
          load the generator DLL (dev scenario only).
       4. Add MinimalOpenAPI.Runtime as a compile reference (dev scenario only).
-      5. Copy <OpenApi Publish="true" /> files to the build output directory
-         and include them in dotnet publish output under openapi/<name>/schema.<ext>.
+      5. Copy all <OpenApi /> files to the build output directory and include
+         them in dotnet publish output under openapi/schemas/<SchemaId>/<name>.<ext>.
   -->
 
   <!-- ── OpenApi item type ────────────────────────────────────────────── -->
@@ -26,8 +26,9 @@
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiFile" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiNamespace" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiSchemaId" />
-    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiPublish" />
-    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiPublishPathOverride" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiPublishAs" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiDisplayName" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiDisplayVersion" />
     <CompilerVisibleProperty Include="RootNamespace" />
   </ItemGroup>
 
@@ -50,8 +51,9 @@
     checked in.  The generator receives the same value so it can hard-code the correct
     relative file path inside the generated RegisterSchemaFile() call.
 
-    MinimalOpenApiPublish mirrors the Publish item metadata so the generator knows
-    whether to emit a RegisterSchemaFile() call for a given spec file.
+    MinimalOpenApiPublishAs / MinimalOpenApiDisplayName / MinimalOpenApiDisplayVersion
+    mirror the matching OpenApi item metadata so the generator can register runtime
+    schema mapping metadata without parsing file contents.
   -->
   <Target Name="AddMinimalOpenApiFilesToAdditionalFiles"
           BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile">
@@ -60,38 +62,36 @@
                        MinimalOpenApiFile="true"
                        MinimalOpenApiNamespace="%(OpenApi.Namespace)"
                        MinimalOpenApiSchemaId="$([System.Math]::Abs($([MSBuild]::StableStringHash('%(FullPath)'))))"
-                       MinimalOpenApiPublish="%(OpenApi.Publish)"
-                       MinimalOpenApiPublishPathOverride="%(OpenApi.PublishPathOverride)" />
+                       MinimalOpenApiPublishAs="%(OpenApi.PublishAs)"
+                       MinimalOpenApiDisplayName="%(OpenApi.DisplayName)"
+                       MinimalOpenApiDisplayVersion="%(OpenApi.DisplayVersion)" />
     </ItemGroup>
   </Target>
 
-  <!-- ── PublishPathOverride validation ────────────────────────────────── -->
+  <!-- ── PublishAs validation ─────────────────────────────────────────── -->
   <!--
-    Validate that PublishPathOverride is only used when Publish="true".
-    Fail the build if PublishPathOverride is set on an item without Publish="true".
+    Validate that PublishAs starts with '/' when provided.
   -->
-  <Target Name="ValidateMinimalOpenApiPublishPathOverrideRequiresPublish"
+  <Target Name="ValidateMinimalOpenApiPublishAsStartsWithSlash"
           BeforeTargets="Build">
-    <Error Condition="'%(OpenApi.PublishPathOverride)' != '' and '%(OpenApi.Publish)' != 'true'"
-           Text="OpenApi item '%(OpenApi.Identity)' has PublishPathOverride='%(OpenApi.PublishPathOverride)' but Publish is not 'true'. Set Publish=&quot;true&quot; on the item or remove PublishPathOverride." />
+    <Error Condition="'%(OpenApi.PublishAs)' != '' and !$([System.String]::Copy('%(OpenApi.PublishAs)').StartsWith('/'))"
+           Text="OpenApi item '%(OpenApi.Identity)' has PublishAs='%(OpenApi.PublishAs)'. PublishAs must start with '/'." />
   </Target>
 
   <!--
-    Validate that no two published OpenApi items share the same PublishPathOverride.
-    Duplicate override paths would map two files to the same HTTP endpoint, which is
-    not allowed.  If duplicates are detected, the build fails with a clear error.
+    Validate that no two OpenApi items share the same PublishAs value.
   -->
-  <Target Name="ValidateMinimalOpenApiPublishPathOverrideDuplicates"
+  <Target Name="ValidateMinimalOpenApiPublishAsDuplicates"
           BeforeTargets="Build">
     <ItemGroup>
-      <_OpenApiOverridePaths Include="%(OpenApi.PublishPathOverride)"
-                             Condition="'%(OpenApi.Publish)' == 'true' and '%(OpenApi.PublishPathOverride)' != ''" />
+      <_OpenApiWithPublishAs Include="@(OpenApi)" Condition="'%(OpenApi.PublishAs)' != ''" />
+      <_OpenApiPublishAsValues Include="@(_OpenApiWithPublishAs->'%(PublishAs)')" />
     </ItemGroup>
-    <RemoveDuplicates Inputs="@(_OpenApiOverridePaths)">
-      <Output TaskParameter="Filtered" ItemName="_UniqueOverridePaths" />
+    <RemoveDuplicates Inputs="@(_OpenApiPublishAsValues)">
+      <Output TaskParameter="Filtered" ItemName="_UniquePublishAsValues" />
     </RemoveDuplicates>
-    <Error Condition="@(_OpenApiOverridePaths->Count()) != @(_UniqueOverridePaths->Count())"
-           Text="Duplicate PublishPathOverride values found across OpenApi items: '@(_OpenApiOverridePaths)'. Each PublishPathOverride must be unique. Check your &lt;OpenApi&gt; items and ensure no two items share the same PublishPathOverride." />
+    <Error Condition="@(_OpenApiPublishAsValues->Count()) != @(_UniquePublishAsValues->Count())"
+           Text="Duplicate PublishAs values found across OpenApi items: '@(_OpenApiPublishAsValues)'. Each PublishAs must be unique." />
   </Target>
 
   <!-- ── Project-reference development scenario ──────────────────────── -->
@@ -163,7 +163,7 @@
 
   <!-- ── OpenAPI file publishing ─────────────────────────────────────── -->
   <!--
-    Copy <OpenApi Publish="true" /> files to the build output directory so
+    Copy all <OpenApi /> files to the build output directory so
     they are available when running locally (e.g. dotnet run via AppContext.BaseDirectory).
     Each file is placed under a unique subdirectory derived from a stable hash of its
     full source path, preventing name collisions between files with the same filename
@@ -175,9 +175,9 @@
   -->
   <Target Name="CopyMinimalOpenApiFilesToOutput"
           AfterTargets="Build"
-          Condition="'@(OpenApi->WithMetadataValue('Publish', 'true'))' != ''">
+          Condition="'@(OpenApi)' != ''">
     <ItemGroup>
-      <_MinimalOpenApiFilesToCopy Include="@(OpenApi)" Condition="'%(OpenApi.Publish)' == 'true'">
+      <_MinimalOpenApiFilesToCopy Include="@(OpenApi)">
         <SchemaId>$([System.Math]::Abs($([MSBuild]::StableStringHash('%(FullPath)'))))</SchemaId>
       </_MinimalOpenApiFilesToCopy>
     </ItemGroup>
@@ -188,7 +188,7 @@
   </Target>
 
   <!--
-    Include <OpenApi Publish="true" /> files in the dotnet publish output.
+    Include all <OpenApi /> files in the dotnet publish output.
     Hooks into AfterTargets="ComputeFilesToPublish" so items are injected
     into ResolvedFileToPublish after the SDK's standard publish computation
     and before CopyFilesToPublishDirectory copies everything to $(PublishDir).
@@ -196,9 +196,9 @@
   -->
   <Target Name="AddMinimalOpenApiFilesToPublishOutput"
           AfterTargets="ComputeFilesToPublish"
-          Condition="'@(OpenApi->WithMetadataValue('Publish', 'true'))' != ''">
+          Condition="'@(OpenApi)' != ''">
     <ItemGroup>
-      <_MinimalOpenApiFilesToPublish Include="@(OpenApi)" Condition="'%(OpenApi.Publish)' == 'true'">
+      <_MinimalOpenApiFilesToPublish Include="@(OpenApi)">
         <SchemaId>$([System.Math]::Abs($([MSBuild]::StableStringHash('%(FullPath)'))))</SchemaId>
       </_MinimalOpenApiFilesToPublish>
       <ResolvedFileToPublish Include="@(_MinimalOpenApiFilesToPublish)">

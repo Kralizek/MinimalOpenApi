@@ -1,6 +1,5 @@
 #if NET10_0_OR_GREATER
 using System.ComponentModel;
-using System.Text.RegularExpressions;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -16,7 +15,7 @@ public static class ServiceCollectionExtensions
 {
     private static readonly List<Action<IServiceCollection>> _generatedRegistrations = new();
     private static readonly List<Action<IEndpointRouteBuilder, RouteGroupBuilder>> _generatedEndpointMappings = new();
-    private static readonly List<(string RelPath, string? PublishPathOverride)> _registeredSchemaFiles = new();
+    private static readonly List<(string RelPath, string? PublishAs, string? DisplayName, string? DisplayVersion)> _registeredSchemaFiles = new();
     private static readonly object _registrationLock = new();
 
     /// <summary>
@@ -58,17 +57,18 @@ public static class ServiceCollectionExtensions
     /// Path relative to <see cref="AppContext.BaseDirectory"/>, using forward slashes,
     /// e.g. <c>openapi/schemas/987654321/openapi.yaml</c>.
     /// </param>
-    /// <param name="publishPathOverride">
-    /// When non-<see langword="null"/>, the HTTP route path at which this schema file is
-    /// exposed by <see cref="MapOpenApiSchemas"/>.  This value is accepted verbatim and
-    /// becomes the final endpoint URL, bypassing the default <c>schemas/{version}/{name}.{ext}</c>
-    /// derivation.  When <see langword="null"/> the default routing behaviour applies.
-    /// </param>
+    /// <param name="publishAs">The optional HTTP route path at which this schema file is exposed.</param>
+    /// <param name="displayName">The optional display name for schema descriptors returned by <see cref="MapOpenApiSchemas"/>.</param>
+    /// <param name="displayVersion">The optional display version for schema descriptors returned by <see cref="MapOpenApiSchemas"/>.</param>
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void RegisterSchemaFile(string relPath, string? publishPathOverride = null)
+    public static void RegisterSchemaFile(
+        string relPath,
+        string? publishAs = null,
+        string? displayName = null,
+        string? displayVersion = null)
     {
         lock (_registrationLock)
-            _registeredSchemaFiles.Add((relPath, publishPathOverride));
+            _registeredSchemaFiles.Add((relPath, publishAs, displayName, displayVersion));
     }
 
     /// <summary>
@@ -126,46 +126,24 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Maps endpoints that serve each <c>&lt;OpenApi Publish="true" /&gt;</c> spec file as a
-    /// static HTTP response.
+    /// Maps endpoints that serve registered OpenAPI schema files as static HTTP responses.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>Default routing</b>: when no <c>PublishPathOverride</c> is set on an item, the
-    /// schema is accessible at <c>{prefix}/schemas/{version}/{name}.{ext}</c>
-    /// (e.g. <c>/.openapi/schemas/1.0.0/clients.yaml</c>).
-    /// When the <c>info.version</c> field cannot be determined the version segment is
-    /// omitted and the endpoint is registered at <c>{prefix}/schemas/{name}.{ext}</c>.
-    /// </para>
-    /// <para>
-    /// <b>Override routing</b>: when <c>PublishPathOverride</c> is set on an item, that
-    /// path is used verbatim as the HTTP endpoint path, bypassing the default derivation.
-    /// The override path is registered directly on the root endpoint builder, not under
-    /// the <paramref name="prefix"/>.
-    /// </para>
-    /// <para>
     /// When the source generator has emitted <c>RegisterSchemaFile</c> calls (the normal case
-    /// for projects that reference the <c>MinimalOpenAPI</c> package), those registered paths
-    /// are used directly and no filesystem scan is performed.  The registered paths point to
+    /// for projects that reference the <c>MinimalOpenAPI</c> package), only entries that have
+    /// <c>PublishAs</c> are mapped. The registered paths point to
     /// the unique per-file subdirectories created by the <c>CopyMinimalOpenApiFilesToOutput</c>
     /// MSBuild target, so two spec files with the same filename in different source directories
     /// or NuGet packages never collide.
     /// </para>
-    /// <para>
-    /// When no files have been registered (e.g. in tests that call <c>MapOpenApiSchemas</c>
-    /// directly without going through the generated module initializer), the method falls back
-    /// to scanning <paramref name="schemasDirectory"/> for spec files.
-    /// </para>
     /// </remarks>
     /// <param name="builder">The endpoint route builder.</param>
     /// <param name="prefix">
-    /// Route prefix for all schema endpoints that use the default routing.  Defaults to <c>"/.openapi"</c>.
-    /// This prefix does <em>not</em> apply to schema endpoints that have a <c>PublishPathOverride</c>.
+    /// Legacy parameter retained for source compatibility. Not used by explicit schema mapping.
     /// </param>
     /// <param name="schemasDirectory">
-    /// Absolute path to the directory that contains the spec files used by the fallback scan.
-    /// Defaults to <c>AppContext.BaseDirectory/openapi/schemas</c>.
-    /// Override this parameter in tests to point at a temporary directory.
+    /// Legacy parameter retained for source compatibility. Not used by explicit schema mapping.
     /// </param>
     /// <returns>
     /// An <see cref="OpenApiSchemaMapResult"/> describing every mapped schema endpoint,
@@ -177,112 +155,47 @@ public static class ServiceCollectionExtensions
         string? prefix = "/.openapi",
         string? schemasDirectory = null)
     {
-        var resolvedPrefix = prefix ?? "/.openapi";
-        var group = builder.MapGroup(resolvedPrefix);
+        _ = prefix;
+        _ = schemasDirectory;
         var descriptors = new List<OpenApiSchemaEndpoint>();
 
-        List<(string RelPath, string? PublishPathOverride)> registeredFiles;
+        List<(string RelPath, string? PublishAs, string? DisplayName, string? DisplayVersion)> registeredFiles;
         lock (_registrationLock)
-            registeredFiles = new List<(string, string?)>(_registeredSchemaFiles);
+            registeredFiles = new List<(string, string?, string?, string?)>(_registeredSchemaFiles);
 
-        if (registeredFiles.Count > 0)
+        var publishAsPaths = registeredFiles
+            .Where(f => !string.IsNullOrWhiteSpace(f.PublishAs))
+            .Select(f => f.PublishAs!)
+            .ToList();
+        var duplicates = publishAsPaths
+            .GroupBy(p => p, StringComparer.Ordinal)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+        if (duplicates.Count > 0)
         {
-            // Defensive duplicate detection: fail fast if two registered files share the same
-            // PublishPathOverride.  MSBuild validation catches this at build time; this check
-            // guards against edge cases where the generated initializer is invoked outside of a
-            // normal build (e.g. hand-crafted or reflection-based invocations).
-            var overridePaths = registeredFiles
-                .Where(f => f.PublishPathOverride is not null)
-                .Select(f => f.PublishPathOverride!)
-                .ToList();
-            var duplicates = overridePaths
-                .GroupBy(p => p, StringComparer.Ordinal)
-                .Where(g => g.Count() > 1)
-                .Select(g => g.Key)
-                .ToList();
-            if (duplicates.Count > 0)
-                throw new InvalidOperationException(
-                    $"Duplicate PublishPathOverride values detected: {string.Join(", ", duplicates)}. " +
-                    "Each published schema must have a unique HTTP path.");
-
-            // Use files registered by the source-generated module initializer.
-            foreach (var (relPath, publishPathOverride) in registeredFiles)
-            {
-                var absolutePath = Path.Combine(
-                    AppContext.BaseDirectory,
-                    relPath.Replace('/', Path.DirectorySeparatorChar));
-
-                if (publishPathOverride is not null)
-                {
-                    var endpoint = MapSchemaFileEndpointAtPath(builder, absolutePath, publishPathOverride);
-                    var (title, version) = ExtractOpenApiInfo(absolutePath);
-                    var name = ComputeDisplayName(title, version, absolutePath);
-                    descriptors.Add(new OpenApiSchemaEndpoint(name, version, publishPathOverride, HasOverride: true, endpoint));
-                }
-                else
-                {
-                    var result = MapSchemaFileEndpoint(group, absolutePath, resolvedPrefix);
-                    if (result is not null)
-                        descriptors.Add(result);
-                }
-            }
+            throw new InvalidOperationException(
+                $"Duplicate PublishAs values detected: {string.Join(", ", duplicates)}. " +
+                "Each published schema must have a unique HTTP path.");
         }
-        else
+
+        foreach (var (relPath, publishAs, displayName, displayVersion) in registeredFiles)
         {
-            // Fallback: scan the schemas directory (used when no files were registered via
-            // RegisterSchemaFile, e.g. in tests that exercise MapOpenApiSchemas directly).
-            var directory = schemasDirectory ?? Path.Combine(AppContext.BaseDirectory, "openapi", "schemas");
+            if (string.IsNullOrWhiteSpace(publishAs))
+                continue;
 
-            if (!Directory.Exists(directory))
-                return new OpenApiSchemaMapResult(descriptors);
+            var absolutePath = Path.Combine(
+                AppContext.BaseDirectory,
+                relPath.Replace('/', Path.DirectorySeparatorChar));
 
-            foreach (var schemaFile in Directory.EnumerateFiles(directory))
-            {
-                var result = MapSchemaFileEndpoint(group, schemaFile, resolvedPrefix);
-                if (result is not null)
-                    descriptors.Add(result);
-            }
+            var endpoint = MapSchemaFileEndpointAtPath(builder, absolutePath, publishAs);
+            var fallbackName = Path.GetFileNameWithoutExtension(relPath);
+            var name = string.IsNullOrWhiteSpace(displayName) ? fallbackName : displayName;
+            var version = string.IsNullOrWhiteSpace(displayVersion) ? null : displayVersion;
+            descriptors.Add(new OpenApiSchemaEndpoint(name, version, publishAs, endpoint));
         }
 
         return new OpenApiSchemaMapResult(descriptors);
-    }
-
-    /// <summary>
-    /// Registers a single GET endpoint on <paramref name="group"/> that serves
-    /// <paramref name="absolutePath"/> at <c>schemas/{version}/{name}{ext}</c>
-    /// (or <c>schemas/{name}{ext}</c> when no version is found).
-    /// Files whose extension is not <c>.yaml</c>, <c>.yml</c>, or <c>.json</c> are skipped
-    /// and <see langword="null"/> is returned.
-    /// </summary>
-    private static OpenApiSchemaEndpoint? MapSchemaFileEndpoint(RouteGroupBuilder group, string absolutePath, string resolvedPrefix)
-    {
-        var extension = Path.GetExtension(absolutePath).ToLowerInvariant();
-        if (extension is not (".yaml" or ".yml" or ".json"))
-            return null;
-
-        var contentType = extension switch
-        {
-            ".yaml" or ".yml" => "text/yaml",
-            ".json" => "application/json",
-            _ => "application/octet-stream",
-        };
-
-        var (title, version) = ExtractOpenApiInfo(absolutePath);
-        var fileNameWithoutExt = Path.GetFileNameWithoutExtension(absolutePath);
-        var routePath = version is not null
-            ? $"schemas/{version}/{fileNameWithoutExt}{extension}"
-            : $"schemas/{fileNameWithoutExt}{extension}";
-        var normalizedPrefix = resolvedPrefix.StartsWith('/') ? resolvedPrefix : $"/{resolvedPrefix}";
-        var publicPath = $"{normalizedPrefix.TrimEnd('/')}/{routePath}";
-        var name = ComputeDisplayName(title, version, absolutePath);
-
-        var endpoint = group.MapGet(
-            routePath,
-            // FileStreamHttpResult (returned by Results.File) disposes the stream
-            // after the response is written, so the FileStream is correctly cleaned up.
-            () => Results.File(File.OpenRead(absolutePath), contentType));
-
-        return new OpenApiSchemaEndpoint(name, version, publicPath, HasOverride: false, endpoint);
     }
 
     /// <summary>
@@ -303,68 +216,6 @@ public static class ServiceCollectionExtensions
         return builder.MapGet(
             overridePath,
             () => Results.File(File.OpenRead(absolutePath), contentType));
-    }
-
-    /// <summary>
-    /// Computes the display name for a schema endpoint.
-    /// Uses <c>info.title</c> combined with <c>info.version</c> when available;
-    /// falls back to the file name without extension.
-    /// </summary>
-    private static string ComputeDisplayName(string? title, string? version, string filePath)
-    {
-        if (title is not null)
-            return version is not null ? $"{title} {version}" : title;
-        return Path.GetFileNameWithoutExtension(filePath);
-    }
-
-    /// <summary>
-    /// Reads the spec file once and extracts both <c>info.title</c> and <c>info.version</c>.
-    /// Returns <see langword="null"/> for either field when it cannot be determined.
-    /// </summary>
-    private static (string? Title, string? Version) ExtractOpenApiInfo(string filePath)
-    {
-        try
-        {
-            var content = File.ReadAllText(filePath);
-            return (ExtractOpenApiField(content, "title"), ExtractOpenApiField(content, "version"));
-        }
-        catch
-        {
-            return (null, null);
-        }
-    }
-
-    /// <summary>
-    /// Extracts a single <c>info</c> field value from already-loaded OpenAPI spec content
-    /// using lightweight pattern matching (YAML and JSON), without a full parser dependency.
-    /// Returns <see langword="null"/> when the field cannot be determined.
-    /// </summary>
-    private static string? ExtractOpenApiField(string content, string fieldName)
-    {
-        // YAML: fieldName: Value  or  fieldName: "Value"  or  fieldName: 'Value'
-        // Use explicit alternation: quoted group (Group 1) or unquoted group (Group 2).
-        // The unquoted variant allows apostrophes while stopping at double-quotes, YAML
-        // comments, and newlines.
-        var yamlMatch = Regex.Match(
-            content,
-            $@"^\s*{Regex.Escape(fieldName)}:\s*(?:['""]([^'""]+)['""]|([^""#\n\r]+?))\s*$",
-            RegexOptions.Multiline);
-        if (yamlMatch.Success)
-        {
-            var value = yamlMatch.Groups[1].Length > 0
-                ? yamlMatch.Groups[1].Value
-                : yamlMatch.Groups[2].Value.Trim();
-            return value.Length > 0 ? value : null;
-        }
-
-        // JSON: "fieldName": "Value"
-        var jsonMatch = Regex.Match(
-            content,
-            $@"""{Regex.Escape(fieldName)}""\s*:\s*""([^""]+)""");
-        if (jsonMatch.Success)
-            return jsonMatch.Groups[1].Value;
-
-        return null;
     }
 }
 #endif

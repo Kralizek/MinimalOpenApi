@@ -147,15 +147,11 @@ six public methods (in namespace `MinimalOpenAPI`):
   all registered `RegisterEndpointMapping` callbacks with it.  Falls back gracefully
   if no generator has run.
 - **`MapOpenApiSchemas(IEndpointRouteBuilder, string? prefix, string? schemasDirectory)`** —
-  scans `AppContext.BaseDirectory/openapi/schemas/` (a flat directory, or a custom
-  path) for `.yaml`, `.yml`, and `.json` spec files created by the
-  `CopyMinimalOpenApiFilesToOutput` MSBuild target.  Extracts the `info.version`
-  field from each file via lightweight regex and registers one
-  `GET {prefix}/schemas/{version}/{name}.{ext}` Minimal API endpoint per file
-  (e.g. `/.openapi/schemas/1.0.0/clients.yaml`).  When `info.version` cannot be
-  determined the version segment is omitted: `{prefix}/schemas/{name}.{ext}`.
-  Returns a `RouteGroupBuilder` for further configuration (e.g.
-  `.RequireAuthorization()`).
+  maps schema endpoints from generator-registered metadata. Each schema file is
+  copied internally under `openapi/schemas/<SchemaId>/<filename>.<ext>`, and only
+  items with `PublishAs` are exposed over HTTP. The public path is exactly the
+  configured `PublishAs` value, while descriptor name/version come from
+  `DisplayName` / `DisplayVersion` metadata with runtime fallbacks.
 - **`ResetForTesting()`** — clears all registered callbacks; intended for use in
   unit tests that exercise `ServiceCollectionExtensions` in isolation.
 
@@ -209,8 +205,8 @@ Key targets:
 |--------|------|---------|
 | `AddMinimalOpenApiFilesToAdditionalFiles` | `BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile"` | Copies `<OpenApi>` items into `<AdditionalFiles>` with `MinimalOpenApiFile=true` metadata and exposes `RootNamespace` as a compiler-visible property. |
 | `AddMinimalOpenApiGeneratorDependencyAnalyzers` | `BeforeTargets="CoreCompile"` | Adds `MinimalOpenAPI.Abstractions`, `MinimalOpenAPI.Parser.Yaml`, `MinimalOpenAPI.Parser.Json`, and `YamlDotNet` as `<Analyzer>` items so Roslyn can load them into its isolated `AssemblyLoadContext` alongside the generator DLL. |
-| `CopyMinimalOpenApiFilesToOutput` | `AfterTargets="Build"` | Copies every `<OpenApi Publish="true" />` file to the flat directory `$(OutDir)openapi/schemas/<filename>.<ext>` (e.g. `openapi/schemas/clients.yaml`) so the spec is accessible at runtime via `AppContext.BaseDirectory`. Skips when no items are marked for publishing. |
-| `AddMinimalOpenApiFilesToPublishOutput` | `AfterTargets="ComputeFilesToPublish"` | Injects `ResolvedFileToPublish` items for every `<OpenApi Publish="true" />` file so `dotnet publish` includes the spec at `openapi/schemas/<filename>.<ext>` relative to the publish root. Skips when no items are marked for publishing. |
+| `CopyMinimalOpenApiFilesToOutput` | `AfterTargets="Build"` | Copies every `<OpenApi ... />` file to `$(OutDir)openapi/schemas/<SchemaId>/<filename>.<ext>`, preserving collision-safe hashed internal storage. |
+| `AddMinimalOpenApiFilesToPublishOutput` | `AfterTargets="ComputeFilesToPublish"` | Injects `ResolvedFileToPublish` items for every `<OpenApi ... />` file so `dotnet publish` includes the same hashed internal path structure. |
 
 The `<CompilerVisibleItemMetadata>` and `<CompilerVisibleProperty>` declarations
 make `MinimalOpenApiFile` and `RootNamespace` readable via
@@ -228,7 +224,8 @@ consumed transparently — the same pattern used by gRPC `.proto` files.
 <ItemGroup>
   <!-- Path resolves relative to this targets file inside the NuGet cache. -->
   <OpenApi Include="$(MSBuildThisFileDirectory)../content/api.yaml"
-           Publish="true" />
+           PublishAs="/openapi/schema.yaml"
+           DisplayName="Contracts API" />
 </ItemGroup>
 ```
 
@@ -239,42 +236,39 @@ update the metadata inside a target so the update runs after all static items
 from NuGet packages have been evaluated:
 
 ```xml
-<Target Name="MarkAllOpenApiSpecsForPublish"
+<Target Name="PublishAllOpenApiSpecsAtExplicitPaths"
         BeforeTargets="CopyMinimalOpenApiFilesToOutput">
   <ItemGroup>
-    <OpenApi Update="@(OpenApi)" Publish="true" />
+    <OpenApi Update="@(OpenApi)"
+             PublishAs="/openapi/contracts/schema.yaml"
+             DisplayName="Contracts API" />
   </ItemGroup>
 </Target>
 ```
 
 The `CopyMinimalOpenApiFilesToOutput` and `AddMinimalOpenApiFilesToPublishOutput`
-targets process all `<OpenApi Publish="true" />` items regardless of origin
+targets process all `<OpenApi ... />` items regardless of origin
 (project file, contracts package, or any other imported `.targets` file).  File
 content is preserved byte-for-byte; YAML stays YAML, JSON stays JSON.
 
-**Serving the spec via HTTP** — call `MapOpenApiSchemas()` in `Program.cs`.  At
-startup it scans `AppContext.BaseDirectory/openapi/schemas/` (a flat directory)
-for every spec file placed there by the MSBuild targets and registers one `GET`
-endpoint per schema — for both project-declared and contracts-package-contributed
-specs:
+**Serving the spec via HTTP** — call `MapOpenApiSchemas()` in `Program.cs`. It
+maps endpoints for registered schemas that declare `PublishAs`:
 
 ```csharp
 using MinimalOpenAPI;
 
 app.MapMinimalOpenApiEndpoints();
-app.MapOpenApiSchemas();  // serves GET /.openapi/schemas/{version}/{name}.{ext}
+app.MapOpenApiSchemas();  // serves GET /openapi/schema.yaml (or your PublishAs path)
 ```
 
-The `info.version` field is extracted from each file at startup using lightweight
-regex. A file with `version: "1.0.0"` is served at
-`/.openapi/schemas/1.0.0/clients.yaml`; when the version cannot be determined the
-version segment is omitted: `/.openapi/schemas/clients.yaml`.
-
-The method returns a `RouteGroupBuilder` so all schema endpoints can be secured
-or configured in one call:
+The method returns descriptors that can be used for Swagger UI wiring:
 
 ```csharp
-app.MapOpenApiSchemas().RequireAuthorization("InternalOnly");
+var schemas = app.MapOpenApiSchemas();
+foreach (var schema in schemas.Schemas)
+{
+    options.SwaggerEndpoint(schema.PublicPath, schema.Name);
+}
 ```
 
 ---

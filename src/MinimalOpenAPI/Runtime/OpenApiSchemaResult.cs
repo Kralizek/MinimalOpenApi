@@ -9,22 +9,13 @@ namespace MinimalOpenAPI;
 /// Describes a single published OpenAPI schema endpoint mapped by <see cref="ServiceCollectionExtensions.MapOpenApiSchemas"/>.
 /// </summary>
 /// <param name="Name">
-/// The display name of the schema, derived from <c>info.title</c> and <c>info.version</c>
-/// when available (e.g. <c>Todo API 1.0.0</c>), or the file name without extension as a
-/// fallback (e.g. <c>openapi</c>).
+/// The display name of the schema, taken from <c>DisplayName</c> metadata or the file name without extension.
 /// </param>
 /// <param name="Version">
-/// The <c>info.version</c> value extracted from the spec file, or <see langword="null"/> when
-/// the version cannot be determined (e.g. the file does not exist at mapping time).
+/// The <c>DisplayVersion</c> metadata value, or <see langword="null"/> when not provided.
 /// </param>
 /// <param name="PublicPath">
-/// The full HTTP path at which the schema is accessible
-/// (e.g. <c>/.openapi/schemas/1.0.0/openapi.yaml</c> or the verbatim override path).
-/// </param>
-/// <param name="HasOverride">
-/// <see langword="true"/> when the endpoint path was set via <c>PublishPathOverride</c>;
-/// <see langword="false"/> when the default <c>{prefix}/schemas/{version}/{name}.{ext}</c>
-/// routing was used.
+/// The full HTTP path at which the schema is accessible, exactly matching the configured <c>PublishAs</c> value.
 /// </param>
 /// <param name="Endpoint">
 /// The <see cref="RouteHandlerBuilder"/> returned when the schema endpoint was registered,
@@ -34,8 +25,10 @@ public sealed record OpenApiSchemaEndpoint(
     string Name,
     string? Version,
     string PublicPath,
-    bool HasOverride,
-    RouteHandlerBuilder Endpoint);
+    RouteHandlerBuilder Endpoint)
+{
+    public string FullName => $"{Name} {Version}".TrimEnd();
+}
 
 /// <summary>
 /// The result returned by <see cref="ServiceCollectionExtensions.MapOpenApiSchemas"/>,

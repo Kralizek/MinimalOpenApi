@@ -77,7 +77,7 @@ already covers.
 | Multiple `<OpenApi>` items per project | ✅ |
 | OpenAPI 3.0 | ✅ |
 | OpenAPI 3.1 | ✅ |
-| Spec publishing (`<OpenApi Publish="true" />`) | ✅ |
+| Spec publishing (all `<OpenApi ... />` items copied; optional `PublishAs`) | ✅ |
 | HTTP schema serving (`MapOpenApiSchemas()`) | ✅ |
 
 ---

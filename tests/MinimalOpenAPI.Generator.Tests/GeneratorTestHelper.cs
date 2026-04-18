@@ -15,8 +15,9 @@ internal static class GeneratorTestHelper
     private static readonly string AdditionalFilesMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiFile";
     private static readonly string NamespaceMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiNamespace";
     private static readonly string SchemaIdMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiSchemaId";
-    private static readonly string PublishMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiPublish";
-    private static readonly string PublishPathOverrideMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiPublishPathOverride";
+    private static readonly string PublishAsMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiPublishAs";
+    private static readonly string DisplayNameMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiDisplayName";
+    private static readonly string DisplayVersionMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiDisplayVersion";
     private static readonly string RootNamespaceKey = "build_property.RootNamespace";
 
     /// <summary>
@@ -34,23 +35,18 @@ internal static class GeneratorTestHelper
     /// When non-null, simulates the <c>MinimalOpenApiSchemaId</c> MSBuild metadata on all provided
     /// OpenAPI files (the stable hash of the source file's full path computed by the targets).
     /// </param>
-    /// <param name="publish">
-    /// When <see langword="true"/>, simulates <c>Publish="true"</c> on all provided OpenAPI files,
-    /// causing the generator to emit a <c>RegisterSchemaFile</c> call in the module initializer.
-    /// </param>
-    /// <param name="publishPathOverride">
-    /// When non-null, simulates the <c>PublishPathOverride</c> MSBuild metadata on all provided
-    /// OpenAPI files, causing the generator to emit a <c>RegisterSchemaFile</c> call with the
-    /// override path in the module initializer.
-    /// </param>
+    /// <param name="publishAs">Optional explicit HTTP path metadata.</param>
+    /// <param name="displayName">Optional display name metadata.</param>
+    /// <param name="displayVersion">Optional display version metadata.</param>
     public static (GeneratorDriverRunResult Result, Compilation OutputCompilation) RunGenerator(
         string userSource,
         IEnumerable<(string FileName, string Content)> additionalFiles,
         string rootNamespace = "TestProject",
         string? specNameOverride = null,
         string? schemaId = null,
-        bool publish = false,
-        string? publishPathOverride = null)
+        string? publishAs = null,
+        string? displayName = null,
+        string? displayVersion = null)
     {
         // Create a minimal compilation for the generator
         var references = new List<MetadataReference>
@@ -83,13 +79,15 @@ internal static class GeneratorTestHelper
             AdditionalFilesMetadataKey,
             NamespaceMetadataKey,
             SchemaIdMetadataKey,
-            PublishMetadataKey,
-            PublishPathOverrideMetadataKey,
+            PublishAsMetadataKey,
+            DisplayNameMetadataKey,
+            DisplayVersionMetadataKey,
             RootNamespaceKey,
             specNameOverride,
             schemaId,
-            publish,
-            publishPathOverride);
+            publishAs,
+            displayName,
+            displayVersion);
 
         var driver = CSharpGeneratorDriver
             .Create(generator)
