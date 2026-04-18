@@ -27,7 +27,7 @@ public sealed record OpenApiSchemaEndpoint(
     string PublicPath,
     RouteHandlerBuilder Endpoint)
 {
-    public string FullName => $"{Name} {Version}";
+    public string FullName => $"{Name} {Version}".TrimEnd();
 }
 
 /// <summary>
