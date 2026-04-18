@@ -1,1 +1,5 @@
-﻿Console.WriteLine("Hello, World!");
+﻿using Benchmark;
+
+using BenchmarkDotNet.Running;
+
+BenchmarkRunner.Run<TodoApiBenchmarks>();
