@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Jobs;
 
 using Microsoft.AspNetCore.Hosting;
@@ -10,6 +11,8 @@ namespace Benchmark;
 
 [MemoryDiagnoser]
 [InProcess]
+[GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
+[CategoriesColumn]
 public class TodoApiBenchmarks
 {
     private WebApplicationFactory<WithMinimalOpenApi.AppMarker> _withFactory = null!;
@@ -37,39 +40,51 @@ public class TodoApiBenchmarks
     }
 
     [Benchmark]
+    [BenchmarkCategory("CrudFlow")]
     public Task CrudFlow_WithMinimalOpenApi() => RunCrudFlowAsync(_withClient);
 
     [Benchmark(Baseline = true)]
+    [BenchmarkCategory("CrudFlow")]
     public Task CrudFlow_WithoutMinimalOpenApi() => RunCrudFlowAsync(_withoutClient);
 
     [Benchmark]
+    [BenchmarkCategory("Create")]
     public Task Create_WithMinimalOpenApi() => RunCreateAsync(_withClient);
 
-    [Benchmark]
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("Create")]
     public Task Create_WithoutMinimalOpenApi() => RunCreateAsync(_withoutClient);
 
     [Benchmark]
+    [BenchmarkCategory("GetById")]
     public Task Get_ById_WithMinimalOpenApi() => RunGetByIdAsync(_withClient);
 
-    [Benchmark]
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("GetById")]
     public Task Get_ById_WithoutMinimalOpenApi() => RunGetByIdAsync(_withoutClient);
 
     [Benchmark]
+    [BenchmarkCategory("ListCompleted")]
     public Task List_Completed_WithMinimalOpenApi() => RunListCompletedAsync(_withClient);
 
-    [Benchmark]
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("ListCompleted")]
     public Task List_Completed_WithoutMinimalOpenApi() => RunListCompletedAsync(_withoutClient);
 
     [Benchmark]
+    [BenchmarkCategory("UpdateById")]
     public Task Update_ById_WithMinimalOpenApi() => RunUpdateByIdAsync(_withClient);
 
-    [Benchmark]
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("UpdateById")]
     public Task Update_ById_WithoutMinimalOpenApi() => RunUpdateByIdAsync(_withoutClient);
 
     [Benchmark]
+    [BenchmarkCategory("DeleteById")]
     public Task Delete_ById_WithMinimalOpenApi() => RunDeleteByIdAsync(_withClient);
 
-    [Benchmark]
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("DeleteById")]
     public Task Delete_ById_WithoutMinimalOpenApi() => RunDeleteByIdAsync(_withoutClient);
 
     private static async Task RunCrudFlowAsync(HttpClient client)
