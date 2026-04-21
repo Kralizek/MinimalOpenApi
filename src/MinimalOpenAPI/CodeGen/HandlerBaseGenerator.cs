@@ -23,6 +23,11 @@ internal static class HandlerBaseGenerator
         var handlerClass = TypeMapper.HandlerClassName(operation.OperationId);
         var schemas = allSchemas ?? new Dictionary<string, OpenApiSchema>();
 
+        // When the caller does not supply a collector, use a local discard list so that
+        // AllOfSchemaFlattener.Resolve always has a valid target.  Callers that care about
+        // conflicts (e.g. the source-generator orchestrator) should pass their own list.
+        var conflictSink = allOfConflicts ?? [];
+
         // Collect inline schemas in deterministic order: request body first,
         // then responses ordered by status code.
         // For allOf schemas, also pre-compute the flattened (effective) shape so that the
@@ -31,7 +36,7 @@ internal static class HandlerBaseGenerator
         if (operation.RequestBody?.Schema is { } reqSchema && TypeMapper.IsInlineObject(reqSchema))
         {
             var effective = reqSchema.AllOf.Count > 0
-                ? AllOfSchemaFlattener.Resolve(reqSchema, schemas, TypeMapper.GetInlineRequestBodyTypeName(), allOfConflicts ?? [])
+                ? AllOfSchemaFlattener.Resolve(reqSchema, schemas, TypeMapper.GetInlineRequestBodyTypeName(), conflictSink)
                 : reqSchema;
             inlineSchemas.Add((reqSchema, effective, TypeMapper.GetInlineRequestBodyTypeName()));
         }
@@ -41,7 +46,7 @@ internal static class HandlerBaseGenerator
             {
                 var typeName = TypeMapper.GetInlineResponseTypeName(r.StatusCode);
                 var effective = respSchema.AllOf.Count > 0
-                    ? AllOfSchemaFlattener.Resolve(respSchema, schemas, typeName, allOfConflicts ?? [])
+                    ? AllOfSchemaFlattener.Resolve(respSchema, schemas, typeName, conflictSink)
                     : respSchema;
                 inlineSchemas.Add((respSchema, effective, typeName));
             }
