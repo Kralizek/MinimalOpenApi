@@ -8,3 +8,4 @@ MOA003 | MinimalOpenAPI | Error | Duplicate registration customizer implementati
 MOA004 | MinimalOpenAPI | Error | OpenAPI parse error
 MOA005 | MinimalOpenAPI | Error | Unsupported OpenAPI file extension
 MOA006 | MinimalOpenAPI | Warning | Unknown OpenAPI version
+MOA007 | MinimalOpenAPI | Warning | Conflicting allOf property definitions

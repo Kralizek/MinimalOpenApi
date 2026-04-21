@@ -21,6 +21,12 @@ public sealed class OpenApiSchema
     /// <summary>For <c>array</c>-typed schemas, describes the element type.</summary>
     public OpenApiSchema? Items { get; init; }
 
+    /// <summary>
+    /// OpenAPI <c>allOf</c> composition list. When non-empty, object properties from all entries
+    /// are flattened into an effective generated DTO shape.
+    /// </summary>
+    public List<OpenApiSchema> AllOf { get; init; } = new List<OpenApiSchema>();
+
     /// <summary>Named properties of an <c>object</c>-typed schema, keyed by property name.</summary>
     public Dictionary<string, OpenApiSchema> Properties { get; init; } = new Dictionary<string, OpenApiSchema>(StringComparer.Ordinal);
 
