@@ -252,4 +252,117 @@ public class AllOfCompositionTests
         Assert.That(source, Does.Contain("public required string Id { get; init; }"));
         Assert.That(source, Does.Contain("public required string Name { get; init; }"));
     }
+
+    [Test]
+    public void Inline_AllOf_In_Response_Schema_Generates_Flattened_Nested_Record()
+    {
+        const string spec = """
+            openapi: "3.0.0"
+            info: { title: test, version: "1.0.0" }
+            paths:
+              /items/{id}/detail:
+                get:
+                  operationId: getItemDetail
+                  parameters:
+                    - name: id
+                      in: path
+                      required: true
+                      schema: { type: string, format: uuid }
+                  responses:
+                    "200":
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            allOf:
+                              - $ref: '#/components/schemas/Item'
+                              - type: object
+                                required: [auditedAt]
+                                properties:
+                                  auditedAt: { type: string, format: date-time }
+                    "404":
+                      description: Not found
+            components:
+              schemas:
+                Item:
+                  type: object
+                  required: [id, name]
+                  properties:
+                    id: { type: string, format: uuid }
+                    name: { type: string }
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.yaml", spec)]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "GetItemDetailEndpointBase.g.cs");
+
+        // The nested record should contain all properties from both allOf branches.
+        Assert.That(source, Does.Contain("public sealed record OkResponse"));
+        Assert.That(source, Does.Contain("[global::System.Text.Json.Serialization.JsonPropertyName(\"id\")]"));
+        Assert.That(source, Does.Contain("[global::System.Text.Json.Serialization.JsonPropertyName(\"name\")]"));
+        Assert.That(source, Does.Contain("[global::System.Text.Json.Serialization.JsonPropertyName(\"auditedAt\")]"));
+        Assert.That(source, Does.Contain("public required string Name { get; init; }"));
+        Assert.That(source, Does.Contain("public required global::System.DateTimeOffset AuditedAt { get; init; }"));
+    }
+
+    [Test]
+    public void Inline_AllOf_In_Request_Body_Generates_Flattened_Nested_Record()
+    {
+        const string spec = """
+            openapi: "3.0.0"
+            info: { title: test, version: "1.0.0" }
+            paths:
+              /items/{id}/annotate:
+                post:
+                  operationId: annotateItem
+                  parameters:
+                    - name: id
+                      in: path
+                      required: true
+                      schema: { type: string, format: uuid }
+                  requestBody:
+                    required: true
+                    content:
+                      application/json:
+                        schema:
+                          allOf:
+                            - $ref: '#/components/schemas/AuditInfo'
+                            - type: object
+                              required: [note]
+                              properties:
+                                note: { type: string }
+                  responses:
+                    "200":
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/AuditInfo'
+                    "404":
+                      description: Not found
+            components:
+              schemas:
+                AuditInfo:
+                  type: object
+                  required: [source]
+                  properties:
+                    source: { type: string }
+                    createdAt: { type: string, format: date-time }
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.yaml", spec)]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "AnnotateItemEndpointBase.g.cs");
+
+        // Nested Request record should contain all properties from both allOf branches.
+        Assert.That(source, Does.Contain("public sealed record Request"));
+        Assert.That(source, Does.Contain("[global::System.Text.Json.Serialization.JsonPropertyName(\"source\")]"));
+        Assert.That(source, Does.Contain("[global::System.Text.Json.Serialization.JsonPropertyName(\"note\")]"));
+        Assert.That(source, Does.Contain("public required string Source { get; init; }"));
+        Assert.That(source, Does.Contain("public required string Note { get; init; }"));
+    }
 }

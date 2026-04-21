@@ -12,29 +12,49 @@ namespace MinimalOpenAPI.Generator.CodeGen;
 /// </summary>
 internal static class HandlerBaseGenerator
 {
-    public static string Generate(OpenApiOperation operation, string rootNamespace, string specName)
+    public static string Generate(
+        OpenApiOperation operation,
+        string rootNamespace,
+        string specName,
+        IReadOnlyDictionary<string, OpenApiSchema>? allSchemas = null)
     {
         var contractsNs = $"{rootNamespace}.{specName}.Contracts";
         var handlerClass = TypeMapper.HandlerClassName(operation.OperationId);
+        var schemas = allSchemas ?? new Dictionary<string, OpenApiSchema>();
 
         // Collect inline schemas in deterministic order: request body first,
         // then responses ordered by status code.
-        var inlineSchemas = new List<(OpenApiSchema Schema, string TypeName)>();
+        // For allOf schemas, also pre-compute the flattened (effective) shape so that the
+        // nested record contains all merged properties, not just the raw allOf list.
+        var inlineSchemas = new List<(OpenApiSchema OriginalSchema, OpenApiSchema EffectiveSchema, string TypeName)>();
         if (operation.RequestBody?.Schema is { } reqSchema && TypeMapper.IsInlineObject(reqSchema))
-            inlineSchemas.Add((reqSchema, TypeMapper.GetInlineRequestBodyTypeName()));
+        {
+            var conflicts = new List<AllOfPropertyConflict>();
+            var effective = reqSchema.AllOf.Count > 0
+                ? AllOfSchemaFlattener.Resolve(reqSchema, schemas, TypeMapper.GetInlineRequestBodyTypeName(), conflicts)
+                : reqSchema;
+            inlineSchemas.Add((reqSchema, effective, TypeMapper.GetInlineRequestBodyTypeName()));
+        }
         foreach (var r in operation.Responses.OrderBy(r => r.StatusCode))
         {
             if (r.Schema is { } respSchema && TypeMapper.IsInlineObject(respSchema))
-                inlineSchemas.Add((respSchema, TypeMapper.GetInlineResponseTypeName(r.StatusCode)));
+            {
+                var typeName = TypeMapper.GetInlineResponseTypeName(r.StatusCode);
+                var conflicts = new List<AllOfPropertyConflict>();
+                var effective = respSchema.AllOf.Count > 0
+                    ? AllOfSchemaFlattener.Resolve(respSchema, schemas, typeName, conflicts)
+                    : respSchema;
+                inlineSchemas.Add((respSchema, effective, typeName));
+            }
         }
 
-        // Collect inline-object value schemas from dictionary properties within the inline schemas.
-        // These are emitted as sibling nested records (named "{InlineTypeName}{Prop}Value") so that
-        // the inline parent record can reference them in Dictionary<string, T> property types.
+        // Collect inline-object value schemas from dictionary properties within the effective
+        // (flattened) inline schemas so that the inline parent record can reference them in
+        // Dictionary<string, T> property types.
         var valueSchemas = new List<(OpenApiSchema Schema, string TypeName)>();
-        foreach (var (schema, typeName) in inlineSchemas)
+        foreach (var (_, effective, typeName) in inlineSchemas)
         {
-            foreach (var propKvp in schema.Properties)
+            foreach (var propKvp in effective.Properties)
             {
                 if (TypeMapper.IsDictionarySchema(propKvp.Value)
                     && propKvp.Value.AdditionalProperties is { } valueSchema
@@ -46,8 +66,13 @@ internal static class HandlerBaseGenerator
             }
         }
 
-        // All schemas the resolver needs to know about (value schemas first, then parent schemas).
-        var allInlineSchemas = valueSchemas.Concat(inlineSchemas).ToList();
+        // The resolver maps the ORIGINAL schema instance (as it appears in the operation) to its
+        // nested type name so that TypeMapper.MapSchema can resolve inline schemas by reference
+        // when building return types and handler parameter types.
+        var allInlineSchemas = valueSchemas
+            .Select(v => (v.Schema, v.TypeName))
+            .Concat(inlineSchemas.Select(s => (s.OriginalSchema, s.TypeName)))
+            .ToList();
 
         // Resolver: inline schema → SHORT nested type name (usable inside the class body).
         InlineSchemaResolver localResolver = s =>
@@ -80,9 +105,11 @@ internal static class HandlerBaseGenerator
             sb.AppendLine();
         }
 
-        foreach (var (schema, typeName) in inlineSchemas)
+        // Emit nested records using the EFFECTIVE (flattened) schema so all merged properties
+        // from allOf branches are included in the generated record.
+        foreach (var (_, effective, typeName) in inlineSchemas)
         {
-            AppendNestedRecord(sb, typeName, schema, contractsNs, localResolver);
+            AppendNestedRecord(sb, typeName, effective, contractsNs, localResolver);
             sb.AppendLine();
         }
 

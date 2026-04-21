@@ -36,13 +36,14 @@ internal static class TypeMapper
 
     /// <summary>
     /// Returns <see langword="true"/> when the schema is an inline object definition —
-    /// i.e. it declares properties or an explicit <c>object</c> type, but has no <c>$ref</c>
-    /// and is not a pure dictionary schema (see <see cref="IsDictionarySchema"/>).
+    /// i.e. it declares properties, an explicit <c>object</c> type, or one or more
+    /// <c>allOf</c> entries, but has no <c>$ref</c> and is not a pure dictionary schema
+    /// (see <see cref="IsDictionarySchema"/>).
     /// </summary>
     public static bool IsInlineObject(OpenApiSchema schema)
         => schema.Reference is null
             && !IsDictionarySchema(schema)
-            && (schema.Type?.ToLowerInvariant() == "object" || schema.Properties.Count > 0);
+            && (schema.Type?.ToLowerInvariant() == "object" || schema.Properties.Count > 0 || schema.AllOf.Count > 0);
 
     /// <summary>Returns the nested record name used for an inline request-body schema.</summary>
     public static string GetInlineRequestBodyTypeName() => "Request";

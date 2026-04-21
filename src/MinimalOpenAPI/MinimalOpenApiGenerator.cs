@@ -315,7 +315,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             var customizerBase = TypeMapper.RegistrationClassName(op.OperationId);
 
             // Generate handler base
-            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName);
+            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, doc.Schemas);
             spc.AddSource($"MinimalOpenApi.{specName}.{handlerBase}.g.cs", handlerSource);
 
             // Generate registration customizer base
