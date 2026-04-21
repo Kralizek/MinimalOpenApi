@@ -134,7 +134,7 @@ internal static class AllOfSchemaFlattener
             if (AreEquivalent(existing, property.Value))
                 continue;
 
-            targetProperties[property.Key] = new OpenApiSchema();
+            targetProperties[property.Key] = CreateObjectFallbackSchema();
             if (conflictedProperties.Add(property.Key))
                 conflicts.Add(new AllOfPropertyConflict(ownerSchemaName, property.Key));
         }
@@ -245,8 +245,17 @@ internal static class AllOfSchemaFlattener
         if (left.Count != right.Count)
             return false;
 
-        var leftSet = new HashSet<string>(left, StringComparer.Ordinal);
-        var rightSet = new HashSet<string>(right, StringComparer.Ordinal);
-        return leftSet.SetEquals(rightSet);
+        var set = new HashSet<string>(left, StringComparer.Ordinal);
+        foreach (var value in right)
+        {
+            if (!set.Remove(value))
+                return false;
+        }
+
+        return set.Count == 0;
     }
+
+    private static OpenApiSchema CreateObjectFallbackSchema()
+        // Empty schema maps to `object` in TypeMapper and does not trigger nested record generation.
+        => new();
 }

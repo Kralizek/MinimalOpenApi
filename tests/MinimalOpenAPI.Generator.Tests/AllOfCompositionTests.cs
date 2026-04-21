@@ -32,6 +32,7 @@ public class AllOfCompositionTests
             additionalFiles: [("openapi.yaml", spec)]);
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+        Assert.That(source, Does.Contain("public sealed record Base"));
         Assert.That(source, Does.Contain("public sealed record Composed"));
         Assert.That(source, Does.Contain("public required global::System.Guid Id { get; init; }"));
         Assert.That(source, Does.Contain("public string? Common { get; init; }"));
