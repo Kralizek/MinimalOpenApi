@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Benchmark/Benchmark.csproj" />
+    <Project Path="benchmarks/WithMinimalOpenAPI/WithMinimalOpenApi.csproj" />
+    <Project Path="benchmarks/WithoutMinimalOpenApi/WithoutMinimalOpenApi.csproj" />
+  </Folder>
   <Folder Name="/sample/">
     <Project Path="sample/MinimalOpenAPI.Sample.Api/Sample.Api.csproj" />
   </Folder>
@@ -14,4 +19,3 @@
     <Project Path="tests/MinimalOpenAPI.Runtime.Tests/MinimalOpenAPI.Runtime.Tests.csproj" />
   </Folder>
 </Solution>
-

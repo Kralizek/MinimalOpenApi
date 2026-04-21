@@ -207,6 +207,21 @@ See the [sample app](sample/MinimalOpenAPI.Sample.Api) for a complete end-to-end
 
 ---
 
+## Benchmarks
+
+The repository includes a BenchmarkDotNet suite that compares the generated (`WithMinimalOpenAPI`) and hand-written (`WithoutMinimalOpenApi`) Todo API implementations.
+
+- Benchmark project: [benchmarks/Benchmark](benchmarks/Benchmark)
+- Benchmark docs and latest captured results: [benchmarks/README.md](benchmarks/README.md)
+
+Run the benchmark suite from the repository root:
+
+```shell
+dotnet run --project benchmarks/Benchmark/Benchmark.csproj -c Release
+```
+
+---
+
 ## Publishing the OpenAPI spec
 
 Declare the schema metadata in the project file:
@@ -339,6 +354,10 @@ src/
 sample/
   MinimalOpenAPI.Sample.Api/    ← end-to-end Todo CRUD example
   MinimalOpenAPI.SmokeTest.Api/ ← minimal consumer built against the packed NuGet artifact
+benchmarks/
+  Benchmark/                    ← BenchmarkDotNet suite comparing generated vs hand-written APIs
+  WithMinimalOpenAPI/           ← benchmark target app using MinimalOpenAPI-generated endpoints
+  WithoutMinimalOpenApi/        ← benchmark target app using hand-written endpoints
 tests/
   MinimalOpenAPI.Generator.Tests/
   MinimalOpenAPI.Runtime.Tests/
