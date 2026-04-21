@@ -56,7 +56,7 @@ internal static class AllOfSchemaFlattener
         }
 
         var mergedProperties = new Dictionary<string, OpenApiSchema>(StringComparer.Ordinal);
-        var mergedRequired = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var mergedRequired = new HashSet<string>(StringComparer.Ordinal);
         var conflictedProperties = new HashSet<string>(StringComparer.Ordinal);
         var mergedAdditionalProperties = resolvedAdditionalProperties;
         var mergedAdditionalPropertiesAllowed = schema.AdditionalPropertiesAllowed;
@@ -245,8 +245,8 @@ internal static class AllOfSchemaFlattener
         if (left.Count != right.Count)
             return false;
 
-        var leftSet = new HashSet<string>(left, StringComparer.OrdinalIgnoreCase);
-        var rightSet = new HashSet<string>(right, StringComparer.OrdinalIgnoreCase);
+        var leftSet = new HashSet<string>(left, StringComparer.Ordinal);
+        var rightSet = new HashSet<string>(right, StringComparer.Ordinal);
         return leftSet.SetEquals(rightSet);
     }
 }
