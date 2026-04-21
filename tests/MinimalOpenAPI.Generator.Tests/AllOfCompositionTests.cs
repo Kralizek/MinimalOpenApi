@@ -207,7 +207,7 @@ public class AllOfCompositionTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
         Assert.That(result.Diagnostics.Any(d => d.Id == "MOA007"), Is.True);
-        Assert.That(source, Does.Contain("public required object Value { get; init; }"));
+        Assert.That(source, Does.Contain("public required global::System.Text.Json.JsonElement Value { get; init; }"));
     }
 
     [Test]

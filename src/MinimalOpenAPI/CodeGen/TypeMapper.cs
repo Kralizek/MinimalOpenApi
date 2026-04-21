@@ -17,6 +17,15 @@ internal delegate string? InlineSchemaResolver(OpenApiSchema schema);
 /// </summary>
 internal static class TypeMapper
 {
+    /// <summary>
+    /// A synthetic type name used as a sentinel to mark a property that could not be
+    /// resolved during <c>allOf</c> flattening due to incompatible definitions across branches.
+    /// <see cref="MapSchema"/> maps any schema carrying this type to
+    /// <c>global::System.Text.Json.JsonElement</c> so that the property is still usable
+    /// (callers can inspect the raw JSON value) without implying arbitrary CLR object semantics.
+    /// </summary>
+    internal const string RawJsonSentinelType = "x-raw-json";
+
     /// <summary>The tool name used in <c>[GeneratedCode]</c> attributes on all generated types.</summary>
     public const string GeneratorName = "MinimalOpenAPI.Generator";
 
@@ -98,6 +107,16 @@ internal static class TypeMapper
         string? contractsNamespace = null,
         InlineSchemaResolver? resolveInline = null)
     {
+        // Explicit raw-JSON sentinel: emitted when allOf flattening encounters incompatible
+        // property definitions. Map directly to JsonElement rather than falling through to
+        // the default 'object' branch to be consistent with how we represent unknown JSON
+        // shapes (e.g. additionalProperties: true).
+        if (schema.Type == RawJsonSentinelType)
+        {
+            const string je = "global::System.Text.Json.JsonElement";
+            return nullable || schema.Nullable ? $"{je}?" : je;
+        }
+
         if (schema.Reference is not null)
         {
             var typeName = contractsNamespace is not null

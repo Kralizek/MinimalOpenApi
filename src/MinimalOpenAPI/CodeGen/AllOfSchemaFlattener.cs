@@ -134,7 +134,7 @@ internal static class AllOfSchemaFlattener
             if (AreEquivalent(existing, property.Value))
                 continue;
 
-            targetProperties[property.Key] = CreateObjectFallbackSchema();
+            targetProperties[property.Key] = CreateRawJsonFallbackSchema();
             if (conflictedProperties.Add(property.Key))
                 conflicts.Add(new AllOfPropertyConflict(ownerSchemaName, property.Key));
         }
@@ -255,7 +255,9 @@ internal static class AllOfSchemaFlattener
         return set.Count == 0;
     }
 
-    private static OpenApiSchema CreateObjectFallbackSchema()
-        // Empty schema maps to `object` in TypeMapper and does not trigger nested record generation.
-        => new();
+    private static OpenApiSchema CreateRawJsonFallbackSchema()
+        // This sentinel type is recognized by TypeMapper.MapSchema and maps to
+        // global::System.Text.Json.JsonElement — the appropriate fallback for a JSON property
+        // whose type could not be determined during allOf flattening.
+        => new() { Type = TypeMapper.RawJsonSentinelType };
 }

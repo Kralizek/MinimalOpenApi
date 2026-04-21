@@ -64,7 +64,7 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor AllOfPropertyConflict = new(
         id: "MOA007",
         title: "Conflicting allOf property definitions",
-        messageFormat: "Schema '{0}' has incompatible 'allOf' definitions for property '{1}'. Falling back to 'object'.",
+        messageFormat: "Schema '{0}' has incompatible 'allOf' definitions for property '{1}'. Falling back to 'JsonElement'.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
