@@ -16,7 +16,8 @@ internal static class HandlerBaseGenerator
         OpenApiOperation operation,
         string rootNamespace,
         string specName,
-        IReadOnlyDictionary<string, OpenApiSchema>? allSchemas = null)
+        IReadOnlyDictionary<string, OpenApiSchema>? allSchemas = null,
+        List<AllOfPropertyConflict>? allOfConflicts = null)
     {
         var contractsNs = $"{rootNamespace}.{specName}.Contracts";
         var handlerClass = TypeMapper.HandlerClassName(operation.OperationId);
@@ -29,9 +30,8 @@ internal static class HandlerBaseGenerator
         var inlineSchemas = new List<(OpenApiSchema OriginalSchema, OpenApiSchema EffectiveSchema, string TypeName)>();
         if (operation.RequestBody?.Schema is { } reqSchema && TypeMapper.IsInlineObject(reqSchema))
         {
-            var conflicts = new List<AllOfPropertyConflict>();
             var effective = reqSchema.AllOf.Count > 0
-                ? AllOfSchemaFlattener.Resolve(reqSchema, schemas, TypeMapper.GetInlineRequestBodyTypeName(), conflicts)
+                ? AllOfSchemaFlattener.Resolve(reqSchema, schemas, TypeMapper.GetInlineRequestBodyTypeName(), allOfConflicts ?? [])
                 : reqSchema;
             inlineSchemas.Add((reqSchema, effective, TypeMapper.GetInlineRequestBodyTypeName()));
         }
@@ -40,9 +40,8 @@ internal static class HandlerBaseGenerator
             if (r.Schema is { } respSchema && TypeMapper.IsInlineObject(respSchema))
             {
                 var typeName = TypeMapper.GetInlineResponseTypeName(r.StatusCode);
-                var conflicts = new List<AllOfPropertyConflict>();
                 var effective = respSchema.AllOf.Count > 0
-                    ? AllOfSchemaFlattener.Resolve(respSchema, schemas, typeName, conflicts)
+                    ? AllOfSchemaFlattener.Resolve(respSchema, schemas, typeName, allOfConflicts ?? [])
                     : respSchema;
                 inlineSchemas.Add((respSchema, effective, typeName));
             }

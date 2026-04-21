@@ -315,8 +315,18 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             var customizerBase = TypeMapper.RegistrationClassName(op.OperationId);
 
             // Generate handler base
-            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, doc.Schemas);
+            var handlerConflicts = new List<MinimalOpenAPI.Generator.CodeGen.AllOfPropertyConflict>();
+            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, doc.Schemas, handlerConflicts);
             spc.AddSource($"MinimalOpenApi.{specName}.{handlerBase}.g.cs", handlerSource);
+
+            foreach (var conflict in handlerConflicts.Distinct())
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.AllOfPropertyConflict,
+                    CreateOpenApiLocation(openApiFilePath),
+                    conflict.SchemaName,
+                    conflict.PropertyName));
+            }
 
             // Generate registration customizer base
             var customizerSource = RegistrationCustomizerGenerator.Generate(op, rootNamespace, specName);
