@@ -52,29 +52,18 @@ internal static class HandlerBaseGenerator
             }
         }
 
-        // Collect inline-object value schemas from dictionary properties within the effective
-        // (flattened) inline schemas so that the inline parent record can reference them in
-        // Dictionary<string, T> property types.
-        var valueSchemas = new List<(OpenApiSchema Schema, string TypeName)>();
+        // Recursively collect all nested inline schemas (inline objects, enums, and dictionary
+        // value types) from the flattened effective schemas.  The list is ordered so that
+        // dependencies appear before the schemas that reference them, which matches the
+        // emission order required for the nested record declarations.
+        var nestedSchemas = new List<(OpenApiSchema Schema, string TypeName)>();
         foreach (var (_, effective, typeName) in inlineSchemas)
-        {
-            foreach (var propKvp in effective.Properties)
-            {
-                if (TypeMapper.IsDictionarySchema(propKvp.Value)
-                    && propKvp.Value.AdditionalProperties is { } valueSchema
-                    && TypeMapper.IsInlineObject(valueSchema))
-                {
-                    var valueName = typeName + TypeMapper.ToPascalCase(propKvp.Key) + "Value";
-                    valueSchemas.Add((valueSchema, valueName));
-                }
-            }
-        }
+            CollectNestedInlineSchemas(effective, typeName, nestedSchemas);
 
-        // The resolver maps the ORIGINAL schema instance (as it appears in the operation) to its
-        // nested type name so that TypeMapper.MapSchema can resolve inline schemas by reference
-        // when building return types and handler parameter types.
-        var allInlineSchemas = valueSchemas
-            .Select(v => (v.Schema, v.TypeName))
+        // The resolver maps each schema instance (as it appears in the effective/original schema
+        // graphs) to its short nested type name so that TypeMapper.MapSchema can substitute inline
+        // schemas by reference when building property types, return types, and handler parameters.
+        var allInlineSchemas = nestedSchemas
             .Concat(inlineSchemas.Select(s => (s.OriginalSchema, s.TypeName)))
             .ToList();
 
@@ -100,10 +89,9 @@ internal static class HandlerBaseGenerator
         sb.AppendLine($"public class {handlerClass}");
         sb.AppendLine("{");
 
-        // Emit one nested record per inline schema before the handler method.
-        // Value schemas (dictionary element types) are emitted first as they are dependencies
-        // of the parent inline schemas that reference them.
-        foreach (var (schema, typeName) in valueSchemas)
+        // Emit all nested records (deepest dependencies first so each type is declared before
+        // it is referenced by a parent record).
+        foreach (var (schema, typeName) in nestedSchemas)
         {
             AppendNestedRecord(sb, typeName, schema, contractsNs, localResolver);
             sb.AppendLine();
@@ -175,6 +163,44 @@ internal static class HandlerBaseGenerator
         list.Add("global::System.Threading.CancellationToken cancellationToken");
 
         return list;
+    }
+
+    /// <summary>
+    /// Recursively walks <paramref name="effectiveSchema"/> and collects every inline object,
+    /// inline enum, and dictionary-value inline-object property, together with the derived C#
+    /// type name each one will be emitted as.  Items are added in dependency order: a nested
+    /// type is added only after all of its own nested types have been added first, so the
+    /// resulting list can be iterated in order to emit declarations without forward references.
+    /// </summary>
+    private static void CollectNestedInlineSchemas(
+        OpenApiSchema effectiveSchema,
+        string parentTypeName,
+        List<(OpenApiSchema Schema, string TypeName)> collected)
+    {
+        foreach (var propKvp in effectiveSchema.Properties)
+        {
+            var propSchema = propKvp.Value;
+            var derivedName = parentTypeName + TypeMapper.ToPascalCase(propKvp.Key);
+
+            if (TypeMapper.IsInlineObject(propSchema))
+            {
+                // Recurse first so that deeper types are declared before this one.
+                CollectNestedInlineSchemas(propSchema, derivedName, collected);
+                collected.Add((propSchema, derivedName));
+            }
+            else if (propSchema.Enum is not null)
+            {
+                collected.Add((propSchema, derivedName));
+            }
+            else if (TypeMapper.IsDictionarySchema(propSchema)
+                && propSchema.AdditionalProperties is { } valueSchema
+                && TypeMapper.IsInlineObject(valueSchema))
+            {
+                var valueName = derivedName + "Value";
+                CollectNestedInlineSchemas(valueSchema, valueName, collected);
+                collected.Add((valueSchema, valueName));
+            }
+        }
     }
 
     /// <summary>Appends a nested <c>sealed record</c> for an inline schema.</summary>

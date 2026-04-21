@@ -278,7 +278,7 @@ Generated namespaces:
 ## Limitations and non-goals
 
 - **No Swashbuckle/Scalar integration.** MinimalOpenAPI does not generate an OpenAPI document at runtime. To serve original spec files as static HTTP endpoints, set `PublishAs` on `<OpenApi ... />` items and call `MapOpenApiSchemas()`.
-- **Schema composition not supported.** `allOf`, `oneOf`, and `anyOf` are not yet implemented.
+- **`oneOf` / `anyOf` not supported.** `allOf` is fully supported (schemas are flattened into a single generated record). `oneOf` and `anyOf` are not yet implemented.
 - **No runtime validation.** Validation attributes on generated properties are informational. ASP.NET Core Minimal APIs do not run `DataAnnotations` validation automatically.
 - **No code-first path.** Use Swashbuckle, NSwag, or `Microsoft.AspNetCore.OpenApi` if you want to generate an OpenAPI document from C# code.
 - **OpenAPI 2.0 (Swagger) not supported.**

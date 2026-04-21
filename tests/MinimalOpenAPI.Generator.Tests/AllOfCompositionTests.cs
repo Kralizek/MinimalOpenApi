@@ -181,7 +181,7 @@ public class AllOfCompositionTests
     }
 
     [Test]
-    public void Incompatible_AllOf_Property_Emits_Diagnostic_And_Uses_Object()
+    public void Incompatible_AllOf_Property_Emits_Diagnostic_And_Uses_JsonElement()
     {
         const string spec = """
             openapi: "3.0.0"
@@ -364,5 +364,64 @@ public class AllOfCompositionTests
         Assert.That(source, Does.Contain("[global::System.Text.Json.Serialization.JsonPropertyName(\"note\")]"));
         Assert.That(source, Does.Contain("public required string Source { get; init; }"));
         Assert.That(source, Does.Contain("public required string Note { get; init; }"));
+    }
+
+    [Test]
+    public void Inline_AllOf_With_Nested_Inline_Object_Property_Generates_Nested_Record()
+    {
+        const string spec = """
+            openapi: "3.0.0"
+            info: { title: test, version: "1.0.0" }
+            paths:
+              /items/{id}/submit:
+                post:
+                  operationId: submitItem
+                  parameters:
+                    - name: id
+                      in: path
+                      required: true
+                      schema: { type: string, format: uuid }
+                  requestBody:
+                    required: true
+                    content:
+                      application/json:
+                        schema:
+                          allOf:
+                            - $ref: '#/components/schemas/Base'
+                            - type: object
+                              properties:
+                                details:
+                                  type: object
+                                  required: [code]
+                                  properties:
+                                    code: { type: string }
+                  responses:
+                    "204":
+                      description: No content
+            components:
+              schemas:
+                Base:
+                  type: object
+                  required: [name]
+                  properties:
+                    name: { type: string }
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.yaml", spec)]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "SubmitItemEndpointBase.g.cs");
+
+        // Both Request and its nested RequestDetails records should be emitted.
+        Assert.That(source, Does.Contain("public sealed record RequestDetails"));
+        Assert.That(source, Does.Contain("public sealed record Request"));
+        // RequestDetails appears before Request (dependency ordering).
+        Assert.That(source.IndexOf("public sealed record RequestDetails", StringComparison.Ordinal),
+            Is.LessThan(source.LastIndexOf("public sealed record Request", StringComparison.Ordinal)));
+        // Request record references the nested type for the details property.
+        Assert.That(source, Does.Contain("public RequestDetails? Details { get; init; }"));
+        // RequestDetails record contains the nested property.
+        Assert.That(source, Does.Contain("public required string Code { get; init; }"));
     }
 }
