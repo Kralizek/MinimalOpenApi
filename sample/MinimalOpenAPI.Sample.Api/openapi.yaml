@@ -217,3 +217,29 @@ components:
               color:
                 type: string
                 nullable: true
+    TodoAudit:
+      type: object
+      required:
+        - createdAt
+        - source
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        source:
+          type: string
+    TodoWithAudit:
+      allOf:
+        - $ref: '#/components/schemas/Todo'
+        - $ref: '#/components/schemas/TodoAudit'
+    TodoWithInlineTags:
+      allOf:
+        - $ref: '#/components/schemas/Todo'
+        - type: object
+          required:
+            - tags
+          properties:
+            tags:
+              type: array
+              items:
+                type: string
