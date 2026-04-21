@@ -172,6 +172,74 @@ paths:
           description: No Content
         "404":
           description: Not found
+  /todos/{id}/detail:
+    get:
+      operationId: getTodoDetail
+      summary: Get a todo item with audit information
+      description: Returns the todo item together with an inline audit snapshot. The response schema is an inline allOf composition of the Todo component and an inline audit object.
+      tags:
+        - todos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Todo'
+                  - type: object
+                    required:
+                      - auditedAt
+                    properties:
+                      auditedAt:
+                        type: string
+                        format: date-time
+        "404":
+          description: Not found
+  /todos/{id}/annotate:
+    post:
+      operationId: annotateTodo
+      summary: Add an annotation to a todo item
+      description: Attaches an inline audit record plus a freeform note to the specified todo. The request body schema is an inline allOf composition of the TodoAudit component and an inline object carrying the note.
+      tags:
+        - todos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/TodoAudit'
+                - type: object
+                  required:
+                    - note
+                  properties:
+                    note:
+                      type: string
+                      maxLength: 1000
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        "404":
+          description: Not found
 components:
   schemas:
     TodoPriority:
