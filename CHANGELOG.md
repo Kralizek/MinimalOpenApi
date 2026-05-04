@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **OpenAPI 3.0 and 3.1 support** via YAML and JSON. Parsers are selected by format and version; the 3.1 type-array nullable syntax is normalised automatically.
 
-- **Rich schema support**: `components/schemas` objects generate `sealed record` types; inline object schemas generate named sibling records; `allOf` schema composition is flattened into a single generated DTO shape (including nested compositions and sibling properties/required); `enum` schemas generate C# `enum` types with `[JsonStringEnumConverter]`; `additionalProperties` maps to `Dictionary<string, T>` with a generated value record for inline object value types; `format: date` maps to `DateOnly`.
+- **Rich schema support**: `components/schemas` objects generate `sealed record` types; inline object schemas generate named sibling records; `allOf` object schema composition is flattened into a single generated DTO shape, including nested compositions and sibling properties/required fields; `enum` schemas generate C# `enum` types with `[JsonStringEnumConverter]`; `additionalProperties` maps to `Dictionary<string, T>` with a generated value record for inline object value types; `format: date` maps to `DateOnly`.
+
 
 - **Validation attributes**: OpenAPI constraint keywords (`minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `minItems`, `maxItems`) are emitted as `System.ComponentModel.DataAnnotations` attributes on generated properties.
 
