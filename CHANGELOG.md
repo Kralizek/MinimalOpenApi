@@ -25,4 +25,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Endpoint customizer pattern**: a generated `<OperationId>EndpointRegistration` base class lets consumers configure individual endpoints (authorization, rate limiting, etc.) without touching generated code.
 
-- **Compile-time diagnostics** (`MOA001`–`MOA007`) for missing or duplicate handler implementations, unparseable specs, unrecognised file extensions, unrecognised OpenAPI versions, and incompatible `allOf` property conflicts (with `object` fallback).
+- **Compile-time diagnostics** (`MOA001`–`MOA007`) for missing or duplicate handler implementations, unparseable specs, unrecognised file extensions, unrecognised OpenAPI versions, and incompatible `allOf` property conflicts (with `JsonElement` fallback).

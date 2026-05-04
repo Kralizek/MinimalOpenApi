@@ -181,6 +181,42 @@ public class AllOfCompositionTests
     }
 
     [Test]
+    public void Cyclic_AllOf_References_Do_Not_StackOverflow_And_Flatten()
+    {
+        const string spec = """
+            openapi: "3.0.0"
+            info: { title: test, version: "1.0.0" }
+            paths: {}
+            components:
+              schemas:
+                A:
+                  allOf:
+                    - $ref: '#/components/schemas/B'
+                    - type: object
+                      required: [aProp]
+                      properties:
+                        aProp: { type: string }
+                B:
+                  allOf:
+                    - $ref: '#/components/schemas/A'
+                    - type: object
+                      required: [bProp]
+                      properties:
+                        bProp: { type: integer }
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.yaml", spec)]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+        Assert.That(source, Does.Contain("public sealed record A"));
+        Assert.That(source, Does.Contain("public sealed record B"));
+        Assert.That(source, Does.Contain("public required string AProp { get; init; }"));
+        Assert.That(source, Does.Contain("public required int BProp { get; init; }"));
+    }
+
+    [Test]
     public void Incompatible_AllOf_Property_Emits_Diagnostic_And_Uses_JsonElement()
     {
         const string spec = """

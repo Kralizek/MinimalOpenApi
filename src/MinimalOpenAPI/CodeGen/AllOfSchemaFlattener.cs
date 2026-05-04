@@ -11,24 +11,30 @@ internal static class AllOfSchemaFlattener
         IReadOnlyDictionary<string, OpenApiSchema> allSchemas,
         string ownerSchemaName,
         List<AllOfPropertyConflict> conflicts)
-        => ResolveCore(schema, allSchemas, ownerSchemaName, conflicts);
+        => ResolveCore(
+            schema,
+            allSchemas,
+            ownerSchemaName,
+            conflicts,
+            new HashSet<string>(StringComparer.Ordinal));
 
     private static OpenApiSchema ResolveCore(
         OpenApiSchema schema,
         IReadOnlyDictionary<string, OpenApiSchema> allSchemas,
         string ownerSchemaName,
-        List<AllOfPropertyConflict> conflicts)
+        List<AllOfPropertyConflict> conflicts,
+        HashSet<string> expandingReferences)
     {
         var resolvedProperties = new Dictionary<string, OpenApiSchema>(StringComparer.Ordinal);
         foreach (var property in schema.Properties)
-            resolvedProperties[property.Key] = ResolveCore(property.Value, allSchemas, ownerSchemaName, conflicts);
+            resolvedProperties[property.Key] = ResolveCore(property.Value, allSchemas, ownerSchemaName, conflicts, expandingReferences);
 
         var resolvedItems = schema.Items is not null
-            ? ResolveCore(schema.Items, allSchemas, ownerSchemaName, conflicts)
+            ? ResolveCore(schema.Items, allSchemas, ownerSchemaName, conflicts, expandingReferences)
             : null;
 
         var resolvedAdditionalProperties = schema.AdditionalProperties is not null
-            ? ResolveCore(schema.AdditionalProperties, allSchemas, ownerSchemaName, conflicts)
+            ? ResolveCore(schema.AdditionalProperties, allSchemas, ownerSchemaName, conflicts, expandingReferences)
             : null;
 
         if (schema.AllOf.Count == 0)
@@ -63,13 +69,17 @@ internal static class AllOfSchemaFlattener
 
         foreach (var allOfSchema in schema.AllOf)
         {
-            var resolvedAllOfSchema = ResolveCore(allOfSchema, allSchemas, ownerSchemaName, conflicts);
+            var resolvedAllOfSchema = ResolveCore(allOfSchema, allSchemas, ownerSchemaName, conflicts, expandingReferences);
             if (resolvedAllOfSchema.Reference is not null
                 && resolvedAllOfSchema.AllOf.Count == 0
-                && resolvedAllOfSchema.Properties.Count == 0
-                && allSchemas.TryGetValue(resolvedAllOfSchema.Reference, out var referencedSchema))
+                && resolvedAllOfSchema.Properties.Count == 0)
             {
-                resolvedAllOfSchema = ResolveCore(referencedSchema, allSchemas, ownerSchemaName, conflicts);
+                resolvedAllOfSchema = ResolveReferencedSchema(
+                    resolvedAllOfSchema.Reference,
+                    allSchemas,
+                    ownerSchemaName,
+                    conflicts,
+                    expandingReferences);
             }
 
             MergeInto(
@@ -108,6 +118,31 @@ internal static class AllOfSchemaFlattener
             AdditionalProperties = mergedAdditionalProperties,
             AdditionalPropertiesAllowed = mergedAdditionalPropertiesAllowed
         };
+    }
+
+    private static OpenApiSchema ResolveReferencedSchema(
+        string referenceName,
+        IReadOnlyDictionary<string, OpenApiSchema> allSchemas,
+        string ownerSchemaName,
+        List<AllOfPropertyConflict> conflicts,
+        HashSet<string> expandingReferences)
+    {
+        if (!allSchemas.TryGetValue(referenceName, out var referencedSchema))
+            return new OpenApiSchema { Reference = referenceName };
+
+        // allOf may legitimately form cycles across component refs (A -> B -> A).
+        // Stop recursive expansion when we revisit a ref currently being expanded.
+        if (!expandingReferences.Add(referenceName))
+            return new OpenApiSchema { Reference = referenceName };
+
+        try
+        {
+            return ResolveCore(referencedSchema, allSchemas, ownerSchemaName, conflicts, expandingReferences);
+        }
+        finally
+        {
+            expandingReferences.Remove(referenceName);
+        }
     }
 
     private static void MergeInto(
