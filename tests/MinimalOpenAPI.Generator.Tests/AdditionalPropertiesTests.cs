@@ -328,7 +328,7 @@ public class AdditionalPropertiesTests
                 var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
 
                 var valuePos = source.IndexOf("public sealed record ResourceTagsValue", StringComparison.Ordinal);
-                var parentPos = source.IndexOf("public sealed record Resource\n", StringComparison.Ordinal);
+                var parentPos = source.IndexOf($"public sealed record Resource{System.Environment.NewLine}", StringComparison.Ordinal);
 
                 Assert.That(valuePos, Is.GreaterThan(-1));
                 Assert.That(parentPos, Is.GreaterThan(-1));
@@ -429,7 +429,7 @@ public class AdditionalPropertiesTests
                 var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateItemEndpointBase.g.cs");
 
                 var valuePos = source.IndexOf("public sealed record RequestTagsValue", StringComparison.Ordinal);
-                var requestPos = source.IndexOf("public sealed record Request\n", StringComparison.Ordinal);
+                var requestPos = source.IndexOf($"public sealed record Request{System.Environment.NewLine}", StringComparison.Ordinal);
 
                 Assert.That(valuePos, Is.GreaterThan(-1));
                 Assert.That(requestPos, Is.GreaterThan(-1));

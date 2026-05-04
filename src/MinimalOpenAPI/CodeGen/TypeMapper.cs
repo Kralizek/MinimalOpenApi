@@ -17,6 +17,15 @@ internal delegate string? InlineSchemaResolver(OpenApiSchema schema);
 /// </summary>
 internal static class TypeMapper
 {
+    /// <summary>
+    /// A synthetic type name used as a sentinel to mark a property that could not be
+    /// resolved during <c>allOf</c> flattening due to incompatible definitions across branches.
+    /// <see cref="MapSchema"/> maps any schema carrying this type to
+    /// <c>global::System.Text.Json.JsonElement</c> so that the property is still usable
+    /// (callers can inspect the raw JSON value) without implying arbitrary CLR object semantics.
+    /// </summary>
+    internal const string RawJsonSentinelType = "x-raw-json";
+
     /// <summary>The tool name used in <c>[GeneratedCode]</c> attributes on all generated types.</summary>
     public const string GeneratorName = "MinimalOpenAPI.Generator";
 
@@ -36,13 +45,14 @@ internal static class TypeMapper
 
     /// <summary>
     /// Returns <see langword="true"/> when the schema is an inline object definition —
-    /// i.e. it declares properties or an explicit <c>object</c> type, but has no <c>$ref</c>
-    /// and is not a pure dictionary schema (see <see cref="IsDictionarySchema"/>).
+    /// i.e. it declares properties, an explicit <c>object</c> type, or one or more
+    /// <c>allOf</c> entries, but has no <c>$ref</c> and is not a pure dictionary schema
+    /// (see <see cref="IsDictionarySchema"/>).
     /// </summary>
     public static bool IsInlineObject(OpenApiSchema schema)
         => schema.Reference is null
             && !IsDictionarySchema(schema)
-            && (schema.Type?.ToLowerInvariant() == "object" || schema.Properties.Count > 0);
+            && (schema.Type?.ToLowerInvariant() == "object" || schema.Properties.Count > 0 || schema.AllOf.Count > 0);
 
     /// <summary>Returns the nested record name used for an inline request-body schema.</summary>
     public static string GetInlineRequestBodyTypeName() => "Request";
@@ -97,6 +107,16 @@ internal static class TypeMapper
         string? contractsNamespace = null,
         InlineSchemaResolver? resolveInline = null)
     {
+        // Explicit raw-JSON sentinel: emitted when allOf flattening encounters incompatible
+        // property definitions. Map directly to JsonElement rather than falling through to
+        // the default 'object' branch to be consistent with how we represent unknown JSON
+        // shapes (e.g. additionalProperties: true).
+        if (schema.Type == RawJsonSentinelType)
+        {
+            const string je = "global::System.Text.Json.JsonElement";
+            return nullable || schema.Nullable ? $"{je}?" : je;
+        }
+
         if (schema.Reference is not null)
         {
             var typeName = contractsNamespace is not null

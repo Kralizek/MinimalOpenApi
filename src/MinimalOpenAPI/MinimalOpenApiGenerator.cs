@@ -291,9 +291,18 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         // Generate DTOs
         if (doc.Schemas.Count > 0)
         {
-            var dtoSource = DtoGenerator.Generate(doc.Schemas, rootNamespace, specName);
-            if (!string.IsNullOrWhiteSpace(dtoSource))
-                spc.AddSource($"MinimalOpenApi.{specName}.Dtos.g.cs", dtoSource);
+            var dtoResult = DtoGenerator.Generate(doc.Schemas, rootNamespace, specName);
+            if (!string.IsNullOrWhiteSpace(dtoResult.Source))
+                spc.AddSource($"MinimalOpenApi.{specName}.Dtos.g.cs", dtoResult.Source);
+
+            foreach (var conflict in dtoResult.AllOfConflicts.Distinct())
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.AllOfPropertyConflict,
+                    CreateOpenApiLocation(openApiFilePath),
+                    conflict.SchemaName,
+                    conflict.PropertyName));
+            }
         }
 
         // Discover handlers and customizers, emit diagnostics
@@ -306,8 +315,18 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             var customizerBase = TypeMapper.RegistrationClassName(op.OperationId);
 
             // Generate handler base
-            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName);
+            var handlerConflicts = new List<MinimalOpenAPI.Generator.CodeGen.AllOfPropertyConflict>();
+            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, doc.Schemas, handlerConflicts);
             spc.AddSource($"MinimalOpenApi.{specName}.{handlerBase}.g.cs", handlerSource);
+
+            foreach (var conflict in handlerConflicts.Distinct())
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.AllOfPropertyConflict,
+                    CreateOpenApiLocation(openApiFilePath),
+                    conflict.SchemaName,
+                    conflict.PropertyName));
+            }
 
             // Generate registration customizer base
             var customizerSource = RegistrationCustomizerGenerator.Generate(op, rootNamespace, specName);

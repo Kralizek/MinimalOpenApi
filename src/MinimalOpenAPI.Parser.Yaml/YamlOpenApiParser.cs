@@ -103,6 +103,7 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             Type = resolvedType,
             Format = GetString(node, "format"),
             Nullable = GetBool(node, "nullable") || nullableFromTypeArray,
+            AllOf = ExtractAllOfSchemas(node),
             Properties = properties,
             Required = required,
             Items = ExtractItemsSchema(node),
@@ -117,6 +118,22 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             AdditionalProperties = ExtractAdditionalPropertiesSchema(node),
             AdditionalPropertiesAllowed = GetAdditionalPropertiesAllowed(node)
         };
+    }
+
+    private static List<OpenApiSchema> ExtractAllOfSchemas(YamlMappingNode node)
+    {
+        var allOf = new List<OpenApiSchema>();
+        var allOfNode = GetSequence(node, "allOf");
+        if (allOfNode is null)
+            return allOf;
+
+        foreach (var item in allOfNode.Children)
+        {
+            if (item is YamlMappingNode schemaNode)
+                allOf.Add(ExtractSchema(schemaNode));
+        }
+
+        return allOf;
     }
 
     private static OpenApiSchema? ExtractAdditionalPropertiesSchema(YamlMappingNode node)

@@ -111,6 +111,7 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             Type = resolvedType,
             Format = GetString(node, "format"),
             Nullable = GetBool(node, "nullable") || nullableFromTypeArray,
+            AllOf = ExtractAllOfSchemas(node),
             Properties = properties,
             Required = required,
             Items = ExtractItemsSchema(node),
@@ -125,6 +126,22 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             AdditionalProperties = ExtractAdditionalPropertiesSchema(node),
             AdditionalPropertiesAllowed = GetAdditionalPropertiesAllowed(node)
         };
+    }
+
+    private static List<OpenApiSchema> ExtractAllOfSchemas(JsonObject node)
+    {
+        var allOf = new List<OpenApiSchema>();
+        var allOfNode = GetArray(node, "allOf");
+        if (allOfNode is null)
+            return allOf;
+
+        foreach (var item in allOfNode)
+        {
+            if (item?.AsObject() is { } schemaObj)
+                allOf.Add(ExtractSchema(schemaObj));
+        }
+
+        return allOf;
     }
 
     private static OpenApiSchema? ExtractAdditionalPropertiesSchema(JsonObject node)
