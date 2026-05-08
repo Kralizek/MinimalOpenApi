@@ -226,6 +226,72 @@ public class MultiSpecGenerationTests
     }
 }
 
+[TestFixture]
+public class DuplicateSpecNameDiagnosticsTests
+{
+    [Test]
+    public void TwoFilesWithSameDerivedSpecName_EmitsMoa009AndSkipsGenerationForConflicts()
+    {
+        var additionalFiles = new[]
+        {
+            ("apis/admin/openapi.yaml", OpenApiFixtures.GetClientYaml),
+            ("apis/public/openapi.yaml", OpenApiFixtures.GetClientYaml),
+        };
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "",
+            additionalFiles: additionalFiles);
+
+        var moa009 = result.Diagnostics.Where(d => d.Id == "MOA009").ToArray();
+        Assert.That(moa009, Has.Length.EqualTo(2), "MOA009 should be emitted once per conflicting OpenAPI file.");
+        Assert.That(moa009.All(d => d.GetMessage().Contains("spec name 'Openapi'", StringComparison.Ordinal)), Is.True);
+        Assert.That(moa009.All(d => d.GetMessage().Contains("apis/admin/openapi.yaml", StringComparison.Ordinal)), Is.True);
+        Assert.That(moa009.All(d => d.GetMessage().Contains("apis/public/openapi.yaml", StringComparison.Ordinal)), Is.True);
+        Assert.That(result.GeneratedTrees.Any(t => t.FilePath.Contains("MinimalOpenApi.Openapi.", StringComparison.Ordinal)), Is.False);
+    }
+
+    [Test]
+    public void SameFileNamesWithDifferentNamespaceMetadata_DoNotEmitMoa009()
+    {
+        var additionalFiles = new[]
+        {
+            ("apis/admin/openapi.yaml", OpenApiFixtures.GetClientYaml),
+            ("apis/public/openapi.yaml", OpenApiFixtures.GetClientYaml),
+        };
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "",
+            additionalFiles: additionalFiles,
+            specNameOverridesByFilePath: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["apis/admin/openapi.yaml"] = "AdminApi",
+                ["apis/public/openapi.yaml"] = "PublicApi",
+            });
+
+        Assert.That(result.Diagnostics.Any(d => d.Id == "MOA009"), Is.False);
+        Assert.That(result.GeneratedTrees.Any(t => t.FilePath.EndsWith("AdminApi.GetClientEndpointBase.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
+        Assert.That(result.GeneratedTrees.Any(t => t.FilePath.EndsWith("PublicApi.GetClientEndpointBase.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
+    }
+
+    [Test]
+    public void NormalizedFileNamesThatCollide_EmitMoa009()
+    {
+        var additionalFiles = new[]
+        {
+            ("payment-api.yaml", OpenApiFixtures.GetClientYaml),
+            ("payment_api.yaml", OpenApiFixtures.GetClientYaml),
+        };
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "",
+            additionalFiles: additionalFiles);
+
+        var moa009 = result.Diagnostics.Where(d => d.Id == "MOA009").ToArray();
+        Assert.That(moa009, Has.Length.EqualTo(2));
+        Assert.That(moa009.All(d => d.GetMessage().Contains("spec name 'PaymentApi'", StringComparison.Ordinal)), Is.True);
+    }
+}
+
 /// <summary>
 /// Tests for the spec-name derivation logic — exercised through the generator
 /// so the exact filename-to-namespace mapping is covered without requiring

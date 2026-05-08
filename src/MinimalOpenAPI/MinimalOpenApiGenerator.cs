@@ -99,9 +99,22 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 {
                     return (Doc: (OpenApiDocument?)null, Path: path, Namespace: ns, SpecName: specName,
                             SchemaId: schemaId, PublishAs: publishAs, DisplayName: displayName, DisplayVersion: displayVersion,
-                            Error: ex.Message, UnsupportedExtension: (string?)null);
+                             Error: ex.Message, UnsupportedExtension: (string?)null);
                 }
             });
+
+        var duplicateSpecNames = openApiFiles
+            .Collect()
+            .Select((files, _) =>
+                files
+                    .GroupBy(f => f.SpecName)
+                    .Where(g => g.Count() > 1)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g
+                            .Select(f => f.Path)
+                            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                            .ToArray()));
 
         // 4. Discover concrete class declarations in user code
         var classDeclarations = context.SyntaxProvider
@@ -133,12 +146,24 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             .Select((c, _) => c!);
 
         // 5. Combine parsed docs with discovered classes
-        var combined = parsedDocuments.Combine(classDeclarations.Collect());
+        var combined = parsedDocuments
+            .Combine(classDeclarations.Collect())
+            .Combine(duplicateSpecNames);
 
         // 6. Generate source files
         context.RegisterSourceOutput(combined, (spc, pair) =>
         {
-            var ((doc, path, ns, specName, schemaId, publishAs, displayName, displayVersion, error, unsupportedExtension), classes) = pair;
+            var (((doc, path, ns, specName, schemaId, publishAs, displayName, displayVersion, error, unsupportedExtension), classes), duplicatesBySpecName) = pair;
+
+            if (duplicatesBySpecName.TryGetValue(specName, out var conflictingFiles))
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.DuplicateSpecName,
+                    CreateOpenApiLocation(path),
+                    specName,
+                    string.Join(", ", conflictingFiles)));
+                return;
+            }
 
             if (unsupportedExtension is not null)
             {
