@@ -48,3 +48,29 @@ paths:
       responses:
         "204":
           description: No Content
+  /tenants/{tenantId}/items:
+    get:
+      operationId: getTenantItems
+      summary: List items for a tenant
+      description: >
+        Demonstrates a path parameter resolved from a reusable components/parameters entry.
+        The tenantId path parameter is defined under components/parameters and referenced
+        via $ref, exercising the component parameter resolution pipeline in the shipped package.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+components:
+  parameters:
+    TenantId:
+      name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid

@@ -33,6 +33,7 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             Title = GetString(root, "info", "title") ?? string.Empty,
             Version = GetString(root, "info", "version") ?? "1.0.0",
             Schemas = ExtractSchemas(root),
+            ComponentParameters = ExtractComponentParameters(root),
             Operations = ExtractOperations(root)
         };
     }
@@ -57,6 +58,22 @@ public sealed class JsonOpenApiParser : IOpenApiParser
         {
             if (entry.Value?.AsObject() is { } schemaObj)
                 result[entry.Key] = ExtractSchema(schemaObj);
+        }
+        return result;
+    }
+
+    // ── Component parameters ──────────────────────────────────────────────
+
+    private static Dictionary<string, OpenApiParameter> ExtractComponentParameters(JsonObject root)
+    {
+        var result = new Dictionary<string, OpenApiParameter>(StringComparer.Ordinal);
+        var paramsNode = GetObject(root, "components", "parameters");
+        if (paramsNode is null) return result;
+
+        foreach (var entry in paramsNode)
+        {
+            if (entry.Value?.AsObject() is { } paramObj)
+                result[entry.Key] = ExtractInlineParameter(paramObj);
         }
         return result;
     }
@@ -230,26 +247,39 @@ public sealed class JsonOpenApiParser : IOpenApiParser
         {
             if (item?.AsObject() is not { } paramNode) continue;
 
-            var inStr = GetString(paramNode, "in") ?? "query";
-            var location = inStr.ToLowerInvariant() switch
+            // Check for a $ref entry
+            var refValue = GetString(paramNode, "$ref");
+            if (refValue is not null)
             {
-                "path" => ParameterLocation.Path,
-                "header" => ParameterLocation.Header,
-                "cookie" => ParameterLocation.Cookie,
-                _ => ParameterLocation.Query
-            };
+                result.Add(new OpenApiParameter { Reference = refValue });
+                continue;
+            }
 
-            var schemaNode = GetObject(paramNode, "schema");
-            result.Add(new OpenApiParameter
-            {
-                Name = GetString(paramNode, "name") ?? string.Empty,
-                Location = location,
-                Required = GetBool(paramNode, "required"),
-                Schema = schemaNode is not null ? ExtractSchema(schemaNode) : new OpenApiSchema()
-            });
+            result.Add(ExtractInlineParameter(paramNode));
         }
 
         return result;
+    }
+
+    private static OpenApiParameter ExtractInlineParameter(JsonObject paramNode)
+    {
+        var inStr = GetString(paramNode, "in") ?? "query";
+        var location = inStr.ToLowerInvariant() switch
+        {
+            "path" => ParameterLocation.Path,
+            "header" => ParameterLocation.Header,
+            "cookie" => ParameterLocation.Cookie,
+            _ => ParameterLocation.Query
+        };
+
+        var schemaNode = GetObject(paramNode, "schema");
+        return new OpenApiParameter
+        {
+            Name = GetString(paramNode, "name") ?? string.Empty,
+            Location = location,
+            Required = GetBool(paramNode, "required"),
+            Schema = schemaNode is not null ? ExtractSchema(schemaNode) : new OpenApiSchema()
+        };
     }
 
     private static OpenApiRequestBody? ExtractRequestBody(JsonObject opNode)

@@ -22,4 +22,7 @@ public sealed class OpenApiDocument
 
     /// <summary>Reusable schema components defined under <c>components/schemas</c>, keyed by schema name.</summary>
     public Dictionary<string, OpenApiSchema> Schemas { get; init; } = new Dictionary<string, OpenApiSchema>(StringComparer.Ordinal);
+
+    /// <summary>Reusable parameter components defined under <c>components/parameters</c>, keyed by parameter name.</summary>
+    public Dictionary<string, OpenApiParameter> ComponentParameters { get; init; } = new Dictionary<string, OpenApiParameter>(StringComparer.Ordinal);
 }

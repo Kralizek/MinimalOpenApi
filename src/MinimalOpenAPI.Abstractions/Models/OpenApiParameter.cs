@@ -27,4 +27,12 @@ public sealed class OpenApiParameter
 
     /// <summary>The schema that describes the parameter's type and format.</summary>
     public OpenApiSchema Schema { get; init; } = new OpenApiSchema();
+
+    /// <summary>
+    /// When non-<see langword="null"/>, this parameter is an unresolved <c>$ref</c> entry from the
+    /// OpenAPI parameters array.  The value is the raw reference string (e.g.
+    /// <c>#/components/parameters/Page</c>).  The generator resolves these references against
+    /// <see cref="OpenApiDocument.ComponentParameters"/> before code generation.
+    /// </summary>
+    public string? Reference { get; init; }
 }

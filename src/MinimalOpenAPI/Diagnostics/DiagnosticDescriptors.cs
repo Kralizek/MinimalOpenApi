@@ -68,4 +68,13 @@ internal static class DiagnosticDescriptors
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
+
+    /// <summary>A parameter <c>$ref</c> in an operation's parameters array could not be resolved.</summary>
+    public static readonly DiagnosticDescriptor UnresolvedParameterReference = new(
+        id: "MOA008",
+        title: "Unresolved parameter reference",
+        messageFormat: "Parameter reference '{0}' in operation '{1}' could not be resolved. Only local references of the form '#/components/parameters/{{name}}' are supported.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

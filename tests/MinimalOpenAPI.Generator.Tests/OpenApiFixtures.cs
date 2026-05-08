@@ -1493,4 +1493,179 @@ internal static class OpenApiFixtures
                 - active
                 - cancelled
         """;
+
+    // ── Component parameter fixtures ──────────────────────────────────────
+    //
+    // These fixtures use reusable parameters defined under components/parameters
+    // and referenced via $ref inside operation parameter arrays.
+
+    /// <summary>
+    /// A GET endpoint that mixes a component parameter <c>$ref</c> (providerId, path)
+    /// with an inline query parameter (page), demonstrating mixed inline+ref ordering.
+    /// </summary>
+    public const string GetLeadsWithComponentParametersYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /providers/{providerId}/leads:
+            get:
+              operationId: getLeads
+              parameters:
+                - $ref: '#/components/parameters/ProviderId'
+                - name: page
+                  in: query
+                  required: false
+                  schema:
+                    type: integer
+              responses:
+                "200":
+                  description: OK
+        components:
+          parameters:
+            ProviderId:
+              name: providerId
+              in: path
+              required: true
+              schema:
+                type: string
+                format: uuid
+        """;
+
+    /// <summary>
+    /// JSON variant of <see cref="GetLeadsWithComponentParametersYaml"/>.
+    /// </summary>
+    public const string GetLeadsWithComponentParametersJson = """
+        {
+          "openapi": "3.0.0",
+          "info": {
+            "title": "Test API",
+            "version": "1.0.0"
+          },
+          "paths": {
+            "/providers/{providerId}/leads": {
+              "get": {
+                "operationId": "getLeads",
+                "parameters": [
+                  { "$ref": "#/components/parameters/ProviderId" },
+                  {
+                    "name": "page",
+                    "in": "query",
+                    "required": false,
+                    "schema": { "type": "integer" }
+                  }
+                ],
+                "responses": {
+                  "200": { "description": "OK" }
+                }
+              }
+            }
+          },
+          "components": {
+            "parameters": {
+              "ProviderId": {
+                "name": "providerId",
+                "in": "path",
+                "required": true,
+                "schema": { "type": "string", "format": "uuid" }
+              }
+            }
+          }
+        }
+        """;
+
+    /// <summary>
+    /// A GET endpoint whose parameters are all defined under <c>components/parameters</c>:
+    /// a query parameter (<c>page</c>), a header parameter (<c>X-Correlation-Id</c>), and
+    /// a cookie parameter (<c>session</c>).  Used to verify that all three non-path parameter
+    /// locations resolve correctly and receive the correct binding attributes.
+    /// </summary>
+    public const string SearchWithAllNonPathComponentParametersYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /search:
+            get:
+              operationId: search
+              parameters:
+                - $ref: '#/components/parameters/PageQuery'
+                - $ref: '#/components/parameters/CorrelationIdHeader'
+                - $ref: '#/components/parameters/SessionCookie'
+              responses:
+                "200":
+                  description: OK
+        components:
+          parameters:
+            PageQuery:
+              name: page
+              in: query
+              required: false
+              schema:
+                type: integer
+            CorrelationIdHeader:
+              name: X-Correlation-Id
+              in: header
+              required: false
+              schema:
+                type: string
+            SessionCookie:
+              name: session
+              in: cookie
+              required: false
+              schema:
+                type: string
+        """;
+
+    /// <summary>
+    /// JSON variant of <see cref="SearchWithAllNonPathComponentParametersYaml"/>.
+    /// </summary>
+    public const string SearchWithAllNonPathComponentParametersJson = """
+        {
+          "openapi": "3.0.0",
+          "info": {
+            "title": "Test API",
+            "version": "1.0.0"
+          },
+          "paths": {
+            "/search": {
+              "get": {
+                "operationId": "search",
+                "parameters": [
+                  { "$ref": "#/components/parameters/PageQuery" },
+                  { "$ref": "#/components/parameters/CorrelationIdHeader" },
+                  { "$ref": "#/components/parameters/SessionCookie" }
+                ],
+                "responses": {
+                  "200": { "description": "OK" }
+                }
+              }
+            }
+          },
+          "components": {
+            "parameters": {
+              "PageQuery": {
+                "name": "page",
+                "in": "query",
+                "required": false,
+                "schema": { "type": "integer" }
+              },
+              "CorrelationIdHeader": {
+                "name": "X-Correlation-Id",
+                "in": "header",
+                "required": false,
+                "schema": { "type": "string" }
+              },
+              "SessionCookie": {
+                "name": "session",
+                "in": "cookie",
+                "required": false,
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+        """;
 }
