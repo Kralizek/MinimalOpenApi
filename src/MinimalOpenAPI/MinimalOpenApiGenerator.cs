@@ -276,6 +276,71 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         return TypeMapper.ToPascalCase(fileName);
     }
 
+    private const string ComponentParametersPrefix = "#/components/parameters/";
+
+    /// <summary>
+    /// Resolves all <c>$ref</c> entries in operation parameter lists against
+    /// <see cref="OpenApiDocument.ComponentParameters"/>.  Inline parameters are left unchanged.
+    /// Returns <see langword="true"/> when all references were resolved successfully, or
+    /// <see langword="false"/> when at least one reference could not be resolved (MOA008 is reported
+    /// for each failure and the caller should abort code generation for this document).
+    /// </summary>
+    private static bool ResolveParameterReferences(
+        SourceProductionContext spc,
+        OpenApiDocument doc,
+        string openApiFilePath)
+    {
+        var allResolved = true;
+
+        foreach (var op in doc.Operations)
+        {
+            // Check whether any parameters need resolving
+            var hasRefs = op.Parameters.Exists(p => p.Reference is not null);
+            if (!hasRefs) continue;
+
+            var resolved = new List<OpenApiParameter>(op.Parameters.Count);
+            foreach (var param in op.Parameters)
+            {
+                if (param.Reference is null)
+                {
+                    resolved.Add(param);
+                    continue;
+                }
+
+                var refValue = param.Reference;
+
+                // Only local #/components/parameters/{name} refs are supported
+                if (!refValue.StartsWith(ComponentParametersPrefix, StringComparison.Ordinal))
+                {
+                    spc.ReportDiagnostic(Diagnostic.Create(
+                        DiagnosticDescriptors.UnresolvedParameterReference,
+                        CreateOpenApiLocation(openApiFilePath),
+                        refValue, op.OperationId));
+                    allResolved = false;
+                    continue;
+                }
+
+                var paramName = refValue.Substring(ComponentParametersPrefix.Length);
+                if (!doc.ComponentParameters.TryGetValue(paramName, out var componentParam))
+                {
+                    spc.ReportDiagnostic(Diagnostic.Create(
+                        DiagnosticDescriptors.UnresolvedParameterReference,
+                        CreateOpenApiLocation(openApiFilePath),
+                        refValue, op.OperationId));
+                    allResolved = false;
+                    continue;
+                }
+
+                resolved.Add(componentParam);
+            }
+
+            op.Parameters.Clear();
+            op.Parameters.AddRange(resolved);
+        }
+
+        return allResolved;
+    }
+
     private static void GenerateForDocument(
         SourceProductionContext spc,
         OpenApiDocument doc,
@@ -288,6 +353,10 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         string? displayVersion,
         ClassInfo[] allClasses)
     {
+        // Resolve $ref parameter references before code generation
+        if (!ResolveParameterReferences(spc, doc, openApiFilePath))
+            return;
+
         // Generate DTOs
         if (doc.Schemas.Count > 0)
         {

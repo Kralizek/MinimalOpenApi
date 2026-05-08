@@ -1493,4 +1493,85 @@ internal static class OpenApiFixtures
                 - active
                 - cancelled
         """;
+
+    // ── Component parameter fixtures ──────────────────────────────────────
+    //
+    // These fixtures use reusable parameters defined under components/parameters
+    // and referenced via $ref inside operation parameter arrays.
+
+    /// <summary>
+    /// A GET endpoint that mixes a component parameter <c>$ref</c> (providerId, path)
+    /// with an inline query parameter (page), demonstrating mixed inline+ref ordering.
+    /// </summary>
+    public const string GetLeadsWithComponentParametersYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /providers/{providerId}/leads:
+            get:
+              operationId: getLeads
+              parameters:
+                - $ref: '#/components/parameters/ProviderId'
+                - name: page
+                  in: query
+                  required: false
+                  schema:
+                    type: integer
+              responses:
+                "200":
+                  description: OK
+        components:
+          parameters:
+            ProviderId:
+              name: providerId
+              in: path
+              required: true
+              schema:
+                type: string
+                format: uuid
+        """;
+
+    /// <summary>
+    /// JSON variant of <see cref="GetLeadsWithComponentParametersYaml"/>.
+    /// </summary>
+    public const string GetLeadsWithComponentParametersJson = """
+        {
+          "openapi": "3.0.0",
+          "info": {
+            "title": "Test API",
+            "version": "1.0.0"
+          },
+          "paths": {
+            "/providers/{providerId}/leads": {
+              "get": {
+                "operationId": "getLeads",
+                "parameters": [
+                  { "$ref": "#/components/parameters/ProviderId" },
+                  {
+                    "name": "page",
+                    "in": "query",
+                    "required": false,
+                    "schema": { "type": "integer" }
+                  }
+                ],
+                "responses": {
+                  "200": { "description": "OK" }
+                }
+              }
+            }
+          },
+          "components": {
+            "parameters": {
+              "ProviderId": {
+                "name": "providerId",
+                "in": "path",
+                "required": true,
+                "schema": { "type": "string", "format": "uuid" }
+              }
+            }
+          }
+        }
+        """;
 }

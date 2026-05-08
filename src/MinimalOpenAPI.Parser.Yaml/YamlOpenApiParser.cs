@@ -35,6 +35,7 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             Title = GetString(root, "info", "title") ?? string.Empty,
             Version = GetString(root, "info", "version") ?? "1.0.0",
             Schemas = ExtractSchemas(root),
+            ComponentParameters = ExtractComponentParameters(root),
             Operations = ExtractOperations(root)
         };
     }
@@ -58,6 +59,23 @@ public sealed class YamlOpenApiParser : IOpenApiParser
         foreach (var entry in schemasNode.Children)
         {
             result[Scalar(entry.Key)] = ExtractSchema((YamlMappingNode)entry.Value);
+        }
+        return result;
+    }
+
+    // ── Component parameters ──────────────────────────────────────────────
+
+    private static Dictionary<string, OpenApiParameter> ExtractComponentParameters(YamlMappingNode root)
+    {
+        var result = new Dictionary<string, OpenApiParameter>(StringComparer.Ordinal);
+        var paramsNode = GetMapping(root, "components", "parameters");
+        if (paramsNode is null) return result;
+
+        foreach (var entry in paramsNode.Children)
+        {
+            var key = Scalar(entry.Key);
+            if (entry.Value is YamlMappingNode paramNode)
+                result[key] = ExtractInlineParameter(paramNode);
         }
         return result;
     }
@@ -218,27 +236,41 @@ public sealed class YamlOpenApiParser : IOpenApiParser
 
         foreach (var item in paramsNode.Children)
         {
-            var paramNode = (YamlMappingNode)item;
-            var inStr = GetString(paramNode, "in") ?? "query";
-            var location = inStr.ToLowerInvariant() switch
-            {
-                "path" => ParameterLocation.Path,
-                "header" => ParameterLocation.Header,
-                "cookie" => ParameterLocation.Cookie,
-                _ => ParameterLocation.Query
-            };
+            if (item is not YamlMappingNode paramNode) continue;
 
-            var schemaNode = GetMapping(paramNode, "schema");
-            result.Add(new OpenApiParameter
+            // Check for a $ref entry
+            var refValue = GetString(paramNode, "$ref");
+            if (refValue is not null)
             {
-                Name = GetString(paramNode, "name") ?? string.Empty,
-                Location = location,
-                Required = GetBool(paramNode, "required"),
-                Schema = schemaNode is not null ? ExtractSchema(schemaNode) : new OpenApiSchema()
-            });
+                result.Add(new OpenApiParameter { Reference = refValue });
+                continue;
+            }
+
+            result.Add(ExtractInlineParameter(paramNode));
         }
 
         return result;
+    }
+
+    private static OpenApiParameter ExtractInlineParameter(YamlMappingNode paramNode)
+    {
+        var inStr = GetString(paramNode, "in") ?? "query";
+        var location = inStr.ToLowerInvariant() switch
+        {
+            "path" => ParameterLocation.Path,
+            "header" => ParameterLocation.Header,
+            "cookie" => ParameterLocation.Cookie,
+            _ => ParameterLocation.Query
+        };
+
+        var schemaNode = GetMapping(paramNode, "schema");
+        return new OpenApiParameter
+        {
+            Name = GetString(paramNode, "name") ?? string.Empty,
+            Location = location,
+            Required = GetBool(paramNode, "required"),
+            Schema = schemaNode is not null ? ExtractSchema(schemaNode) : new OpenApiSchema()
+        };
     }
 
     private static OpenApiRequestBody? ExtractRequestBody(YamlMappingNode opNode)
