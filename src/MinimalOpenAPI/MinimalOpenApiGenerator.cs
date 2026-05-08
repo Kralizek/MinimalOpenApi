@@ -280,46 +280,43 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
     /// <summary>
     /// Resolves all <c>$ref</c> entries in operation parameter lists against
-    /// <see cref="OpenApiDocument.ComponentParameters"/>.  Inline parameters are left unchanged.
-    /// Uses a two-pass approach: first pass collects all resolved parameter lists without mutating
-    /// the document; if every reference resolves successfully, the second pass applies the resolved
-    /// lists.  If any reference fails, MOA008 is reported for each failure, no operations are
-    /// mutated, and <see langword="false"/> is returned.
+    /// <see cref="OpenApiDocument.ComponentParameters"/> and returns a new list of operations
+    /// with all parameters fully resolved.  The parsed <see cref="OpenApiDocument"/> is never
+    /// mutated.  Inline parameters are copied as-is.  If any reference cannot be resolved,
+    /// MOA008 is reported for each failure, <paramref name="operations"/> is set to an empty
+    /// list, and the method returns <see langword="false"/>.
     /// </summary>
-    private static bool ResolveParameterReferences(
+    private static bool TryResolveParameterReferences(
         SourceProductionContext spc,
         OpenApiDocument doc,
-        string openApiFilePath)
+        string openApiFilePath,
+        out List<OpenApiOperation> operations)
     {
-        // First pass: build resolved parameter lists; report diagnostics but do NOT mutate yet.
-        var pending = new List<(OpenApiOperation Op, List<OpenApiParameter> Resolved)>();
+        operations = new List<OpenApiOperation>(doc.Operations.Count);
         var allResolved = true;
 
         foreach (var op in doc.Operations)
         {
-            var hasRefs = op.Parameters.Exists(p => p.Reference is not null);
-            if (!hasRefs) continue;
+            var resolvedParameters = new List<OpenApiParameter>(op.Parameters.Count);
 
-            var resolved = new List<OpenApiParameter>(op.Parameters.Count);
-            var opOk = true;
             foreach (var param in op.Parameters)
             {
                 if (param.Reference is null)
                 {
-                    resolved.Add(param);
+                    // Inline parameter — copy as-is.
+                    resolvedParameters.Add(param);
                     continue;
                 }
 
                 var refValue = param.Reference;
 
-                // Only local #/components/parameters/{name} refs are supported
+                // Only local #/components/parameters/{name} refs are supported.
                 if (!refValue.StartsWith(ComponentParametersPrefix, StringComparison.Ordinal))
                 {
                     spc.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.UnresolvedParameterReference,
                         CreateOpenApiLocation(openApiFilePath),
                         refValue, op.OperationId));
-                    opOk = false;
                     allResolved = false;
                     continue;
                 }
@@ -331,26 +328,31 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                         DiagnosticDescriptors.UnresolvedParameterReference,
                         CreateOpenApiLocation(openApiFilePath),
                         refValue, op.OperationId));
-                    opOk = false;
                     allResolved = false;
                     continue;
                 }
 
-                resolved.Add(componentParam);
+                resolvedParameters.Add(componentParam);
             }
 
-            if (opOk)
-                pending.Add((op, resolved));
+            operations.Add(new OpenApiOperation
+            {
+                OperationId = op.OperationId,
+                HttpMethod = op.HttpMethod,
+                Route = op.Route,
+                Summary = op.Summary,
+                Description = op.Description,
+                Tags = op.Tags,
+                Parameters = resolvedParameters,
+                RequestBody = op.RequestBody,
+                Responses = op.Responses,
+            });
         }
 
         if (!allResolved)
-            return false;
-
-        // Second pass: apply resolved lists only when every ref in the document resolved.
-        foreach (var (op, resolved) in pending)
         {
-            op.Parameters.Clear();
-            op.Parameters.AddRange(resolved);
+            operations = [];
+            return false;
         }
 
         return true;
@@ -368,8 +370,9 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         string? displayVersion,
         ClassInfo[] allClasses)
     {
-        // Resolve $ref parameter references before code generation
-        if (!ResolveParameterReferences(spc, doc, openApiFilePath))
+        // Resolve $ref parameter references before code generation; work with the returned
+        // normalized operation list so the parsed OpenApiDocument is never mutated.
+        if (!TryResolveParameterReferences(spc, doc, openApiFilePath, out var operations))
             return;
 
         // Generate DTOs
@@ -393,7 +396,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         var handlers = new List<DiscoveredImplementation>();
         var customizers = new List<DiscoveredImplementation>();
 
-        foreach (var op in doc.Operations)
+        foreach (var op in operations)
         {
             var handlerBase = TypeMapper.HandlerClassName(op.OperationId);
             var customizerBase = TypeMapper.RegistrationClassName(op.OperationId);
@@ -473,7 +476,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
         // Generate DI registration
         var diSource = DependencyInjectionRegistrationGenerator.Generate(
-            doc.Operations,
+            operations,
             handlers,
             customizers,
             rootNamespace,
@@ -486,7 +489,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         spc.AddSource($"MinimalOpenApi.{specName}.DependencyInjection.g.cs", diSource);
 
         // Generate endpoint mapping
-        var mappingSource = EndpointMappingGenerator.Generate(doc.Operations, customizers, rootNamespace, specName);
+        var mappingSource = EndpointMappingGenerator.Generate(operations, customizers, rootNamespace, specName);
         spc.AddSource($"MinimalOpenApi.{specName}.EndpointMapping.g.cs", mappingSource);
     }
 }
