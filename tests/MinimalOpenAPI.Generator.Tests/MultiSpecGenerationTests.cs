@@ -244,7 +244,9 @@ public class DuplicateSpecNameDiagnosticsTests
 
         var moa009 = result.Diagnostics.Where(d => d.Id == "MOA009").ToArray();
         Assert.That(moa009, Has.Length.EqualTo(2), "MOA009 should be emitted once per conflicting OpenAPI file.");
+        // "openapi.yaml" derives to "Openapi" with the current PascalCase normalization rules.
         Assert.That(moa009.All(d => d.GetMessage().Contains("spec name 'Openapi'", StringComparison.Ordinal)), Is.True);
+        Assert.That(moa009.All(d => d.GetMessage().Contains("Set the Namespace metadata on one or more <OpenApi> items to provide unique generated namespaces.", StringComparison.Ordinal)), Is.True);
         Assert.That(moa009.All(d => d.GetMessage().Contains("apis/admin/openapi.yaml", StringComparison.Ordinal)), Is.True);
         Assert.That(moa009.All(d => d.GetMessage().Contains("apis/public/openapi.yaml", StringComparison.Ordinal)), Is.True);
         Assert.That(result.GeneratedTrees.Any(t => t.FilePath.Contains("MinimalOpenApi.Openapi.", StringComparison.Ordinal)), Is.False);
@@ -262,7 +264,7 @@ public class DuplicateSpecNameDiagnosticsTests
         var (result, _) = GeneratorTestHelper.RunGenerator(
             userSource: "",
             additionalFiles: additionalFiles,
-            specNameOverridesByFilePath: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            specNameOverridesByFilePath: new Dictionary<string, string>
             {
                 ["apis/admin/openapi.yaml"] = "AdminApi",
                 ["apis/public/openapi.yaml"] = "PublicApi",

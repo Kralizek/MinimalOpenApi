@@ -107,14 +107,15 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             .Collect()
             .Select((files, _) =>
                 files
-                    .GroupBy(f => f.SpecName)
+                    .GroupBy(f => f.SpecName, StringComparer.Ordinal)
                     .Where(g => g.Count() > 1)
                     .ToDictionary(
                         g => g.Key,
                         g => g
                             .Select(f => f.Path)
                             .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                            .ToArray()));
+                            .ToArray(),
+                        StringComparer.Ordinal));
 
         // 4. Discover concrete class declarations in user code
         var classDeclarations = context.SyntaxProvider
