@@ -202,6 +202,208 @@ public class ComponentParameterTests
             "an external $ref should emit MOA008");
     }
 
+    // ── Path-level parameters ──────────────────────────────────────────────
+
+    [Test]
+    public void Yaml_PathLevelParameters_AreAppliedToAllOperations_WithOverrideAndOrder()
+    {
+        const string spec = """
+            openapi: "3.0.0"
+            info: { title: Test, version: "1.0.0" }
+            paths:
+              /stores/{storeId}/orders:
+                parameters:
+                  - $ref: '#/components/parameters/StoreId'
+                  - name: includeArchived
+                    in: query
+                    required: false
+                    schema:
+                      type: string
+                  - name: region
+                    in: query
+                    required: false
+                    schema:
+                      type: string
+                get:
+                  operationId: listOrders
+                  parameters:
+                    - name: includeArchived
+                      in: query
+                      required: false
+                      schema:
+                        type: boolean
+                    - name: page
+                      in: query
+                      required: false
+                      schema:
+                        type: integer
+                  responses:
+                    "200":
+                      description: OK
+                post:
+                  operationId: createOrder
+                  responses:
+                    "201":
+                      description: Created
+            components:
+              parameters:
+                StoreId:
+                  name: storeId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.yaml", spec)]);
+
+        var listOrders = GeneratorTestHelper.GetGeneratedSource(result, "ListOrdersEndpointBase.g.cs");
+        var createOrder = GeneratorTestHelper.GetGeneratedSource(result, "CreateOrderEndpointBase.g.cs");
+        var mapping = GeneratorTestHelper.GetGeneratedSource(result, "EndpointMapping.g.cs");
+
+        Assert.That(listOrders, Does.Contain("System.Guid storeId"));
+        Assert.That(createOrder, Does.Contain("System.Guid storeId"));
+        Assert.That(mapping, Does.Contain("/stores/{storeId:guid}/orders"));
+
+        Assert.That(listOrders, Does.Contain("public bool? IncludeArchived { get; init; }"),
+            "operation-level includeArchived should override path-level includeArchived by (name, in)");
+        Assert.That(createOrder, Does.Contain("public string? IncludeArchived { get; init; }"),
+            "path-level includeArchived should still apply to operations without overrides");
+        Assert.That(listOrders, Does.Contain("public string? Region { get; init; }"));
+        Assert.That(createOrder, Does.Contain("public string? Region { get; init; }"));
+
+        var includeArchivedIndex = listOrders.IndexOf("public bool? IncludeArchived { get; init; }", StringComparison.Ordinal);
+        var regionIndex = listOrders.IndexOf("public string? Region { get; init; }", StringComparison.Ordinal);
+        var pageIndex = listOrders.IndexOf("public int? Page { get; init; }", StringComparison.Ordinal);
+        Assert.That(includeArchivedIndex, Is.GreaterThanOrEqualTo(0));
+        Assert.That(regionIndex, Is.GreaterThan(includeArchivedIndex));
+        Assert.That(pageIndex, Is.GreaterThan(regionIndex),
+            "merged order should keep path slots first and append additional operation-level parameters");
+    }
+
+    [Test]
+    public void Json_PathLevelParameters_AreAppliedToAllOperations_WithOverrideAndOrder()
+    {
+        const string spec = """
+            {
+              "openapi": "3.0.0",
+              "info": { "title": "Test", "version": "1.0.0" },
+              "paths": {
+                "/stores/{storeId}/orders": {
+                  "parameters": [
+                    { "$ref": "#/components/parameters/StoreId" },
+                    { "name": "includeArchived", "in": "query", "required": false, "schema": { "type": "string" } },
+                    { "name": "region", "in": "query", "required": false, "schema": { "type": "string" } }
+                  ],
+                  "get": {
+                    "operationId": "listOrders",
+                    "parameters": [
+                      { "name": "includeArchived", "in": "query", "required": false, "schema": { "type": "boolean" } },
+                      { "name": "page", "in": "query", "required": false, "schema": { "type": "integer" } }
+                    ],
+                    "responses": { "200": { "description": "OK" } }
+                  },
+                  "post": {
+                    "operationId": "createOrder",
+                    "responses": { "201": { "description": "Created" } }
+                  }
+                }
+              },
+              "components": {
+                "parameters": {
+                  "StoreId": {
+                    "name": "storeId",
+                    "in": "path",
+                    "required": true,
+                    "schema": { "type": "string", "format": "uuid" }
+                  }
+                }
+              }
+            }
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.json", spec)]);
+
+        var listOrders = GeneratorTestHelper.GetGeneratedSource(result, "ListOrdersEndpointBase.g.cs");
+        var createOrder = GeneratorTestHelper.GetGeneratedSource(result, "CreateOrderEndpointBase.g.cs");
+        var mapping = GeneratorTestHelper.GetGeneratedSource(result, "EndpointMapping.g.cs");
+
+        Assert.That(listOrders, Does.Contain("System.Guid storeId"));
+        Assert.That(createOrder, Does.Contain("System.Guid storeId"));
+        Assert.That(mapping, Does.Contain("/stores/{storeId:guid}/orders"));
+
+        Assert.That(listOrders, Does.Contain("public bool? IncludeArchived { get; init; }"));
+        Assert.That(createOrder, Does.Contain("public string? IncludeArchived { get; init; }"));
+        Assert.That(listOrders, Does.Contain("public string? Region { get; init; }"));
+        Assert.That(createOrder, Does.Contain("public string? Region { get; init; }"));
+
+        var includeArchivedIndex = listOrders.IndexOf("public bool? IncludeArchived { get; init; }", StringComparison.Ordinal);
+        var regionIndex = listOrders.IndexOf("public string? Region { get; init; }", StringComparison.Ordinal);
+        var pageIndex = listOrders.IndexOf("public int? Page { get; init; }", StringComparison.Ordinal);
+        Assert.That(includeArchivedIndex, Is.GreaterThanOrEqualTo(0));
+        Assert.That(regionIndex, Is.GreaterThan(includeArchivedIndex));
+        Assert.That(pageIndex, Is.GreaterThan(regionIndex));
+    }
+
+    [Test]
+    public void Yaml_MissingPathLevelComponentRef_EmitsMoa008()
+    {
+        const string spec = """
+            openapi: "3.0.0"
+            info: { title: Test, version: "1.0.0" }
+            paths:
+              /libraries/{libraryId}/books:
+                parameters:
+                  - $ref: '#/components/parameters/Missing'
+                get:
+                  operationId: listBooks
+                  responses:
+                    "200":
+                      description: OK
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.yaml", spec)]);
+
+        Assert.That(result.Diagnostics, Has.Some.Matches<Microsoft.CodeAnalysis.Diagnostic>(d =>
+            d.Id == "MOA008"));
+    }
+
+    [Test]
+    public void Json_ExternalPathLevelComponentRef_EmitsMoa008()
+    {
+        const string spec = """
+            {
+              "openapi": "3.0.0",
+              "info": { "title": "Test", "version": "1.0.0" },
+              "paths": {
+                "/libraries/{libraryId}/books": {
+                  "parameters": [
+                    { "$ref": "./common.json#/components/parameters/LibraryId" }
+                  ],
+                  "get": {
+                    "operationId": "listBooks",
+                    "responses": { "200": { "description": "OK" } }
+                  }
+                }
+              }
+            }
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.json", spec)]);
+
+        Assert.That(result.Diagnostics, Has.Some.Matches<Microsoft.CodeAnalysis.Diagnostic>(d =>
+            d.Id == "MOA008"));
+    }
+
     // ── Non-path component parameter tests ───────────────────────────────
     //
     // These tests verify that query, header and cookie parameters defined under
