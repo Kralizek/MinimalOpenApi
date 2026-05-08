@@ -190,13 +190,14 @@ public sealed class YamlOpenApiParser : IOpenApiParser
         {
             var route = Scalar(pathEntry.Key);
             var pathItem = (YamlMappingNode)pathEntry.Value;
+            var pathParameters = ExtractParameters(pathItem);
 
             foreach (var method in HttpMethods)
             {
                 var opNode = GetMapping(pathItem, method);
                 if (opNode is null) continue;
 
-                result.Add(ExtractOperation(opNode, method.ToUpperInvariant(), route));
+                result.Add(ExtractOperation(opNode, method.ToUpperInvariant(), route, pathParameters));
             }
         }
 
@@ -204,7 +205,10 @@ public sealed class YamlOpenApiParser : IOpenApiParser
     }
 
     private static OpenApiOperation ExtractOperation(
-        YamlMappingNode opNode, string method, string route)
+        YamlMappingNode opNode,
+        string method,
+        string route,
+        IReadOnlyList<OpenApiParameter> pathParameters)
     {
         var tagsNode = GetSequence(opNode, "tags");
         var tags = new List<string>();
@@ -214,6 +218,11 @@ public sealed class YamlOpenApiParser : IOpenApiParser
                 tags.Add(Scalar(item));
         }
 
+        var operationParameters = ExtractParameters(opNode);
+        var parameters = new List<OpenApiParameter>(pathParameters.Count + operationParameters.Count);
+        parameters.AddRange(pathParameters);
+        parameters.AddRange(operationParameters);
+
         return new OpenApiOperation
         {
             OperationId = GetString(opNode, "operationId") ?? BuildOperationId(method, route),
@@ -222,7 +231,7 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             Summary = GetString(opNode, "summary"),
             Description = GetString(opNode, "description"),
             Tags = tags,
-            Parameters = ExtractParameters(opNode),
+            Parameters = parameters,
             RequestBody = ExtractRequestBody(opNode),
             Responses = ExtractResponses(opNode)
         };

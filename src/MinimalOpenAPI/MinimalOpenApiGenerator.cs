@@ -343,7 +343,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 Summary = op.Summary,
                 Description = op.Description,
                 Tags = op.Tags,
-                Parameters = resolvedParameters,
+                Parameters = MergeParametersByIdentity(resolvedParameters),
                 RequestBody = op.RequestBody,
                 Responses = op.Responses,
             });
@@ -356,6 +356,27 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         }
 
         return true;
+    }
+
+    private static List<OpenApiParameter> MergeParametersByIdentity(IReadOnlyList<OpenApiParameter> parameters)
+    {
+        var merged = new List<OpenApiParameter>(parameters.Count);
+        var indexesByKey = new Dictionary<(string Name, ParameterLocation Location), int>();
+
+        foreach (var parameter in parameters)
+        {
+            var key = (parameter.Name, parameter.Location);
+            if (indexesByKey.TryGetValue(key, out var existingIndex))
+            {
+                merged[existingIndex] = parameter;
+                continue;
+            }
+
+            indexesByKey[key] = merged.Count;
+            merged.Add(parameter);
+        }
+
+        return merged;
     }
 
     private static void GenerateForDocument(

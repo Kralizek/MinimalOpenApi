@@ -197,20 +197,25 @@ public sealed class JsonOpenApiParser : IOpenApiParser
         {
             var route = pathEntry.Key;
             if (pathEntry.Value?.AsObject() is not { } pathItem) continue;
+            var pathParameters = ExtractParameters(pathItem);
 
             foreach (var method in HttpMethods)
             {
                 var opNode = GetObject(pathItem, method);
                 if (opNode is null) continue;
 
-                result.Add(ExtractOperation(opNode, method.ToUpperInvariant(), route));
+                result.Add(ExtractOperation(opNode, method.ToUpperInvariant(), route, pathParameters));
             }
         }
 
         return result;
     }
 
-    private static OpenApiOperation ExtractOperation(JsonObject opNode, string method, string route)
+    private static OpenApiOperation ExtractOperation(
+        JsonObject opNode,
+        string method,
+        string route,
+        IReadOnlyList<OpenApiParameter> pathParameters)
     {
         var tags = new List<string>();
         var tagsNode = GetArray(opNode, "tags");
@@ -223,6 +228,11 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             }
         }
 
+        var operationParameters = ExtractParameters(opNode);
+        var parameters = new List<OpenApiParameter>(pathParameters.Count + operationParameters.Count);
+        parameters.AddRange(pathParameters);
+        parameters.AddRange(operationParameters);
+
         return new OpenApiOperation
         {
             OperationId = GetString(opNode, "operationId") ?? BuildOperationId(method, route),
@@ -231,7 +241,7 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             Summary = GetString(opNode, "summary"),
             Description = GetString(opNode, "description"),
             Tags = tags,
-            Parameters = ExtractParameters(opNode),
+            Parameters = parameters,
             RequestBody = ExtractRequestBody(opNode),
             Responses = ExtractResponses(opNode)
         };
