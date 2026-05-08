@@ -50,6 +50,29 @@ You only write the business logic.
 
 ---
 
+## Inspecting generated source files
+
+If you want to inspect or check in generated code, enable Roslyn compiler-generated file emission in your project:
+
+```xml
+<PropertyGroup>
+  <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+  <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
+</PropertyGroup>
+
+<ItemGroup>
+  <Compile Remove="Generated/**/*.cs" />
+</ItemGroup>
+```
+
+`Compile Remove` is important when the output folder is inside your project tree. MinimalOpenAPI already adds generated sources to the compilation through Roslyn, so compiling emitted `.cs` files again would cause duplicate type definitions.
+
+This is a project-wide Roslyn feature, so it emits files from **all** source generators used by your project (for example `System.Text.Json`, regex, logging, and MinimalOpenAPI). MinimalOpenAPI-generated files are grouped under the `MinimalOpenApi/{SpecName}/...` subtree, split into `Schemas`, `Operations`, and `Infrastructure`.
+
+Checking these files into source control is optional. Teams can ignore the whole `Generated` directory or choose to commit only specific subtrees.
+
+---
+
 ## Runtime requirements
 
 - **.NET 10** is required at runtime. The `MinimalOpenAPI` package targets `net10.0` for its runtime services and `netstandard2.0` for the Roslyn analyzer host.
