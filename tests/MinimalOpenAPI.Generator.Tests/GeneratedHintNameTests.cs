@@ -19,16 +19,17 @@ public class GeneratedHintNameTests
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
             userSource: GetClientHandlerImpl,
-            additionalFiles: [("openapi.yaml", OpenApiFixtures.GetClientYaml)]);
+            additionalFiles: [("openapi.yaml", OpenApiFixtures.GetClientYaml)],
+            specNameOverride: "Clients");
 
         var generatedPaths = result.GeneratedTrees
             .Select(t => t.FilePath.Replace('\\', '/'))
             .ToArray();
 
-        Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Openapi/Schemas/Openapi.Dtos.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
-        Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Openapi/Operations/Openapi.GetClientEndpointBase.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
-        Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Openapi/Operations/Openapi.GetClientEndpointRegistration.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
-        Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Openapi/Infrastructure/Openapi.DependencyInjection.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
-        Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Openapi/Infrastructure/Openapi.EndpointMapping.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
+        Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Clients/Schemas/Clients.Dtos.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
+        Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Clients/Operations/Clients.GetClientEndpointBase.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
+        Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Clients/Operations/Clients.GetClientEndpointRegistration.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
+        Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Clients/Infrastructure/Clients.DependencyInjection.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
+        Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Clients/Infrastructure/Clients.EndpointMapping.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
     }
 }
