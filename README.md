@@ -67,7 +67,9 @@ If you want to inspect or check in generated code, enable Roslyn compiler-genera
 
 `Compile Remove` is important when the output folder is inside your project tree. MinimalOpenAPI already adds generated sources to the compilation through Roslyn, so compiling emitted `.cs` files again would cause duplicate type definitions.
 
-This is a project-wide Roslyn feature, so it emits files from **all** source generators used by your project (for example `System.Text.Json`, regex, logging, and MinimalOpenAPI). MinimalOpenAPI-generated files are grouped under the `MinimalOpenApi/{SpecName}/...` subtree, split into `Schemas`, `Operations`, and `Infrastructure`.
+This is a project-wide Roslyn feature, so it emits files from **all** source generators used by your project (for example `System.Text.Json`, regex, logging, and MinimalOpenAPI).
+
+Roslyn places generated files under generator-specific folders below `CompilerGeneratedFilesOutputPath`. MinimalOpenAPI uses structured hint names, so its generated files are grouped under a `MinimalOpenApi/{SpecName}/...` subtree, split into `Schemas`, `Operations`, and `Infrastructure`.
 
 Checking these files into source control is optional. Teams can ignore the whole `Generated` directory or choose to commit only specific subtrees.
 
