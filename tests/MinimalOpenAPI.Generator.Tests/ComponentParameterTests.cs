@@ -201,4 +201,99 @@ public class ComponentParameterTests
             d.Id == "MOA008"),
             "an external $ref should emit MOA008");
     }
+
+    // ── Non-path component parameter tests ───────────────────────────────
+    //
+    // These tests verify that query, header and cookie parameters defined under
+    // components/parameters resolve correctly and receive the right binding attributes.
+
+    [Test]
+    public void Yaml_QueryComponentParameter_ResolvesWithFromQueryAttribute()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.yaml", OpenApiFixtures.SearchWithAllNonPathComponentParametersYaml)]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "SearchEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("int? Page"),
+            "component query parameter should appear as int? Page in the Parameters record");
+        Assert.That(source, Does.Contain("FromQuery(Name = \"page\")"),
+            "component query parameter should carry a FromQuery binding attribute");
+    }
+
+    [Test]
+    public void Yaml_HeaderComponentParameter_ResolvesWithFromHeaderAttribute()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.yaml", OpenApiFixtures.SearchWithAllNonPathComponentParametersYaml)]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "SearchEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("string? XCorrelationId"),
+            "component header parameter should appear as string? XCorrelationId in the Parameters record");
+        Assert.That(source, Does.Contain("FromHeader(Name = \"X-Correlation-Id\")"),
+            "component header parameter should carry a FromHeader binding attribute with the original name");
+    }
+
+    [Test]
+    public void Yaml_CookieComponentParameter_ResolvesWithoutBindingAttribute()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.yaml", OpenApiFixtures.SearchWithAllNonPathComponentParametersYaml)]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "SearchEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("string? Session"),
+            "component cookie parameter should appear as string? Session in the Parameters record");
+        Assert.That(source, Does.Not.Contain("FromCookie"),
+            "cookie parameters have no dedicated binding attribute in ASP.NET Core minimal APIs");
+    }
+
+    [Test]
+    public void Json_QueryComponentParameter_ResolvesWithFromQueryAttribute()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.json", OpenApiFixtures.SearchWithAllNonPathComponentParametersJson)]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "SearchEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("int? Page"),
+            "component query parameter should appear as int? Page in the Parameters record");
+        Assert.That(source, Does.Contain("FromQuery(Name = \"page\")"),
+            "component query parameter should carry a FromQuery binding attribute");
+    }
+
+    [Test]
+    public void Json_HeaderComponentParameter_ResolvesWithFromHeaderAttribute()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.json", OpenApiFixtures.SearchWithAllNonPathComponentParametersJson)]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "SearchEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("string? XCorrelationId"),
+            "component header parameter should appear as string? XCorrelationId in the Parameters record");
+        Assert.That(source, Does.Contain("FromHeader(Name = \"X-Correlation-Id\")"),
+            "component header parameter should carry a FromHeader binding attribute with the original name");
+    }
+
+    [Test]
+    public void Json_CookieComponentParameter_ResolvesWithoutBindingAttribute()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.json", OpenApiFixtures.SearchWithAllNonPathComponentParametersJson)]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "SearchEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("string? Session"),
+            "component cookie parameter should appear as string? Session in the Parameters record");
+        Assert.That(source, Does.Not.Contain("FromCookie"),
+            "cookie parameters have no dedicated binding attribute in ASP.NET Core minimal APIs");
+    }
 }

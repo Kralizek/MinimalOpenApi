@@ -281,24 +281,27 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     /// <summary>
     /// Resolves all <c>$ref</c> entries in operation parameter lists against
     /// <see cref="OpenApiDocument.ComponentParameters"/>.  Inline parameters are left unchanged.
-    /// Returns <see langword="true"/> when all references were resolved successfully, or
-    /// <see langword="false"/> when at least one reference could not be resolved (MOA008 is reported
-    /// for each failure and the caller should abort code generation for this document).
+    /// Uses a two-pass approach: first pass collects all resolved parameter lists without mutating
+    /// the document; if every reference resolves successfully, the second pass applies the resolved
+    /// lists.  If any reference fails, MOA008 is reported for each failure, no operations are
+    /// mutated, and <see langword="false"/> is returned.
     /// </summary>
     private static bool ResolveParameterReferences(
         SourceProductionContext spc,
         OpenApiDocument doc,
         string openApiFilePath)
     {
+        // First pass: build resolved parameter lists; report diagnostics but do NOT mutate yet.
+        var pending = new List<(OpenApiOperation Op, List<OpenApiParameter> Resolved)>();
         var allResolved = true;
 
         foreach (var op in doc.Operations)
         {
-            // Check whether any parameters need resolving
             var hasRefs = op.Parameters.Exists(p => p.Reference is not null);
             if (!hasRefs) continue;
 
             var resolved = new List<OpenApiParameter>(op.Parameters.Count);
+            var opOk = true;
             foreach (var param in op.Parameters)
             {
                 if (param.Reference is null)
@@ -316,6 +319,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                         DiagnosticDescriptors.UnresolvedParameterReference,
                         CreateOpenApiLocation(openApiFilePath),
                         refValue, op.OperationId));
+                    opOk = false;
                     allResolved = false;
                     continue;
                 }
@@ -327,6 +331,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                         DiagnosticDescriptors.UnresolvedParameterReference,
                         CreateOpenApiLocation(openApiFilePath),
                         refValue, op.OperationId));
+                    opOk = false;
                     allResolved = false;
                     continue;
                 }
@@ -334,11 +339,21 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 resolved.Add(componentParam);
             }
 
+            if (opOk)
+                pending.Add((op, resolved));
+        }
+
+        if (!allResolved)
+            return false;
+
+        // Second pass: apply resolved lists only when every ref in the document resolved.
+        foreach (var (op, resolved) in pending)
+        {
             op.Parameters.Clear();
             op.Parameters.AddRange(resolved);
         }
 
-        return allResolved;
+        return true;
     }
 
     private static void GenerateForDocument(
