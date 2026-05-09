@@ -249,7 +249,10 @@ public class DuplicateSpecNameDiagnosticsTests
         Assert.That(moa009.All(d => d.GetMessage().Contains("Set the Namespace metadata on one or more <OpenApi> items to provide unique generated namespaces.", StringComparison.Ordinal)), Is.True);
         Assert.That(moa009.All(d => d.GetMessage().Contains("apis/admin/openapi.yaml", StringComparison.Ordinal)), Is.True);
         Assert.That(moa009.All(d => d.GetMessage().Contains("apis/public/openapi.yaml", StringComparison.Ordinal)), Is.True);
-        Assert.That(result.GeneratedTrees.Any(t => t.FilePath.Contains("MinimalOpenApi.Openapi.", StringComparison.Ordinal)), Is.False);
+        Assert.That(
+            result.GeneratedTrees.Any(t =>
+                t.FilePath.Replace('\\', '/').Contains("MinimalOpenApi/Openapi/", StringComparison.Ordinal)),
+            Is.False);
     }
 
     [Test]
