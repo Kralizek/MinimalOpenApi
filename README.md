@@ -299,6 +299,8 @@ Generated namespaces:
 - `{RootNamespace}.Orders.Contracts` / `{RootNamespace}.Orders.Endpoints`
 - `{RootNamespace}.Payment.Contracts` / `{RootNamespace}.Payment.Endpoints`
 
+If multiple specs could resolve to the same derived spec name (for example `apis/admin/openapi.yaml` and `apis/public/openapi.yaml`), set explicit `Namespace` metadata on one or more `<OpenApi>` items so each generated namespace segment is unique.
+
 ---
 
 ## Limitations and non-goals

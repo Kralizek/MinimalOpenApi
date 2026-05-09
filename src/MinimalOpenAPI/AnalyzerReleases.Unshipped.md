@@ -10,3 +10,4 @@ MOA005 | MinimalOpenAPI | Error | Unsupported OpenAPI file extension
 MOA006 | MinimalOpenAPI | Warning | Unknown OpenAPI version
 MOA007 | MinimalOpenAPI | Warning | Conflicting allOf property definitions
 MOA008 | MinimalOpenAPI | Error | Unresolved parameter reference
+MOA009 | MinimalOpenAPI | Error | Duplicate OpenAPI spec name

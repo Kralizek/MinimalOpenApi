@@ -77,4 +77,13 @@ internal static class DiagnosticDescriptors
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    /// <summary>Multiple OpenAPI files resolve to the same generated spec name.</summary>
+    public static readonly DiagnosticDescriptor DuplicateSpecName = new(
+        id: "MOA009",
+        title: "Duplicate OpenAPI spec name",
+        messageFormat: "Multiple OpenAPI files resolve to the spec name '{0}'. Set the Namespace metadata on one or more <OpenApi> items to provide unique generated namespaces. Conflicting files: {1}.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

@@ -36,6 +36,7 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
     private readonly string _displayVersionMetadataKey;
     private readonly string _namespaceKey;
     private readonly string? _specNameOverride;
+    private readonly IReadOnlyDictionary<string, string> _specNameOverridesByFilePath;
     private readonly string? _schemaIdOverride;
     private readonly string? _publishAs;
     private readonly string? _displayName;
@@ -52,6 +53,7 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         string displayVersionMetadataKey,
         string namespaceKey,
         string? specNameOverride = null,
+        IReadOnlyDictionary<string, string>? specNameOverridesByFilePath = null,
         string? schemaId = null,
         string? publishAs = null,
         string? displayName = null,
@@ -67,6 +69,9 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         _displayVersionMetadataKey = displayVersionMetadataKey;
         _namespaceKey = namespaceKey;
         _specNameOverride = specNameOverride;
+        _specNameOverridesByFilePath = specNameOverridesByFilePath is null
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string>(specNameOverridesByFilePath, StringComparer.OrdinalIgnoreCase);
         _schemaIdOverride = schemaId;
         _publishAs = publishAs;
         _displayName = displayName;
@@ -91,7 +96,9 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
             [_metadataKey] = isOpenApi ? "true" : "false"
         };
 
-        if (isOpenApi && _specNameOverride is not null)
+        if (isOpenApi && _specNameOverridesByFilePath.TryGetValue(textFile.Path, out var namespaceOverride))
+            options[_namespaceMetadataKey] = namespaceOverride;
+        else if (isOpenApi && _specNameOverride is not null)
             options[_namespaceMetadataKey] = _specNameOverride;
 
         if (isOpenApi && _schemaIdOverride is not null)
