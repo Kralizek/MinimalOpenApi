@@ -12,10 +12,17 @@ public sealed class CreateTodoHandler : CreateTodoEndpointBase
 
     public CreateTodoHandler(InMemoryTodoStore store) => _store = store;
 
-    public override Task<Results<Created<Todo>, BadRequest>> HandleAsync(Request request, CancellationToken cancellationToken)
+    public override Task<Results<Created<Todo>, BadRequestProblem>> HandleAsync(Request request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Title))
-            return Task.FromResult<Results<Created<Todo>, BadRequest>>(TypedResults.BadRequest());
+        {
+            return Task.FromResult<Results<Created<Todo>, BadRequestProblem>>(
+                new BadRequestProblem(new Microsoft.AspNetCore.Mvc.ProblemDetails
+                {
+                    Title = "Invalid request",
+                    Detail = "The request is invalid."
+                }));
+        }
 
         // The inline request Metadata uses RequestMetadataValue; the store uses a raw (Value, Color) tuple.
         var storeMetadata = request.Metadata?.ToDictionary(
@@ -25,6 +32,6 @@ public sealed class CreateTodoHandler : CreateTodoEndpointBase
         var id = _store.Add(request.Title, request.Description, request.Priority, request.DueDate, storeMetadata);
 
         var todo = GetTodoHandler.ToTodo(_store.Get(id)!);
-        return Task.FromResult<Results<Created<Todo>, BadRequest>>(TypedResults.Created($"/todos/{id}", todo));
+        return Task.FromResult<Results<Created<Todo>, BadRequestProblem>>(TypedResults.Created($"/todos/{id}", todo));
     }
 }

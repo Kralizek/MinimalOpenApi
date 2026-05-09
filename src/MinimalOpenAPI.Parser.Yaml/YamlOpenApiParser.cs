@@ -306,16 +306,47 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             if (!int.TryParse(Scalar(entry.Key), out var statusCode)) continue;
 
             var responseNode = (YamlMappingNode)entry.Value;
-            var schemaNode = GetMapping(responseNode, "content", "application/json", "schema");
+            var schemaNode = TryGetSupportedResponseContent(responseNode, out var contentType, out var mediaTypeNode)
+                ? GetMapping(mediaTypeNode!, "schema")
+                : null;
             result.Add(new OpenApiResponse
             {
                 StatusCode = statusCode,
                 Description = GetString(responseNode, "description") ?? string.Empty,
+                ContentType = contentType,
                 Schema = schemaNode is not null ? ExtractSchema(schemaNode) : null
             });
         }
 
         return result;
+    }
+
+    private static bool TryGetSupportedResponseContent(
+        YamlMappingNode responseNode,
+        out string? contentType,
+        out YamlMappingNode? mediaTypeNode)
+    {
+        contentType = null;
+        mediaTypeNode = null;
+
+        var contentNode = GetMapping(responseNode, "content");
+        if (contentNode is null) return false;
+
+        if (GetMapping(contentNode, "application/json") is { } jsonNode)
+        {
+            contentType = "application/json";
+            mediaTypeNode = jsonNode;
+            return true;
+        }
+
+        if (GetMapping(contentNode, "application/problem+json") is { } problemNode)
+        {
+            contentType = "application/problem+json";
+            mediaTypeNode = problemNode;
+            return true;
+        }
+
+        return false;
     }
 
     // ── YamlDotNet helpers ────────────────────────────────────────────────

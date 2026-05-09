@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 
+using Microsoft.AspNetCore.Mvc;
+
 using MinimalOpenAPI.Sample.Api.Openapi.Contracts;
 
 namespace MinimalOpenAPI.IntegrationTests;
@@ -71,10 +73,17 @@ public class EndpointIntegrationTests
     [Test]
     public async Task CreateTodo_WithEmptyTitle_Returns400()
     {
-        var createRequest = new { title = "" };
+        var createRequest = new { title = "   ", isComplete = false };
         var response = await _client.PostAsJsonAsync("/todos", createRequest);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("application/problem+json"));
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.That(problem, Is.Not.Null);
+        Assert.That(problem!.Status, Is.EqualTo((int)HttpStatusCode.BadRequest));
+        Assert.That(problem.Title, Is.EqualTo("Invalid request"));
+        Assert.That(problem.Detail, Is.EqualTo("The request is invalid."));
     }
 
     [Test]

@@ -316,16 +316,47 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             if (!int.TryParse(entry.Key, out var statusCode)) continue;
             if (entry.Value?.AsObject() is not { } responseNode) continue;
 
-            var schemaNode = GetObject(responseNode, "content", "application/json", "schema");
+            var schemaNode = TryGetSupportedResponseContent(responseNode, out var contentType, out var mediaTypeNode)
+                ? GetObject(mediaTypeNode!, "schema")
+                : null;
             result.Add(new OpenApiResponse
             {
                 StatusCode = statusCode,
                 Description = GetString(responseNode, "description") ?? string.Empty,
+                ContentType = contentType,
                 Schema = schemaNode is not null ? ExtractSchema(schemaNode) : null
             });
         }
 
         return result;
+    }
+
+    private static bool TryGetSupportedResponseContent(
+        JsonObject responseNode,
+        out string? contentType,
+        out JsonObject? mediaTypeNode)
+    {
+        contentType = null;
+        mediaTypeNode = null;
+
+        var contentNode = GetObject(responseNode, "content");
+        if (contentNode is null) return false;
+
+        if (GetObject(contentNode, "application/json") is { } jsonNode)
+        {
+            contentType = "application/json";
+            mediaTypeNode = jsonNode;
+            return true;
+        }
+
+        if (GetObject(contentNode, "application/problem+json") is { } problemNode)
+        {
+            contentType = "application/problem+json";
+            mediaTypeNode = problemNode;
+            return true;
+        }
+
+        return false;
     }
 
     // ── System.Text.Json helpers ──────────────────────────────────────────
