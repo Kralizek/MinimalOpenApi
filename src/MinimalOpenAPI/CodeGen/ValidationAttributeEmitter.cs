@@ -29,6 +29,17 @@ internal static class ValidationAttributeEmitter
         // ── String constraints ────────────────────────────────────────────
         if (type == "string")
         {
+            var format = schema.Format?.ToLowerInvariant();
+
+            if (format == "email")
+            {
+                yield return $"{indent}[global::System.ComponentModel.DataAnnotations.EmailAddress]";
+            }
+            else if (format == "uri")
+            {
+                yield return $"{indent}[global::System.ComponentModel.DataAnnotations.Url]";
+            }
+
             if (schema.MinLength.HasValue && schema.MaxLength.HasValue)
             {
                 yield return $"{indent}[global::System.ComponentModel.DataAnnotations.StringLength({schema.MaxLength.Value}, MinimumLength = {schema.MinLength.Value})]";

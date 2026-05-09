@@ -77,4 +77,11 @@ public sealed class OpenApiSchema
     /// component).
     /// </summary>
     public bool AdditionalPropertiesAllowed { get; init; }
+
+    /// <summary>
+    /// The default value for this schema (<c>default</c> keyword), stored as its raw string
+    /// representation regardless of the underlying JSON type.
+    /// Used to emit property initializers on generated <c>Parameters</c> record properties.
+    /// </summary>
+    public string? Default { get; init; }
 }

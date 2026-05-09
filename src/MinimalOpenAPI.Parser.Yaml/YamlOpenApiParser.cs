@@ -134,7 +134,8 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             MinItems = GetNullableInt(node, "minItems"),
             MaxItems = GetNullableInt(node, "maxItems"),
             AdditionalProperties = ExtractAdditionalPropertiesSchema(node),
-            AdditionalPropertiesAllowed = GetAdditionalPropertiesAllowed(node)
+            AdditionalPropertiesAllowed = GetAdditionalPropertiesAllowed(node),
+            Default = GetString(node, "default")
         };
     }
 

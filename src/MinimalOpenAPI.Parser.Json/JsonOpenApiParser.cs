@@ -141,7 +141,8 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             MinItems = GetNullableInt(node, "minItems"),
             MaxItems = GetNullableInt(node, "maxItems"),
             AdditionalProperties = ExtractAdditionalPropertiesSchema(node),
-            AdditionalPropertiesAllowed = GetAdditionalPropertiesAllowed(node)
+            AdditionalPropertiesAllowed = GetAdditionalPropertiesAllowed(node),
+            Default = GetDefaultAsString(node)
         };
     }
 
@@ -437,6 +438,21 @@ public sealed class JsonOpenApiParser : IOpenApiParser
     {
         if (!node.TryGetPropertyValue(key, out var value)) return null;
         return value as JsonArray;
+    }
+
+    private static string? GetDefaultAsString(JsonObject node)
+    {
+        if (!node.TryGetPropertyValue("default", out var value) || value is null)
+            return null;
+
+        return value.GetValueKind() switch
+        {
+            JsonValueKind.String => value.GetValue<string>(),
+            JsonValueKind.True => "true",
+            JsonValueKind.False => "false",
+            JsonValueKind.Number => value.ToJsonString(),
+            _ => null
+        };
     }
 
     // ── Utilities ─────────────────────────────────────────────────────────

@@ -270,7 +270,11 @@ internal static class HandlerBaseGenerator
                 sb.AppendLine($"        {bindingAttr}");
             foreach (var attr in ValidationAttributeEmitter.GetAttributes(p.Schema, "        "))
                 sb.AppendLine(attr);
-            sb.AppendLine($"        public {type} {propName} {{ get; init; }}");
+            var defaultInitializer = GetDefaultInitializer(p.Schema);
+            if (defaultInitializer is not null)
+                sb.AppendLine($"        public {type} {propName} {{ get; init; }} = {defaultInitializer};");
+            else
+                sb.AppendLine($"        public {type} {propName} {{ get; init; }}");
         }
 
         sb.AppendLine("    }");
@@ -286,6 +290,98 @@ internal static class HandlerBaseGenerator
         ParameterLocation.Cookie => null,
         _ => null
     };
+
+    /// <summary>
+    /// Returns a C# default-value expression for a parameter's <c>default</c> keyword, or
+    /// <see langword="null"/> when the default cannot be safely represented as a literal.
+    /// </summary>
+    private static string? GetDefaultInitializer(OpenApiSchema schema)
+    {
+        if (schema.Default is null) return null;
+        if (schema.Reference is not null) return null; // $ref parameters — skip
+
+        var raw = schema.Default;
+        var type = schema.Type?.ToLowerInvariant();
+        var format = schema.Format?.ToLowerInvariant();
+
+        if (type == "string")
+        {
+            if (format == "uuid")
+            {
+                return System.Guid.TryParse(raw, out var guid)
+                    ? $"global::System.Guid.Parse(\"{guid}\")"
+                    : null;
+            }
+
+            if (format == "date")
+            {
+                // Validate the value is an ISO 8601 date (yyyy-MM-dd) before emitting.
+                return IsIsoDate(raw)
+                    ? $"global::System.DateOnly.Parse(\"{raw}\", global::System.Globalization.CultureInfo.InvariantCulture)"
+                    : null;
+            }
+
+            return $"\"{EscapeStringLiteral(raw)}\"";
+        }
+
+        if (type == "integer")
+        {
+            if (format == "int64")
+                return long.TryParse(raw, out _) ? raw + "L" : null;
+            return int.TryParse(raw, out _) ? raw : null;
+        }
+
+        if (type == "number")
+        {
+            if (!double.TryParse(raw, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var d))
+                return null;
+
+            if (format == "float")
+                return FormatFloat((float)d);
+
+            return FormatDouble(d);
+        }
+
+        if (type == "boolean")
+        {
+            if (raw.Equals("true", StringComparison.OrdinalIgnoreCase)) return "true";
+            if (raw.Equals("false", StringComparison.OrdinalIgnoreCase)) return "false";
+        }
+
+        return null;
+    }
+
+    /// <summary>Returns <see langword="true"/> when <paramref name="value"/> matches the ISO 8601 date pattern <c>yyyy-MM-dd</c>.</summary>
+    private static bool IsIsoDate(string value)
+    {
+        if (value.Length != 10 || value[4] != '-' || value[7] != '-')
+            return false;
+        return int.TryParse(value.Substring(0, 4), out _)
+            && int.TryParse(value.Substring(5, 2), out _)
+            && int.TryParse(value.Substring(8, 2), out _);
+    }
+
+    private static string EscapeStringLiteral(string value) =>
+        value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+    private static string FormatFloat(float value)
+    {
+        if (value == (float)Math.Floor(value))
+            return ((long)value).ToString(System.Globalization.CultureInfo.InvariantCulture) + "f";
+        return value.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "f";
+    }
+
+    private static string FormatDouble(double value)
+    {
+        if (value == Math.Floor(value)
+            && value > (double)long.MinValue
+            && value < (double)long.MaxValue)
+        {
+            return ((long)value).ToString(System.Globalization.CultureInfo.InvariantCulture) + ".0";
+        }
+        return value.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+    }
 
     private static void AppendProblemResultWrapper(
         StringBuilder sb,
