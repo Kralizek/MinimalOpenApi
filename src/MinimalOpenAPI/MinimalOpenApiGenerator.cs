@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 
 using Microsoft.CodeAnalysis;
@@ -67,17 +68,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
         var duplicateSpecNames = openApiFiles
             .Collect()
-            .Select((files, _) =>
-                files
-                    .GroupBy(f => f.SpecName, StringComparer.Ordinal)
-                    .Where(g => g.Count() > 1)
-                    .ToDictionary(
-                        g => g.Key,
-                        g => g
-                            .Select(f => f.Path)
-                            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                            .ToArray(),
-                        StringComparer.Ordinal));
+            .Select((files, _) => CreateDuplicateSpecNameMap(files));
 
         // 4. Discover concrete class declarations in user code
         var classDeclarations = context.SyntaxProvider
@@ -124,6 +115,22 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
     private static void GenerateSource(SourceProductionContext spc, GeneratorPipelineInput input)
     {
+        if (!TryCreateGenerationInput(spc, input, out var generationInput))
+            return;
+
+        ReportUnknownOpenApiVersionIfNeeded(spc, generationInput);
+
+        GenerateForDocument(
+            spc,
+            generationInput,
+            input.Classes.ToArray());
+    }
+
+    private static bool TryCreateGenerationInput(
+        SourceProductionContext spc,
+        GeneratorPipelineInput input,
+        out OpenApiGenerationInput generationInput)
+    {
         var parsed = input.ParsedFile;
 
         if (input.DuplicatesBySpecName.TryGetValue(parsed.SpecName, out var conflictingFiles))
@@ -133,7 +140,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 CreateOpenApiLocation(parsed.Path),
                 parsed.SpecName,
                 string.Join(", ", conflictingFiles)));
-            return;
+            generationInput = default!;
+            return false;
         }
 
         if (parsed.UnsupportedExtension is not null)
@@ -142,7 +150,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 DiagnosticDescriptors.UnsupportedFileExtension,
                 CreateOpenApiLocation(parsed.Path),
                 parsed.UnsupportedExtension, parsed.Path));
-            return;
+            generationInput = default!;
+            return false;
         }
 
         if (parsed.ParseError is not null)
@@ -151,34 +160,33 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 DiagnosticDescriptors.ParseError,
                 CreateOpenApiLocation(parsed.Path),
                 parsed.Path, parsed.ParseError));
-            return;
+            generationInput = default!;
+            return false;
         }
 
-        if (parsed.Document is null) return;
+        if (!parsed.CanGenerate)
+        {
+            generationInput = default!;
+            return false;
+        }
 
-        var generationInput = new OpenApiGenerationInput(
-            Document: parsed.Document,
-            Path: parsed.Path,
-            RootNamespace: parsed.RootNamespace,
-            SpecName: parsed.SpecName,
-            SchemaId: parsed.SchemaId,
-            PublishAs: parsed.PublishAs,
-            DisplayName: parsed.DisplayName,
-            DisplayVersion: parsed.DisplayVersion);
+        generationInput = parsed.ToGenerationInput();
+        return true;
+    }
+
+    private static void ReportUnknownOpenApiVersionIfNeeded(
+        SourceProductionContext spc,
+        OpenApiGenerationInput input)
+    {
 
         // Warn when the OpenAPI version is absent or not yet explicitly supported.
-        if (!IsKnownVersion(generationInput.Document.OpenApiVersion))
+        if (!IsKnownVersion(input.Document.OpenApiVersion))
         {
             spc.ReportDiagnostic(Diagnostic.Create(
                 DiagnosticDescriptors.UnknownOpenApiVersion,
-                CreateOpenApiLocation(generationInput.Path),
-                generationInput.Path));
+                CreateOpenApiLocation(input.Path),
+                input.Path));
         }
-
-        GenerateForDocument(
-            spc,
-            generationInput,
-            input.Classes.ToArray());
     }
 
     private static OpenApiFileInput CreateOpenApiFileInput(
@@ -252,6 +260,19 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 UnsupportedExtension: null);
         }
     }
+
+    private static IReadOnlyDictionary<string, string[]> CreateDuplicateSpecNameMap(
+        ImmutableArray<OpenApiFileInput> files)
+        => files
+            .GroupBy(f => f.SpecName, StringComparer.Ordinal)
+            .Where(g => g.Count() > 1)
+            .ToDictionary(
+                g => g.Key,
+                g => g
+                    .Select(f => f.Path)
+                    .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
+                StringComparer.Ordinal);
 
     private static readonly Version[] _knownVersions =
     [
@@ -473,23 +494,32 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         OpenApiGenerationInput input,
         ClassInfo[] allClasses)
     {
+        var doc = input.Document;
+        var rootNamespace = input.RootNamespace;
+        var specName = input.SpecName;
+        var openApiFilePath = input.Path;
+        var schemaId = input.SchemaId;
+        var publishAs = input.PublishAs;
+        var displayName = input.DisplayName;
+        var displayVersion = input.DisplayVersion;
+
         // Resolve $ref parameter references before code generation; work with the returned
         // normalized operation list so the parsed OpenApiDocument is never mutated.
-        if (!TryResolveParameterReferences(spc, input.Document, input.Path, out var operations))
+        if (!TryResolveParameterReferences(spc, doc, openApiFilePath, out var operations))
             return;
 
         // Generate DTOs
-        if (input.Document.Schemas.Count > 0)
+        if (doc.Schemas.Count > 0)
         {
-            var dtoResult = DtoGenerator.Generate(input.Document.Schemas, input.RootNamespace, input.SpecName);
+            var dtoResult = DtoGenerator.Generate(doc.Schemas, rootNamespace, specName);
             if (!string.IsNullOrWhiteSpace(dtoResult.Source))
-                spc.AddSource(SchemaHintName(input.SpecName), dtoResult.Source);
+                spc.AddSource(SchemaHintName(specName), dtoResult.Source);
 
             foreach (var conflict in dtoResult.AllOfConflicts.Distinct())
             {
                 spc.ReportDiagnostic(Diagnostic.Create(
                     DiagnosticDescriptors.AllOfPropertyConflict,
-                    CreateOpenApiLocation(input.Path),
+                    CreateOpenApiLocation(openApiFilePath),
                     conflict.SchemaName,
                     conflict.PropertyName));
             }
@@ -506,21 +536,21 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
             // Generate handler base
             var handlerConflicts = new List<MinimalOpenAPI.Generator.CodeGen.AllOfPropertyConflict>();
-            var handlerSource = HandlerBaseGenerator.Generate(op, input.RootNamespace, input.SpecName, input.Document.Schemas, handlerConflicts);
-            spc.AddSource(OperationHintName(input.SpecName, handlerBase), handlerSource);
+            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, doc.Schemas, handlerConflicts);
+            spc.AddSource(OperationHintName(specName, handlerBase), handlerSource);
 
             foreach (var conflict in handlerConflicts.Distinct())
             {
                 spc.ReportDiagnostic(Diagnostic.Create(
                     DiagnosticDescriptors.AllOfPropertyConflict,
-                    CreateOpenApiLocation(input.Path),
+                    CreateOpenApiLocation(openApiFilePath),
                     conflict.SchemaName,
                     conflict.PropertyName));
             }
 
             // Generate registration customizer base
-            var customizerSource = RegistrationCustomizerGenerator.Generate(op, input.RootNamespace, input.SpecName);
-            spc.AddSource(OperationHintName(input.SpecName, customizerBase), customizerSource);
+            var customizerSource = RegistrationCustomizerGenerator.Generate(op, rootNamespace, specName);
+            spc.AddSource(OperationHintName(specName, customizerBase), customizerSource);
 
             // Discover handler implementations
             var handlerImpls = allClasses
@@ -532,8 +562,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 case 0:
                     spc.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.MissingHandlerImplementation,
-                        CreateOpenApiLocation(input.Path),
-                        $"{input.RootNamespace}.{input.SpecName}.Endpoints.{handlerBase}"));
+                        CreateOpenApiLocation(openApiFilePath),
+                        $"{rootNamespace}.{specName}.Endpoints.{handlerBase}"));
                     break;
                 case 1:
                     handlers.Add(new DiscoveredImplementation
@@ -545,7 +575,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 default:
                     spc.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.DuplicateHandlerImplementation,
-                        CreateOpenApiLocation(input.Path),
+                        CreateOpenApiLocation(openApiFilePath),
                         handlerBase,
                         string.Join(", ", handlerImpls.Select(h => h.FullName))));
                     break;
@@ -570,7 +600,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 default:
                     spc.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.DuplicateRegistrationCustomizerImplementation,
-                        CreateOpenApiLocation(input.Path),
+                        CreateOpenApiLocation(openApiFilePath),
                         customizerBase,
                         string.Join(", ", customizerImpls.Select(c => c.FullName))));
                     break;
@@ -582,18 +612,18 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             operations,
             handlers,
             customizers,
-            input.RootNamespace,
-            input.SpecName,
-            input.SchemaId,
-            System.IO.Path.GetFileName(input.Path),
-            input.PublishAs,
-            input.DisplayName,
-            input.DisplayVersion);
-        spc.AddSource(InfrastructureHintName(input.SpecName, "DependencyInjection"), diSource);
+            rootNamespace,
+            specName,
+            schemaId,
+            System.IO.Path.GetFileName(openApiFilePath),
+            publishAs,
+            displayName,
+            displayVersion);
+        spc.AddSource(InfrastructureHintName(specName, "DependencyInjection"), diSource);
 
         // Generate endpoint mapping
-        var mappingSource = EndpointMappingGenerator.Generate(operations, customizers, input.RootNamespace, input.SpecName);
-        spc.AddSource(InfrastructureHintName(input.SpecName, "EndpointMapping"), mappingSource);
+        var mappingSource = EndpointMappingGenerator.Generate(operations, customizers, rootNamespace, specName);
+        spc.AddSource(InfrastructureHintName(specName, "EndpointMapping"), mappingSource);
     }
 
     /// <summary>Information about a class discovered via syntax analysis.</summary>
@@ -623,7 +653,24 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         string? DisplayName,
         string? DisplayVersion,
         string? ParseError,
-        string? UnsupportedExtension);
+        string? UnsupportedExtension)
+    {
+        public bool CanGenerate =>
+            Document is not null &&
+            ParseError is null &&
+            UnsupportedExtension is null;
+
+        public OpenApiGenerationInput ToGenerationInput() =>
+            new(
+                Document!,
+                Path,
+                RootNamespace,
+                SpecName,
+                SchemaId,
+                PublishAs,
+                DisplayName,
+                DisplayVersion);
+    }
 
     /// <summary>Generation-ready non-null OpenAPI input.</summary>
     private sealed record OpenApiGenerationInput(
