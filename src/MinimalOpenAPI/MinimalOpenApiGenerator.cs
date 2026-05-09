@@ -119,64 +119,66 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     DuplicatesBySpecName: pair.Right));
 
         // 6. Generate source files
-        context.RegisterSourceOutput(combined, (spc, input) =>
+        context.RegisterSourceOutput(combined, GenerateSource);
+    }
+
+    private static void GenerateSource(SourceProductionContext spc, GeneratorPipelineInput input)
+    {
+        var parsed = input.ParsedFile;
+
+        if (input.DuplicatesBySpecName.TryGetValue(parsed.SpecName, out var conflictingFiles))
         {
-            var parsed = input.ParsedFile;
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.DuplicateSpecName,
+                CreateOpenApiLocation(parsed.Path),
+                parsed.SpecName,
+                string.Join(", ", conflictingFiles)));
+            return;
+        }
 
-            if (input.DuplicatesBySpecName.TryGetValue(parsed.SpecName, out var conflictingFiles))
-            {
-                spc.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.DuplicateSpecName,
-                    CreateOpenApiLocation(parsed.Path),
-                    parsed.SpecName,
-                    string.Join(", ", conflictingFiles)));
-                return;
-            }
+        if (parsed.UnsupportedExtension is not null)
+        {
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.UnsupportedFileExtension,
+                CreateOpenApiLocation(parsed.Path),
+                parsed.UnsupportedExtension, parsed.Path));
+            return;
+        }
 
-            if (parsed.UnsupportedExtension is not null)
-            {
-                spc.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.UnsupportedFileExtension,
-                    CreateOpenApiLocation(parsed.Path),
-                    parsed.UnsupportedExtension, parsed.Path));
-                return;
-            }
+        if (parsed.ParseError is not null)
+        {
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.ParseError,
+                CreateOpenApiLocation(parsed.Path),
+                parsed.Path, parsed.ParseError));
+            return;
+        }
 
-            if (parsed.ParseError is not null)
-            {
-                spc.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.ParseError,
-                    CreateOpenApiLocation(parsed.Path),
-                    parsed.Path, parsed.ParseError));
-                return;
-            }
+        if (parsed.Document is null) return;
 
-            if (parsed.Document is null) return;
+        var generationInput = new OpenApiGenerationInput(
+            Document: parsed.Document,
+            Path: parsed.Path,
+            RootNamespace: parsed.RootNamespace,
+            SpecName: parsed.SpecName,
+            SchemaId: parsed.SchemaId,
+            PublishAs: parsed.PublishAs,
+            DisplayName: parsed.DisplayName,
+            DisplayVersion: parsed.DisplayVersion);
 
-            var generationInput = new OpenApiGenerationInput(
-                Document: parsed.Document,
-                Path: parsed.Path,
-                RootNamespace: parsed.RootNamespace,
-                SpecName: parsed.SpecName,
-                SchemaId: parsed.SchemaId,
-                PublishAs: parsed.PublishAs,
-                DisplayName: parsed.DisplayName,
-                DisplayVersion: parsed.DisplayVersion);
+        // Warn when the OpenAPI version is absent or not yet explicitly supported.
+        if (!IsKnownVersion(generationInput.Document.OpenApiVersion))
+        {
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.UnknownOpenApiVersion,
+                CreateOpenApiLocation(generationInput.Path),
+                generationInput.Path));
+        }
 
-            // Warn when the OpenAPI version is absent or not yet explicitly supported.
-            if (!IsKnownVersion(generationInput.Document.OpenApiVersion))
-            {
-                spc.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.UnknownOpenApiVersion,
-                    CreateOpenApiLocation(generationInput.Path),
-                    generationInput.Path));
-            }
-
-            GenerateForDocument(
-                spc,
-                generationInput,
-                input.Classes.ToArray());
-        });
+        GenerateForDocument(
+            spc,
+            generationInput,
+            input.Classes.ToArray());
     }
 
     private static OpenApiFileInput CreateOpenApiFileInput(
@@ -593,50 +595,50 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         var mappingSource = EndpointMappingGenerator.Generate(operations, customizers, input.RootNamespace, input.SpecName);
         spc.AddSource(InfrastructureHintName(input.SpecName, "EndpointMapping"), mappingSource);
     }
+
+    /// <summary>Information about a class discovered via syntax analysis.</summary>
+    private sealed record ClassInfo(
+        string FullName,
+        string Name,
+        List<string> BaseTypeNames);
+
+    /// <summary>OpenAPI file metadata collected from additional files and item metadata.</summary>
+    private sealed record OpenApiFileInput(
+        string Content,
+        string Path,
+        string SpecName,
+        string SchemaId,
+        string? PublishAs,
+        string? DisplayName,
+        string? DisplayVersion);
+
+    /// <summary>Parsed file state, including parser/extension failures used for diagnostics.</summary>
+    private sealed record ParsedOpenApiFile(
+        OpenApiDocument? Document,
+        string Path,
+        string RootNamespace,
+        string SpecName,
+        string SchemaId,
+        string? PublishAs,
+        string? DisplayName,
+        string? DisplayVersion,
+        string? ParseError,
+        string? UnsupportedExtension);
+
+    /// <summary>Generation-ready non-null OpenAPI input.</summary>
+    private sealed record OpenApiGenerationInput(
+        OpenApiDocument Document,
+        string Path,
+        string RootNamespace,
+        string SpecName,
+        string SchemaId,
+        string? PublishAs,
+        string? DisplayName,
+        string? DisplayVersion);
+
+    /// <summary>Combined generator pipeline state consumed by source output registration.</summary>
+    private sealed record GeneratorPipelineInput(
+        ParsedOpenApiFile ParsedFile,
+        IReadOnlyList<ClassInfo> Classes,
+        IReadOnlyDictionary<string, string[]> DuplicatesBySpecName);
 }
-
-/// <summary>Information about a class discovered via syntax analysis.</summary>
-internal sealed record ClassInfo(
-    string FullName,
-    string Name,
-    List<string> BaseTypeNames);
-
-/// <summary>OpenAPI file metadata collected from additional files and item metadata.</summary>
-internal sealed record OpenApiFileInput(
-    string Content,
-    string Path,
-    string SpecName,
-    string SchemaId,
-    string? PublishAs,
-    string? DisplayName,
-    string? DisplayVersion);
-
-/// <summary>Parsed file state, including parser/extension failures used for diagnostics.</summary>
-internal sealed record ParsedOpenApiFile(
-    OpenApiDocument? Document,
-    string Path,
-    string RootNamespace,
-    string SpecName,
-    string SchemaId,
-    string? PublishAs,
-    string? DisplayName,
-    string? DisplayVersion,
-    string? ParseError,
-    string? UnsupportedExtension);
-
-/// <summary>Generation-ready non-null OpenAPI input.</summary>
-internal sealed record OpenApiGenerationInput(
-    OpenApiDocument Document,
-    string Path,
-    string RootNamespace,
-    string SpecName,
-    string SchemaId,
-    string? PublishAs,
-    string? DisplayName,
-    string? DisplayVersion);
-
-/// <summary>Combined generator pipeline state consumed by source output registration.</summary>
-internal sealed record GeneratorPipelineInput(
-    ParsedOpenApiFile ParsedFile,
-    IReadOnlyList<ClassInfo> Classes,
-    IReadOnlyDictionary<string, string[]> DuplicatesBySpecName);
