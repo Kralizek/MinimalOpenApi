@@ -37,6 +37,8 @@ public class ProblemResponseGenerationTests
         Assert.That(source, Does.Contain("httpContext.Response.StatusCode = global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest;"));
         Assert.That(source, Does.Contain("httpContext.Response.StatusCode = global::Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound;"));
         Assert.That(source, Does.Contain("httpContext.Response.StatusCode = global::Microsoft.AspNetCore.Http.StatusCodes.Status409Conflict;"));
+        Assert.That(source, Does.Contain("global::Microsoft.AspNetCore.Http.HttpResponseJsonExtensions.WriteAsJsonAsync("));
+        Assert.That(source, Does.Not.Contain("httpContext.Response.WriteAsJsonAsync("));
         Assert.That(source, Does.Contain("contentType: \"application/problem+json\""));
     }
 

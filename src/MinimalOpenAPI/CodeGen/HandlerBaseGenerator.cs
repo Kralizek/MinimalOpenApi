@@ -324,7 +324,8 @@ internal static class HandlerBaseGenerator
         sb.AppendLine("        {");
         sb.AppendLine($"            httpContext.Response.StatusCode = {statusCodeExpression};");
         sb.AppendLine();
-        sb.AppendLine("            return httpContext.Response.WriteAsJsonAsync(");
+        sb.AppendLine("            return global::Microsoft.AspNetCore.Http.HttpResponseJsonExtensions.WriteAsJsonAsync(");
+        sb.AppendLine("                httpContext.Response,");
         sb.AppendLine("                Value,");
         sb.AppendLine("                options: null,");
         sb.AppendLine("                contentType: \"application/problem+json\");");
