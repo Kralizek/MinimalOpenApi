@@ -315,10 +315,18 @@ internal static class HandlerBaseGenerator
 
             if (format == "date")
             {
-                // Validate the value is an ISO 8601 date (yyyy-MM-dd) before emitting.
-                return IsIsoDate(raw)
-                    ? $"global::System.DateOnly.Parse(\"{raw}\", global::System.Globalization.CultureInfo.InvariantCulture)"
-                    : null;
+                // Parse and validate the date strictly so the emitted initializer never throws.
+                // DateTime.TryParseExact is available in netstandard2.0 (unlike DateOnly.TryParse);
+                // we use it purely for validation and then emit a constructor call rather than
+                // a Parse call so that the generated code itself is non-throwing.
+                if (!System.DateTime.TryParseExact(
+                        raw,
+                        "yyyy-MM-dd",
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None,
+                        out var dt))
+                    return null;
+                return $"new global::System.DateOnly({dt.Year}, {dt.Month}, {dt.Day})";
             }
 
             return $"\"{EscapeStringLiteral(raw)}\"";
@@ -352,18 +360,28 @@ internal static class HandlerBaseGenerator
         return null;
     }
 
-    /// <summary>Returns <see langword="true"/> when <paramref name="value"/> matches the ISO 8601 date pattern <c>yyyy-MM-dd</c>.</summary>
-    private static bool IsIsoDate(string value)
+    private static string EscapeStringLiteral(string value)
     {
-        if (value.Length != 10 || value[4] != '-' || value[7] != '-')
-            return false;
-        return int.TryParse(value.Substring(0, 4), out _)
-            && int.TryParse(value.Substring(5, 2), out _)
-            && int.TryParse(value.Substring(8, 2), out _);
+        var sb = new StringBuilder(value.Length + 4);
+        foreach (var c in value)
+        {
+            switch (c)
+            {
+                case '\\': sb.Append("\\\\"); break;
+                case '"': sb.Append("\\\""); break;
+                case '\n': sb.Append("\\n"); break;
+                case '\r': sb.Append("\\r"); break;
+                case '\t': sb.Append("\\t"); break;
+                default:
+                    if (char.IsControl(c))
+                        sb.Append($"\\u{(int)c:x4}");
+                    else
+                        sb.Append(c);
+                    break;
+            }
+        }
+        return sb.ToString();
     }
-
-    private static string EscapeStringLiteral(string value) =>
-        value.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
     private static string FormatFloat(float value)
     {

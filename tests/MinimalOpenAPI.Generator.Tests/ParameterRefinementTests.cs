@@ -224,6 +224,49 @@ public class ParameterRefinementTests
                   description: OK
         """;
 
+    private const string InvalidDateDefaultYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /items:
+            get:
+              operationId: listItems
+              parameters:
+                - name: since
+                  in: query
+                  required: false
+                  schema:
+                    type: string
+                    format: date
+                    default: "2024-99-99"
+              responses:
+                "200":
+                  description: OK
+        """;
+
+    private const string SpecialCharsDefaultYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /items:
+            get:
+              operationId: listItems
+              parameters:
+                - name: label
+                  in: query
+                  required: false
+                  schema:
+                    type: string
+                    default: "hello\tworld"
+              responses:
+                "200":
+                  description: OK
+        """;
+
     // ── JSON fixtures ─────────────────────────────────────────────────────
 
     private const string DefaultValuesJson = """
@@ -348,7 +391,7 @@ public class ParameterRefinementTests
     }
 
     [Test]
-    public void DateQueryParameter_WithDefault_EmitsDateOnlyParseInitializer()
+    public void DateQueryParameter_WithDefault_EmitsDateOnlyConstructorInitializer()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
             userSource: NoOpHandlerImpl,
@@ -356,7 +399,8 @@ public class ParameterRefinementTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "ListItemsEndpointBase.g.cs");
 
-        Assert.That(source, Does.Contain("Since { get; init; } = global::System.DateOnly.Parse(\"2024-01-01\""));
+        // Emits a constructor call to avoid runtime parse errors in the generated code.
+        Assert.That(source, Does.Contain("Since { get; init; } = new global::System.DateOnly(2024, 1, 1);"));
     }
 
     [Test]
@@ -382,6 +426,34 @@ public class ParameterRefinementTests
 
         Assert.That(source, Does.Contain("PageSize { get; init; }"));
         Assert.That(source, Does.Not.Contain("PageSize { get; init; } ="));
+    }
+
+    [Test]
+    public void DateQueryParameter_WithInvalidDefault_EmitsNoInitializer()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: NoOpHandlerImpl,
+            additionalFiles: [("openapi.yaml", InvalidDateDefaultYaml)]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "ListItemsEndpointBase.g.cs");
+
+        // "2024-99-99" passes a shape check but is not a valid calendar date;
+        // the generator must not emit an initializer that would throw at runtime.
+        Assert.That(source, Does.Not.Contain("Since { get; init; } ="));
+    }
+
+    [Test]
+    public void StringDefaultWithControlCharacters_EmitsEscapedLiteral()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: NoOpHandlerImpl,
+            additionalFiles: [("openapi.yaml", SpecialCharsDefaultYaml)]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "ListItemsEndpointBase.g.cs");
+
+        // The raw default contains a tab; it must appear as \t in the generated literal.
+        Assert.That(source, Does.Contain("\\t"));
+        Assert.That(source, Does.Not.Contain("\t")); // no literal tab inside the string literal
     }
 
     // ── #24: Default value tests (JSON) ──────────────────────────────────
