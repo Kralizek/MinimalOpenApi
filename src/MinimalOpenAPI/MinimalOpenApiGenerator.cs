@@ -379,6 +379,15 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         return merged;
     }
 
+    private static string SchemaHintName(string specName)
+        => $"MinimalOpenApi/{specName}/Schemas/{specName}.Dtos.g.cs";
+
+    private static string OperationHintName(string specName, string typeName)
+        => $"MinimalOpenApi/{specName}/Operations/{specName}.{typeName}.g.cs";
+
+    private static string InfrastructureHintName(string specName, string fileName)
+        => $"MinimalOpenApi/{specName}/Infrastructure/{specName}.{fileName}.g.cs";
+
     private static void GenerateForDocument(
         SourceProductionContext spc,
         OpenApiDocument doc,
@@ -401,7 +410,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         {
             var dtoResult = DtoGenerator.Generate(doc.Schemas, rootNamespace, specName);
             if (!string.IsNullOrWhiteSpace(dtoResult.Source))
-                spc.AddSource($"MinimalOpenApi.{specName}.Dtos.g.cs", dtoResult.Source);
+                spc.AddSource(SchemaHintName(specName), dtoResult.Source);
 
             foreach (var conflict in dtoResult.AllOfConflicts.Distinct())
             {
@@ -425,7 +434,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             // Generate handler base
             var handlerConflicts = new List<MinimalOpenAPI.Generator.CodeGen.AllOfPropertyConflict>();
             var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, doc.Schemas, handlerConflicts);
-            spc.AddSource($"MinimalOpenApi.{specName}.{handlerBase}.g.cs", handlerSource);
+            spc.AddSource(OperationHintName(specName, handlerBase), handlerSource);
 
             foreach (var conflict in handlerConflicts.Distinct())
             {
@@ -438,7 +447,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
             // Generate registration customizer base
             var customizerSource = RegistrationCustomizerGenerator.Generate(op, rootNamespace, specName);
-            spc.AddSource($"MinimalOpenApi.{specName}.{customizerBase}.g.cs", customizerSource);
+            spc.AddSource(OperationHintName(specName, customizerBase), customizerSource);
 
             // Discover handler implementations
             var handlerImpls = allClasses
@@ -507,11 +516,11 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             publishAs,
             displayName,
             displayVersion);
-        spc.AddSource($"MinimalOpenApi.{specName}.DependencyInjection.g.cs", diSource);
+        spc.AddSource(InfrastructureHintName(specName, "DependencyInjection"), diSource);
 
         // Generate endpoint mapping
         var mappingSource = EndpointMappingGenerator.Generate(operations, customizers, rootNamespace, specName);
-        spc.AddSource($"MinimalOpenApi.{specName}.EndpointMapping.g.cs", mappingSource);
+        spc.AddSource(InfrastructureHintName(specName, "EndpointMapping"), mappingSource);
     }
 }
 
