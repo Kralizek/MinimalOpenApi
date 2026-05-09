@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
 
 using MinimalOpenAPI.Abstractions;
@@ -48,21 +49,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             {
                 var options = pair.Right.GetOptions(pair.Left);
                 var content = pair.Left.GetText(ct)?.ToString() ?? string.Empty;
-                var path = pair.Left.Path;
-                options.TryGetValue(NamespaceMetadataKey, out var explicitNamespace);
-                options.TryGetValue(SchemaIdMetadataKey, out var schemaId);
-                options.TryGetValue(PublishAsMetadataKey, out var publishAs);
-                options.TryGetValue(DisplayNameMetadataKey, out var displayName);
-                options.TryGetValue(DisplayVersionMetadataKey, out var displayVersion);
-                var specName = DeriveSpecName(path, explicitNamespace);
-                return new OpenApiFileInput(
-                    Content: content,
-                    Path: path,
-                    SpecName: specName,
-                    SchemaId: schemaId ?? string.Empty,
-                    PublishAs: string.IsNullOrWhiteSpace(publishAs) ? null : publishAs,
-                    DisplayName: string.IsNullOrWhiteSpace(displayName) ? null : displayName,
-                    DisplayVersion: string.IsNullOrWhiteSpace(displayVersion) ? null : displayVersion);
+                return CreateOpenApiFileInput(content, pair.Left.Path, options);
             });
 
         // 2. Get root namespace
@@ -76,58 +63,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         // 3. Parse OpenAPI documents — parser is selected via CanParse (format + optional version check)
         var parsedDocuments = openApiFiles
             .Combine(rootNamespace)
-            .Select((pair, _) =>
-            {
-                var file = pair.Left;
-                var ns = pair.Right;
-
-                var parser = SelectParser(file.Path, file.Content);
-                if (parser is null)
-                {
-                    var ext = System.IO.Path.GetExtension(file.Path);
-                    return new ParsedOpenApiFile(
-                        Document: null,
-                        Path: file.Path,
-                        RootNamespace: ns,
-                        SpecName: file.SpecName,
-                        SchemaId: file.SchemaId,
-                        PublishAs: file.PublishAs,
-                        DisplayName: file.DisplayName,
-                        DisplayVersion: file.DisplayVersion,
-                        ParseError: null,
-                        UnsupportedExtension: ext);
-                }
-
-                try
-                {
-                    var doc = parser.ParseAsync(file.Content).GetAwaiter().GetResult();
-                    return new ParsedOpenApiFile(
-                        Document: doc,
-                        Path: file.Path,
-                        RootNamespace: ns,
-                        SpecName: file.SpecName,
-                        SchemaId: file.SchemaId,
-                        PublishAs: file.PublishAs,
-                        DisplayName: file.DisplayName,
-                        DisplayVersion: file.DisplayVersion,
-                        ParseError: null,
-                        UnsupportedExtension: null);
-                }
-                catch (Exception ex)
-                {
-                    return new ParsedOpenApiFile(
-                        Document: null,
-                        Path: file.Path,
-                        RootNamespace: ns,
-                        SpecName: file.SpecName,
-                        SchemaId: file.SchemaId,
-                        PublishAs: file.PublishAs,
-                        DisplayName: file.DisplayName,
-                        DisplayVersion: file.DisplayVersion,
-                        ParseError: ex.Message,
-                        UnsupportedExtension: null);
-                }
-            });
+            .Select((pair, _) => ParseOpenApiFile(pair.Left, pair.Right));
 
         var duplicateSpecNames = openApiFiles
             .Collect()
@@ -238,16 +174,81 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
             GenerateForDocument(
                 spc,
-                generationInput.Document,
-                generationInput.RootNamespace,
-                generationInput.SpecName,
-                generationInput.Path,
-                generationInput.SchemaId,
-                generationInput.PublishAs,
-                generationInput.DisplayName,
-                generationInput.DisplayVersion,
+                generationInput,
                 input.Classes.ToArray());
         });
+    }
+
+    private static OpenApiFileInput CreateOpenApiFileInput(
+        string content,
+        string path,
+        AnalyzerConfigOptions options)
+    {
+        options.TryGetValue(NamespaceMetadataKey, out var explicitNamespace);
+        options.TryGetValue(SchemaIdMetadataKey, out var schemaId);
+        options.TryGetValue(PublishAsMetadataKey, out var publishAs);
+        options.TryGetValue(DisplayNameMetadataKey, out var displayName);
+        options.TryGetValue(DisplayVersionMetadataKey, out var displayVersion);
+        var specName = DeriveSpecName(path, explicitNamespace);
+
+        return new OpenApiFileInput(
+            Content: content,
+            Path: path,
+            SpecName: specName,
+            SchemaId: schemaId ?? string.Empty,
+            PublishAs: string.IsNullOrWhiteSpace(publishAs) ? null : publishAs,
+            DisplayName: string.IsNullOrWhiteSpace(displayName) ? null : displayName,
+            DisplayVersion: string.IsNullOrWhiteSpace(displayVersion) ? null : displayVersion);
+    }
+
+    private static ParsedOpenApiFile ParseOpenApiFile(OpenApiFileInput file, string rootNamespace)
+    {
+        var parser = SelectParser(file.Path, file.Content);
+        if (parser is null)
+        {
+            var ext = System.IO.Path.GetExtension(file.Path);
+            return new ParsedOpenApiFile(
+                Document: null,
+                Path: file.Path,
+                RootNamespace: rootNamespace,
+                SpecName: file.SpecName,
+                SchemaId: file.SchemaId,
+                PublishAs: file.PublishAs,
+                DisplayName: file.DisplayName,
+                DisplayVersion: file.DisplayVersion,
+                ParseError: null,
+                UnsupportedExtension: ext);
+        }
+
+        try
+        {
+            var doc = parser.ParseAsync(file.Content).GetAwaiter().GetResult();
+            return new ParsedOpenApiFile(
+                Document: doc,
+                Path: file.Path,
+                RootNamespace: rootNamespace,
+                SpecName: file.SpecName,
+                SchemaId: file.SchemaId,
+                PublishAs: file.PublishAs,
+                DisplayName: file.DisplayName,
+                DisplayVersion: file.DisplayVersion,
+                ParseError: null,
+                UnsupportedExtension: null);
+        }
+        catch (Exception ex)
+        {
+            return new ParsedOpenApiFile(
+                Document: null,
+                Path: file.Path,
+                RootNamespace: rootNamespace,
+                SpecName: file.SpecName,
+                SchemaId: file.SchemaId,
+                PublishAs: file.PublishAs,
+                DisplayName: file.DisplayName,
+                DisplayVersion: file.DisplayVersion,
+                ParseError: ex.Message,
+                UnsupportedExtension: null);
+        }
     }
 
     private static readonly Version[] _knownVersions =
@@ -467,33 +468,26 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
     private static void GenerateForDocument(
         SourceProductionContext spc,
-        OpenApiDocument doc,
-        string rootNamespace,
-        string specName,
-        string openApiFilePath,
-        string schemaId,
-        string? publishAs,
-        string? displayName,
-        string? displayVersion,
+        OpenApiGenerationInput input,
         ClassInfo[] allClasses)
     {
         // Resolve $ref parameter references before code generation; work with the returned
         // normalized operation list so the parsed OpenApiDocument is never mutated.
-        if (!TryResolveParameterReferences(spc, doc, openApiFilePath, out var operations))
+        if (!TryResolveParameterReferences(spc, input.Document, input.Path, out var operations))
             return;
 
         // Generate DTOs
-        if (doc.Schemas.Count > 0)
+        if (input.Document.Schemas.Count > 0)
         {
-            var dtoResult = DtoGenerator.Generate(doc.Schemas, rootNamespace, specName);
+            var dtoResult = DtoGenerator.Generate(input.Document.Schemas, input.RootNamespace, input.SpecName);
             if (!string.IsNullOrWhiteSpace(dtoResult.Source))
-                spc.AddSource(SchemaHintName(specName), dtoResult.Source);
+                spc.AddSource(SchemaHintName(input.SpecName), dtoResult.Source);
 
             foreach (var conflict in dtoResult.AllOfConflicts.Distinct())
             {
                 spc.ReportDiagnostic(Diagnostic.Create(
                     DiagnosticDescriptors.AllOfPropertyConflict,
-                    CreateOpenApiLocation(openApiFilePath),
+                    CreateOpenApiLocation(input.Path),
                     conflict.SchemaName,
                     conflict.PropertyName));
             }
@@ -510,21 +504,21 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
             // Generate handler base
             var handlerConflicts = new List<MinimalOpenAPI.Generator.CodeGen.AllOfPropertyConflict>();
-            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, doc.Schemas, handlerConflicts);
-            spc.AddSource(OperationHintName(specName, handlerBase), handlerSource);
+            var handlerSource = HandlerBaseGenerator.Generate(op, input.RootNamespace, input.SpecName, input.Document.Schemas, handlerConflicts);
+            spc.AddSource(OperationHintName(input.SpecName, handlerBase), handlerSource);
 
             foreach (var conflict in handlerConflicts.Distinct())
             {
                 spc.ReportDiagnostic(Diagnostic.Create(
                     DiagnosticDescriptors.AllOfPropertyConflict,
-                    CreateOpenApiLocation(openApiFilePath),
+                    CreateOpenApiLocation(input.Path),
                     conflict.SchemaName,
                     conflict.PropertyName));
             }
 
             // Generate registration customizer base
-            var customizerSource = RegistrationCustomizerGenerator.Generate(op, rootNamespace, specName);
-            spc.AddSource(OperationHintName(specName, customizerBase), customizerSource);
+            var customizerSource = RegistrationCustomizerGenerator.Generate(op, input.RootNamespace, input.SpecName);
+            spc.AddSource(OperationHintName(input.SpecName, customizerBase), customizerSource);
 
             // Discover handler implementations
             var handlerImpls = allClasses
@@ -536,8 +530,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 case 0:
                     spc.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.MissingHandlerImplementation,
-                        CreateOpenApiLocation(openApiFilePath),
-                        $"{rootNamespace}.{specName}.Endpoints.{handlerBase}"));
+                        CreateOpenApiLocation(input.Path),
+                        $"{input.RootNamespace}.{input.SpecName}.Endpoints.{handlerBase}"));
                     break;
                 case 1:
                     handlers.Add(new DiscoveredImplementation
@@ -549,7 +543,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 default:
                     spc.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.DuplicateHandlerImplementation,
-                        CreateOpenApiLocation(openApiFilePath),
+                        CreateOpenApiLocation(input.Path),
                         handlerBase,
                         string.Join(", ", handlerImpls.Select(h => h.FullName))));
                     break;
@@ -574,7 +568,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 default:
                     spc.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.DuplicateRegistrationCustomizerImplementation,
-                        CreateOpenApiLocation(openApiFilePath),
+                        CreateOpenApiLocation(input.Path),
                         customizerBase,
                         string.Join(", ", customizerImpls.Select(c => c.FullName))));
                     break;
@@ -586,18 +580,18 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             operations,
             handlers,
             customizers,
-            rootNamespace,
-            specName,
-            schemaId,
-            System.IO.Path.GetFileName(openApiFilePath),
-            publishAs,
-            displayName,
-            displayVersion);
-        spc.AddSource(InfrastructureHintName(specName, "DependencyInjection"), diSource);
+            input.RootNamespace,
+            input.SpecName,
+            input.SchemaId,
+            System.IO.Path.GetFileName(input.Path),
+            input.PublishAs,
+            input.DisplayName,
+            input.DisplayVersion);
+        spc.AddSource(InfrastructureHintName(input.SpecName, "DependencyInjection"), diSource);
 
         // Generate endpoint mapping
-        var mappingSource = EndpointMappingGenerator.Generate(operations, customizers, rootNamespace, specName);
-        spc.AddSource(InfrastructureHintName(specName, "EndpointMapping"), mappingSource);
+        var mappingSource = EndpointMappingGenerator.Generate(operations, customizers, input.RootNamespace, input.SpecName);
+        spc.AddSource(InfrastructureHintName(input.SpecName, "EndpointMapping"), mappingSource);
     }
 }
 
