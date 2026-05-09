@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using MinimalOpenAPI.Abstractions.Models;
 
 namespace MinimalOpenAPI.Generator.CodeGen;
@@ -17,6 +19,13 @@ internal delegate string? InlineSchemaResolver(OpenApiSchema schema);
 /// </summary>
 internal static class TypeMapper
 {
+    internal sealed record HttpStatusCodeMapping(
+        int StatusCode,
+        string ResponseName,
+        string? ProblemName,
+        string? TypedResultName,
+        string StatusCodeExpression);
+
     /// <summary>
     /// A synthetic type name used as a sentinel to mark a property that could not be
     /// resolved during <c>allOf</c> flattening due to incompatible definitions across branches.
@@ -58,20 +67,18 @@ internal static class TypeMapper
     public static string GetInlineRequestBodyTypeName() => "Request";
 
     /// <summary>Returns the nested record name used for an inline response schema with the given status code.</summary>
-    public static string GetInlineResponseTypeName(int statusCode) => statusCode switch
+    public static string GetInlineResponseTypeName(int statusCode) => $"{GetHttpStatusCodeMapping(statusCode).ResponseName}Response";
+
+    public static string GetProblemResultTypeName(int statusCode)
     {
-        200 => "OkResponse",
-        201 => "CreatedResponse",
-        202 => "AcceptedResponse",
-        204 => "NoContentResponse",
-        400 => "BadRequestResponse",
-        401 => "UnauthorizedResponse",
-        403 => "ForbiddenResponse",
-        404 => "NotFoundResponse",
-        409 => "ConflictResponse",
-        422 => "UnprocessableEntityResponse",
-        _ => $"Status{statusCode}Response"
-    };
+        var mapping = GetHttpStatusCodeMapping(statusCode);
+        return $"{mapping.ProblemName ?? $"Status{statusCode}"}Problem";
+    }
+
+    public static string GetStatusCodeExpression(int statusCode) => GetHttpStatusCodeMapping(statusCode).StatusCodeExpression;
+
+    public static bool IsProblemResponse(OpenApiResponse response)
+        => string.Equals(response.ContentType, "application/problem+json", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Returns the C# default-value expression for <paramref name="typeName"/>.</summary>
     public static string GetDefaultValue(string typeName) => typeName switch
@@ -206,20 +213,21 @@ internal static class TypeMapper
             };
         }
 
-        return statusCode switch
-        {
-            200 => "global::Microsoft.AspNetCore.Http.HttpResults.Ok",
-            201 => "global::Microsoft.AspNetCore.Http.HttpResults.Created",
-            202 => "global::Microsoft.AspNetCore.Http.HttpResults.Accepted",
-            204 => "global::Microsoft.AspNetCore.Http.HttpResults.NoContent",
-            400 => "global::Microsoft.AspNetCore.Http.HttpResults.BadRequest",
-            401 => "global::Microsoft.AspNetCore.Http.HttpResults.UnauthorizedHttpResult",
-            403 => "global::Microsoft.AspNetCore.Http.HttpResults.ForbidHttpResult",
-            404 => "global::Microsoft.AspNetCore.Http.HttpResults.NotFound",
-            409 => "global::Microsoft.AspNetCore.Http.HttpResults.Conflict",
-            422 => "global::Microsoft.AspNetCore.Http.HttpResults.UnprocessableEntity",
-            _ => "global::Microsoft.AspNetCore.Http.IResult"
-        };
+        var mapping = GetHttpStatusCodeMapping(statusCode);
+        return mapping.TypedResultName is not null
+            ? $"global::Microsoft.AspNetCore.Http.HttpResults.{mapping.TypedResultName}"
+            : "global::Microsoft.AspNetCore.Http.IResult";
+    }
+
+    public static string MapResponseResultType(
+        OpenApiResponse response,
+        string? contractsNamespace = null,
+        InlineSchemaResolver? resolveInline = null)
+    {
+        if (IsProblemResponse(response))
+            return GetProblemResultTypeName(response.StatusCode);
+
+        return MapStatusCode(response.StatusCode, response.Schema, contractsNamespace, resolveInline);
     }
 
     /// <summary>Builds the return type for a handler: Results&lt;T1, T2, ...&gt; or single type.</summary>
@@ -230,7 +238,7 @@ internal static class TypeMapper
     {
         var types = responses
             .OrderBy(r => r.StatusCode)
-            .Select(r => MapStatusCode(r.StatusCode, r.Schema, contractsNamespace, resolveInline))
+            .Select(r => MapResponseResultType(r, contractsNamespace, resolveInline))
             .Distinct()
             .ToList();
 
@@ -356,4 +364,21 @@ internal static class TypeMapper
             _ => null
         };
     }
+
+    private static HttpStatusCodeMapping GetHttpStatusCodeMapping(int statusCode) => statusCode switch
+    {
+        200 => new HttpStatusCodeMapping(200, "Ok", "Ok", "Ok", "global::Microsoft.AspNetCore.Http.StatusCodes.Status200OK"),
+        201 => new HttpStatusCodeMapping(201, "Created", "Created", "Created", "global::Microsoft.AspNetCore.Http.StatusCodes.Status201Created"),
+        202 => new HttpStatusCodeMapping(202, "Accepted", "Accepted", "Accepted", "global::Microsoft.AspNetCore.Http.StatusCodes.Status202Accepted"),
+        204 => new HttpStatusCodeMapping(204, "NoContent", "NoContent", "NoContent", "global::Microsoft.AspNetCore.Http.StatusCodes.Status204NoContent"),
+        302 => new HttpStatusCodeMapping(302, "Redirect", null, null, "global::Microsoft.AspNetCore.Http.StatusCodes.Status302Found"),
+        400 => new HttpStatusCodeMapping(400, "BadRequest", "BadRequest", "BadRequest", "global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest"),
+        401 => new HttpStatusCodeMapping(401, "Unauthorized", "Unauthorized", "UnauthorizedHttpResult", "global::Microsoft.AspNetCore.Http.StatusCodes.Status401Unauthorized"),
+        403 => new HttpStatusCodeMapping(403, "Forbidden", "Forbidden", "ForbidHttpResult", "global::Microsoft.AspNetCore.Http.StatusCodes.Status403Forbidden"),
+        404 => new HttpStatusCodeMapping(404, "NotFound", "NotFound", "NotFound", "global::Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound"),
+        409 => new HttpStatusCodeMapping(409, "Conflict", "Conflict", "Conflict", "global::Microsoft.AspNetCore.Http.StatusCodes.Status409Conflict"),
+        422 => new HttpStatusCodeMapping(422, "UnprocessableEntity", "UnprocessableEntity", "UnprocessableEntity", "global::Microsoft.AspNetCore.Http.StatusCodes.Status422UnprocessableEntity"),
+        500 => new HttpStatusCodeMapping(500, "InternalServerError", "InternalServerError", null, "global::Microsoft.AspNetCore.Http.StatusCodes.Status500InternalServerError"),
+        _ => new HttpStatusCodeMapping(statusCode, $"Status{statusCode}", null, null, statusCode.ToString(CultureInfo.InvariantCulture))
+    };
 }

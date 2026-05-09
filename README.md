@@ -207,6 +207,25 @@ public sealed class GetItemEndpoint(IItemRepository repo) : GetItemEndpointBase
 
 That's it. No manual route registration, no manual DI wiring.
 
+If a response is declared as `application/problem+json`, the generated base class exposes a status-specific wrapper type:
+
+```csharp
+public override Task<Results<Created<Todo>, BadRequestProblem>> HandleAsync(Request request, CancellationToken cancellationToken)
+{
+    if (string.IsNullOrWhiteSpace(request.Title))
+    {
+        return Task.FromResult<Results<Created<Todo>, BadRequestProblem>>(
+            new BadRequestProblem(new ProblemDetails
+            {
+                Title = "Invalid request",
+                Detail = "The request is invalid."
+            }));
+    }
+
+    // ...
+}
+```
+
 ---
 
 ## Supported features

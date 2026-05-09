@@ -121,16 +121,29 @@ internal static class EndpointMappingGenerator
         {
             var response = responses[i];
             var sep = i < responses.Count - 1 ? "" : ";";
-            var responseTypeName = response.Schema is not null
-                ? TypeMapper.MapSchema(response.Schema, contractsNamespace: contractsNs, resolveInline: inlineResolver)
-                : null;
+            var responseTypeName = GetMetadataResponseTypeName(response, contractsNs, inlineResolver);
+            var statusCodeExpression = TypeMapper.GetStatusCodeExpression(response.StatusCode);
             if (responseTypeName is not null && responseTypeName != "object")
             {
-                sb.AppendLine($"            .Produces<{responseTypeName}>(global::Microsoft.AspNetCore.Http.StatusCodes.Status{response.StatusCode}{GetStatusCodeName(response.StatusCode)}){sep}");
+                if (TypeMapper.IsProblemResponse(response))
+                {
+                    sb.AppendLine($"            .Produces<{responseTypeName}>({statusCodeExpression}, \"application/problem+json\"){sep}");
+                }
+                else
+                {
+                    sb.AppendLine($"            .Produces<{responseTypeName}>({statusCodeExpression}){sep}");
+                }
             }
             else
             {
-                sb.AppendLine($"            .Produces(global::Microsoft.AspNetCore.Http.StatusCodes.Status{response.StatusCode}{GetStatusCodeName(response.StatusCode)}){sep}");
+                if (TypeMapper.IsProblemResponse(response))
+                {
+                    sb.AppendLine($"            .Produces({statusCodeExpression}, contentType: \"application/problem+json\"){sep}");
+                }
+                else
+                {
+                    sb.AppendLine($"            .Produces({statusCodeExpression}){sep}");
+                }
             }
         }
 
@@ -181,21 +194,19 @@ internal static class EndpointMappingGenerator
         return string.Join(", ", args);
     }
 
-    private static string GetStatusCodeName(int code) => code switch
+    private static string? GetMetadataResponseTypeName(
+        OpenApiResponse response,
+        string contractsNs,
+        InlineSchemaResolver? inlineResolver = null)
     {
-        200 => "OK",
-        201 => "Created",
-        202 => "Accepted",
-        204 => "NoContent",
-        400 => "BadRequest",
-        401 => "Unauthorized",
-        403 => "Forbidden",
-        404 => "NotFound",
-        409 => "Conflict",
-        422 => "UnprocessableEntity",
-        500 => "InternalServerError",
-        _ => string.Empty
-    };
+        if (response.Schema is not null)
+            return TypeMapper.MapSchema(response.Schema, contractsNamespace: contractsNs, resolveInline: inlineResolver);
+
+        if (TypeMapper.IsProblemResponse(response))
+            return "global::Microsoft.AspNetCore.Mvc.ProblemDetails";
+
+        return null;
+    }
 
     private static string EscapeString(string value)
         => value

@@ -115,6 +115,17 @@ internal static class HandlerBaseGenerator
             sb.AppendLine();
         }
 
+        var problemResponses = operation.Responses
+            .Where(TypeMapper.IsProblemResponse)
+            .OrderBy(r => r.StatusCode)
+            .ToList();
+
+        foreach (var response in problemResponses)
+        {
+            AppendProblemResultWrapper(sb, response, contractsNs, localResolver);
+            sb.AppendLine();
+        }
+
         sb.Append($"    public virtual global::System.Threading.Tasks.Task<{returnType}> HandleAsync(");
 
         for (var i = 0; i < parameters.Count; i++)
@@ -275,4 +286,50 @@ internal static class HandlerBaseGenerator
         ParameterLocation.Cookie => null,
         _ => null
     };
+
+    private static void AppendProblemResultWrapper(
+        StringBuilder sb,
+        OpenApiResponse response,
+        string contractsNamespace,
+        InlineSchemaResolver? resolveInline = null)
+    {
+        var payloadType = response.Schema is not null
+            ? TypeMapper.MapSchema(response.Schema, contractsNamespace: contractsNamespace, resolveInline: resolveInline)
+            : "global::Microsoft.AspNetCore.Mvc.ProblemDetails";
+        var resultTypeName = TypeMapper.GetProblemResultTypeName(response.StatusCode);
+        var statusCodeExpression = TypeMapper.GetStatusCodeExpression(response.StatusCode);
+
+        sb.AppendLine($"    /// <summary>Typed <c>application/problem+json</c> result for HTTP {response.StatusCode}.</summary>");
+        TypeMapper.AppendGeneratedAttributes(sb, "    ");
+        sb.AppendLine(
+            $"    public sealed class {resultTypeName} : global::Microsoft.AspNetCore.Http.IResult, global::Microsoft.AspNetCore.Http.IStatusCodeHttpResult, global::Microsoft.AspNetCore.Http.IValueHttpResult, global::Microsoft.AspNetCore.Http.IValueHttpResult<{payloadType}>");
+        sb.AppendLine("    {");
+        sb.AppendLine($"        public {resultTypeName}({payloadType} value)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            Value = value;");
+        if (response.Schema is null)
+        {
+            sb.AppendLine(
+                $"            Value.Status ??= {statusCodeExpression};");
+        }
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine($"        public int? StatusCode => {statusCodeExpression};");
+        sb.AppendLine();
+        sb.AppendLine("        object? global::Microsoft.AspNetCore.Http.IValueHttpResult.Value => Value;");
+        sb.AppendLine();
+        sb.AppendLine($"        public {payloadType} Value {{ get; }}");
+        sb.AppendLine();
+        sb.AppendLine("        public global::System.Threading.Tasks.Task ExecuteAsync(global::Microsoft.AspNetCore.Http.HttpContext httpContext)");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            httpContext.Response.StatusCode = {statusCodeExpression};");
+        sb.AppendLine();
+        sb.AppendLine("            return global::Microsoft.AspNetCore.Http.HttpResponseJsonExtensions.WriteAsJsonAsync(");
+        sb.AppendLine("                httpContext.Response,");
+        sb.AppendLine("                Value,");
+        sb.AppendLine("                options: null,");
+        sb.AppendLine("                contentType: \"application/problem+json\");");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+    }
 }
