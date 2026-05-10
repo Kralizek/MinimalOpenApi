@@ -60,3 +60,7 @@ curl -X POST "http://localhost:5000/tenants/00000000-0000-0000-0000-000000000001
 - `MinimalOpenAPI.Samples.Parameters.Openapi.Endpoints.ListTenantItemsEndpointBase.Parameters` — groups all non-path params
 - `MinimalOpenAPI.Samples.Parameters.Openapi.Endpoints.CreateTenantItemEndpointBase`
 - `MinimalOpenAPI.Samples.Parameters.Openapi.Contracts.OkResponse`
+
+---
+
+← [Back to sample catalog](../README.md)

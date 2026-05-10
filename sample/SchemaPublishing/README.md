@@ -45,3 +45,7 @@ Then visit:
 
 - `MinimalOpenAPI.Samples.SchemaPublishing.PublicApi.Endpoints.GetStatusEndpointBase`
 - `MinimalOpenAPI.Samples.SchemaPublishing.InternalApi.Endpoints.GetInternalHealthEndpointBase`
+
+---
+
+← [Back to sample catalog](../README.md)

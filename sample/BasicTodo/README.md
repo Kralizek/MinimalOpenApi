@@ -57,3 +57,7 @@ curl http://localhost:5000/todos/{id}
 # Delete a todo
 curl -X DELETE http://localhost:5000/todos/{id}
 ```
+
+---
+
+← [Back to sample catalog](../README.md)

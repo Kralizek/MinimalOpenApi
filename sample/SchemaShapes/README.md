@@ -54,3 +54,7 @@ curl -X POST http://localhost:5000/products \
 # Get a catalog (demonstrates allOf flattening)
 curl http://localhost:5000/catalogs/00000000-0000-0000-0000-000000000001
 ```
+
+---
+
+← [Back to sample catalog](../README.md)

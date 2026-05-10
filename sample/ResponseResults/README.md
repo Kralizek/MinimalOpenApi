@@ -58,3 +58,7 @@ curl -X PUT http://localhost:5000/orders/{id} \
 # Cancel an order
 curl -X DELETE http://localhost:5000/orders/{id}
 ```
+
+---
+
+← [Back to sample catalog](../README.md)

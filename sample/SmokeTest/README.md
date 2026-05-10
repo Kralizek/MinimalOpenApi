@@ -40,3 +40,7 @@ find smoketest-publish/openapi/schemas -name "openapi.yaml"
 ## Note for learning
 
 If you want to learn MinimalOpenAPI, start with [BasicTodo](../BasicTodo/README.md) instead.
+
+---
+
+← [Back to sample catalog](../README.md)
