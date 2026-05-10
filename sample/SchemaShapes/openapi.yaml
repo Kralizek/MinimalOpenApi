@@ -1,0 +1,186 @@
+openapi: "3.0.0"
+info:
+  title: Schema Shapes Sample API
+  version: "1.0.0"
+paths:
+  /accounts:
+    post:
+      operationId: createAccount
+      summary: Create account
+      description: >
+        Demonstrates readOnly/writeOnly filtering and nested directional schema propagation.
+        The Account schema has readOnly (id, createdAt) and writeOnly (password) fields,
+        so the generator emits AccountRequest (omits readOnly) and AccountResponse (omits writeOnly).
+      tags:
+        - accounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Account'
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+  /products:
+    post:
+      operationId: createProduct
+      summary: Create product
+      description: >
+        Demonstrates enums, validation attributes, DateOnly, nested inline objects,
+        additionalProperties with primitive values, and additionalProperties with inline
+        object values.
+      tags:
+        - products
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+  /catalogs/{catalogId}:
+    get:
+      operationId: getCatalog
+      summary: Get catalog
+      description: >
+        Demonstrates allOf flattening: the response schema is an allOf of two named
+        components, producing a single generated record with all combined properties.
+      tags:
+        - catalogs
+      parameters:
+        - name: catalogId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogDetail'
+        "404":
+          description: Not found
+components:
+  schemas:
+    Account:
+      type: object
+      required:
+        - id
+        - email
+        - password
+        - role
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+        role:
+          $ref: '#/components/schemas/AccountRole'
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        profileUrl:
+          type: string
+          format: uri
+          nullable: true
+    AccountRole:
+      type: string
+      enum:
+        - admin
+        - member
+        - viewer
+    Product:
+      type: object
+      required:
+        - name
+        - status
+        - availableFrom
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+          maxLength: 2000
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+        availableFrom:
+          type: string
+          format: date
+        dimensions:
+          type: object
+          properties:
+            width:
+              type: number
+            height:
+              type: number
+            depth:
+              type: number
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+        attributes:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              value:
+                type: string
+              unit:
+                type: string
+                nullable: true
+    ProductStatus:
+      type: string
+      enum:
+        - draft
+        - active
+        - discontinued
+    Catalog:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    CatalogDetail:
+      allOf:
+        - $ref: '#/components/schemas/Catalog'
+        - type: object
+          required:
+            - productCount
+            - lastUpdated
+          properties:
+            productCount:
+              type: integer
+            lastUpdated:
+              type: string
+              format: date-time

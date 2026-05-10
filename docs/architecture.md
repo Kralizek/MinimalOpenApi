@@ -45,8 +45,13 @@ src/
   MinimalOpenAPI.Parser.Yaml/   ← YAML parser (internal, bundled in the package)
   MinimalOpenAPI.Parser.Json/   ← JSON parser (internal, bundled in the package)
 sample/
-  MinimalOpenAPI.Sample.Api/    ← end-to-end working example (Todo CRUD)
-  MinimalOpenAPI.SmokeTest.Api/ ← minimal consumer that builds against the packed NuGet artifact
+  SmokeTest/           ← CI/package-consumption sample; validates the packed NuGet artifact
+  BasicTodo/           ← recommended learning starting point; minimal contract-first Todo API
+  SchemaPublishing/    ← demonstrates PublishAs, MapOpenApiSchemas(), and Swagger UI wiring
+  Parameters/          ← demonstrates all parameter kinds (path, query, header, cookie, component $ref)
+  SchemaShapes/        ← demonstrates DTO shapes (enums, allOf, readOnly/writeOnly, additionalProperties)
+  ResponseResults/     ← demonstrates typed result and problem wrapper types
+  GeneratedFiles/      ← demonstrates EmitCompilerGeneratedFiles to inspect generated output
 tests/
   MinimalOpenAPI.Generator.Tests/   ← generator unit tests (Roslyn driver)
   MinimalOpenAPI.Runtime.Tests/     ← runtime unit tests

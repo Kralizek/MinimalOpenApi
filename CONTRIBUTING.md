@@ -26,7 +26,7 @@ This runs all unit and integration tests. Make sure everything passes before sub
 ## Running the sample app
 
 ```bash
-cd sample/MinimalOpenAPI.Sample.Api
+cd sample/BasicTodo
 dotnet run
 ```
 

@@ -1,0 +1,141 @@
+openapi: "3.0.0"
+info:
+  title: Parameters Sample API
+  version: "1.0.0"
+paths:
+  /tenants/{tenantId}/items:
+    parameters:
+      - $ref: '#/components/parameters/TenantId'
+      - $ref: '#/components/parameters/ApiVersion'
+    get:
+      operationId: listTenantItems
+      summary: List tenant items
+      description: >
+        Demonstrates component parameters, path-level parameters, query defaults,
+        header binding, cookie visibility, and string format annotations.
+      tags:
+        - parameters
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/ContactEmail'
+        - $ref: '#/components/parameters/ContactUri'
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - tenantId
+                  - items
+                properties:
+                  tenantId:
+                    type: string
+                    format: uuid
+                  items:
+                    type: array
+                    items:
+                      type: string
+    post:
+      operationId: createTenantItem
+      summary: Create tenant item
+      description: >
+        Demonstrates operation-level override of a path-level parameter.
+        The tenantId path parameter is defined at path level but overridden
+        here with an operation-level parameter of the same (name, in) pair.
+      tags:
+        - parameters
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          description: >
+            Operation-level override of the path-level tenantId parameter.
+            Same (name, in) pair, different description and schema constraints.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/ApiVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: string
+components:
+  parameters:
+    TenantId:
+      name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ApiVersion:
+      name: api-version
+      in: query
+      required: false
+      schema:
+        type: string
+        default: "1.0"
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema:
+        type: string
+    ContactEmail:
+      name: X-Contact-Email
+      in: header
+      required: false
+      schema:
+        type: string
+        format: email
+    ContactUri:
+      name: X-Contact-Uri
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uri
+    SessionId:
+      name: sessionId
+      in: cookie
+      required: false
+      schema:
+        type: string

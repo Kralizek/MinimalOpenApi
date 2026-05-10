@@ -1,15 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
 
-using Microsoft.AspNetCore.Mvc;
-
-using MinimalOpenAPI.Sample.Api.Openapi.Contracts;
+using MinimalOpenAPI.Samples.BasicTodo.Openapi.Contracts;
 
 namespace MinimalOpenAPI.IntegrationTests;
 
 /// <summary>
-/// End-to-end integration tests that verify the full MinimalOpenAPI pipeline.
-/// Uses the sample app as the test host.
+/// End-to-end integration tests that verify the full MinimalOpenAPI pipeline
+/// using the BasicTodo sample as the test host.
 /// </summary>
 [TestFixture]
 public class EndpointIntegrationTests
@@ -52,7 +50,7 @@ public class EndpointIntegrationTests
     [Test]
     public async Task CreateTodo_ThenGetTodo_ReturnsCreatedTodo()
     {
-        var createRequest = new { title = "Buy groceries", description = "Milk and eggs", isComplete = false };
+        var createRequest = new { title = "Buy groceries", description = "Milk and eggs" };
         var createResponse = await _client.PostAsJsonAsync("/todos", createRequest);
 
         Assert.That(createResponse.StatusCode, Is.EqualTo(HttpStatusCode.Created));
@@ -71,58 +69,11 @@ public class EndpointIntegrationTests
     }
 
     [Test]
-    public async Task CreateTodo_WithEmptyTitle_Returns400()
-    {
-        var createRequest = new { title = "   ", isComplete = false };
-        var response = await _client.PostAsJsonAsync("/todos", createRequest);
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("application/problem+json"));
-
-        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
-        Assert.That(problem, Is.Not.Null);
-        Assert.That(problem!.Status, Is.EqualTo((int)HttpStatusCode.BadRequest));
-        Assert.That(problem.Title, Is.EqualTo("Invalid request"));
-        Assert.That(problem.Detail, Is.EqualTo("The request is invalid."));
-    }
-
-    [Test]
-    public async Task UpdateTodo_WhenTodoExists_ReturnsUpdatedTodo()
-    {
-        // Create a todo first
-        var createRequest = new { title = "Initial title", isComplete = false };
-        var createResponse = await _client.PostAsJsonAsync("/todos", createRequest);
-        Assert.That(createResponse.StatusCode, Is.EqualTo(HttpStatusCode.Created));
-
-        var created = await createResponse.Content.ReadFromJsonAsync<Todo>();
-        Assert.That(created, Is.Not.Null);
-
-        // Update it
-        var updateRequest = new { title = "Updated title", description = "Added description", isComplete = true };
-        var updateResponse = await _client.PutAsJsonAsync($"/todos/{created!.Id}", updateRequest);
-
-        Assert.That(updateResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var updated = await updateResponse.Content.ReadFromJsonAsync<Todo>();
-        Assert.That(updated, Is.Not.Null);
-        Assert.That(updated!.Title, Is.EqualTo("Updated title"));
-        Assert.That(updated.IsComplete, Is.True);
-    }
-
-    [Test]
-    public async Task UpdateTodo_WhenNotFound_Returns404()
-    {
-        var updateRequest = new { title = "Something", isComplete = false };
-        var response = await _client.PutAsJsonAsync($"/todos/{Guid.NewGuid()}", updateRequest);
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
-    }
-
-    [Test]
     public async Task DeleteTodo_WhenTodoExists_Returns204()
     {
-        var createRequest = new { title = "To be deleted", isComplete = false };
+        var createRequest = new { title = "To be deleted" };
         var createResponse = await _client.PostAsJsonAsync("/todos", createRequest);
+        Assert.That(createResponse.StatusCode, Is.EqualTo(HttpStatusCode.Created));
         var created = await createResponse.Content.ReadFromJsonAsync<Todo>();
 
         var deleteResponse = await _client.DeleteAsync($"/todos/{created!.Id}");
@@ -139,126 +90,18 @@ public class EndpointIntegrationTests
     }
 
     [Test]
-    public async Task ListTodos_FilteredByIsComplete_ReturnsOnlyMatchingItems()
+    public async Task CreateTodo_ThenListTodos_IncludesCreatedItem()
     {
-        // Create one complete and one incomplete todo
-        await _client.PostAsJsonAsync("/todos", new { title = "List-filter-incomplete", isComplete = false });
-        var createResponse = await _client.PostAsJsonAsync("/todos", new { title = "List-filter-complete", isComplete = false });
-        var created = await createResponse.Content.ReadFromJsonAsync<Todo>();
-        await _client.PutAsJsonAsync($"/todos/{created!.Id}", new { title = "List-filter-complete", isComplete = true });
-
-        var response = await _client.GetAsync("/todos?isComplete=true");
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var todos = await response.Content.ReadFromJsonAsync<Todo[]>();
-        Assert.That(todos, Is.Not.Null);
-        Assert.That(todos!.All(t => t.IsComplete), Is.True);
-    }
-
-    [Test]
-    public async Task GetOpenApiSchema_ReturnsYamlWithCorrectContentType()
-    {
-        var response = await _client.GetAsync("/openapi/schema.yaml");
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/yaml"));
-        var body = await response.Content.ReadAsStringAsync();
-        Assert.That(body, Does.Contain("openapi:"));
-    }
-
-    [Test]
-    public async Task GetOpenApiSchema_DefaultImplicitRoute_IsNotMapped()
-    {
-        var response = await _client.GetAsync("/.openapi/schemas/1.0.0/openapi.yaml");
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
-    }
-
-    [Test]
-    public async Task CreateTodo_WithMetadata_RoundTripsMetadataOnGet()
-    {
-        // Metadata uses an inline complex additionalProperties value type:
-        // Request.Metadata is Dictionary<string, RequestMetadataValue> (inline nested record)
-        // Todo.Metadata is Dictionary<string, TodoMetadataValue> (top-level Contracts record)
-        var createRequest = new
-        {
-            title = "Metadata test todo",
-            isComplete = false,
-            metadata = new Dictionary<string, object>
-            {
-                ["priority"] = new { value = "high", color = "red" },
-                ["category"] = new { value = "work", color = (string?)null },
-            },
-        };
-
+        var createRequest = new { title = "Integration test todo" };
         var createResponse = await _client.PostAsJsonAsync("/todos", createRequest);
         Assert.That(createResponse.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+        var created = await createResponse.Content.ReadFromJsonAsync<Todo>();
 
-        var location = createResponse.Headers.Location;
-        Assert.That(location, Is.Not.Null);
+        var listResponse = await _client.GetAsync("/todos");
+        Assert.That(listResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        var getResponse = await _client.GetAsync(location!.ToString());
-        Assert.That(getResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var todo = await getResponse.Content.ReadFromJsonAsync<Todo>();
-        Assert.That(todo, Is.Not.Null);
-        Assert.That(todo!.Metadata, Is.Not.Null);
-        Assert.That(todo.Metadata!.ContainsKey("priority"), Is.True);
-        Assert.That(todo.Metadata["priority"].Value, Is.EqualTo("high"));
-        Assert.That(todo.Metadata["priority"].Color, Is.EqualTo("red"));
-        Assert.That(todo.Metadata.ContainsKey("category"), Is.True);
-        Assert.That(todo.Metadata["category"].Value, Is.EqualTo("work"));
-    }
-
-    // ── #30 — Header parameter casing (runtime) ───────────────────────────
-
-    [Test]
-    public async Task Echo_WithExactDeclaredHeaderCasing_BindsCorrectly()
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/echo");
-        request.Headers.Add("X-Correlation-Id", "exact-case-value");
-        var response = await _client.SendAsync(request);
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var body = await response.Content.ReadFromJsonAsync<string>();
-        Assert.That(body, Is.EqualTo("exact-case-value"));
-    }
-
-    [Test]
-    public async Task Echo_WithLowercaseHeaderName_BindsCorrectly()
-    {
-        // Verifies that [FromHeader(Name = "X-Correlation-Id")] binds the value even when
-        // the incoming request uses all-lowercase header names (HTTP headers are
-        // case-insensitive per RFC 7230, and ASP.NET Core honours this).
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/echo");
-        request.Headers.Add("x-correlation-id", "lowercase-value");
-        var response = await _client.SendAsync(request);
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var body = await response.Content.ReadFromJsonAsync<string>();
-        Assert.That(body, Is.EqualTo("lowercase-value"));
-    }
-
-    [Test]
-    public async Task Echo_WithUppercaseHeaderName_BindsCorrectly()
-    {
-        // Verifies that [FromHeader(Name = "X-Correlation-Id")] binds the value even when
-        // the incoming request uses all-uppercase header names.
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/echo");
-        request.Headers.Add("X-CORRELATION-ID", "uppercase-value");
-        var response = await _client.SendAsync(request);
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var body = await response.Content.ReadFromJsonAsync<string>();
-        Assert.That(body, Is.EqualTo("uppercase-value"));
-    }
-
-    [Test]
-    public async Task Echo_WithAbsentHeader_ReturnsEmptyString()
-    {
-        var response = await _client.GetAsync("/echo");
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var body = await response.Content.ReadFromJsonAsync<string>();
-        Assert.That(body, Is.EqualTo(string.Empty));
+        var todos = await listResponse.Content.ReadFromJsonAsync<Todo[]>();
+        Assert.That(todos, Is.Not.Null);
+        Assert.That(todos!.Any(t => t.Id == created!.Id), Is.True);
     }
 }

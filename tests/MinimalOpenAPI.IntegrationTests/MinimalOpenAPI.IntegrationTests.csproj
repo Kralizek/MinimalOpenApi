@@ -7,18 +7,6 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
-  <!--
-    Compute the stable hash of the sample app's openapi.yaml full path using the same
-    formula as CopyMinimalOpenApiFilesToOutput in MinimalOpenAPI.targets.  This gives
-    the same subdirectory name that the source generator hard-codes into RegisterSchemaFile,
-    so MapOpenApiSchemas() can find the file when WebApplicationFactory points
-    AppContext.BaseDirectory at the integration test output directory.
-  -->
-  <PropertyGroup>
-    <_SampleApiOpenApiFullPath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../sample/MinimalOpenAPI.Sample.Api/openapi.yaml'))</_SampleApiOpenApiFullPath>
-    <_SampleApiOpenApiSchemaId>$([System.Math]::Abs($([MSBuild]::StableStringHash('$(_SampleApiOpenApiFullPath)'))))</_SampleApiOpenApiSchemaId>
-  </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NUnit" />
@@ -28,22 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../sample/MinimalOpenAPI.Sample.Api/Sample.Api.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!--
-      Copy the sample app's OpenAPI spec to the integration test output directory under the
-      same unique hash-based subdirectory that CopyMinimalOpenApiFilesToOutput uses.
-      This is necessary because WebApplicationFactory runs the sample app in-process, where
-      AppContext.BaseDirectory points to the test project's bin directory rather than the
-      sample app's bin directory, so MapOpenApiSchemas() needs the file to be present here
-      at the path the generated RegisterSchemaFile call expects.
-    -->
-    <Content Include="../../sample/MinimalOpenAPI.Sample.Api/openapi.yaml">
-      <Link>openapi/schemas/$(_SampleApiOpenApiSchemaId)/openapi.yaml</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <ProjectReference Include="../../sample/BasicTodo/BasicTodo.csproj" />
   </ItemGroup>
 
 </Project>

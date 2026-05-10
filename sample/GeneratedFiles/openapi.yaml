@@ -1,0 +1,40 @@
+openapi: "3.0.0"
+info:
+  title: Generated Files Sample API
+  version: "1.0.0"
+paths:
+  /widgets/{id}:
+    get:
+      operationId: getWidget
+      summary: Get widget
+      description: >
+        A tiny endpoint used to produce generated contracts and endpoint base classes
+        for inspection. The important part of this sample is the project file, not the
+        endpoint itself.
+      tags:
+        - widgets
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - name
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+        "404":
+          description: Not found

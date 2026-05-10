@@ -1,0 +1,27 @@
+openapi: "3.0.0"
+info:
+  title: Internal Sample API
+  version: "1.0.0"
+paths:
+  /internal/health:
+    get:
+      operationId: getInternalHealth
+      summary: Get internal health
+      description: >
+        Returns an internal health check response.
+        This schema is copied to build/publish output but is NOT exposed over HTTP
+        (no PublishAs on the <OpenApi> item in the project file).
+      tags:
+        - health
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string

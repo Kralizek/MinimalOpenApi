@@ -1,0 +1,27 @@
+openapi: "3.0.0"
+info:
+  title: Public Sample API
+  version: "1.0.0"
+paths:
+  /status:
+    get:
+      operationId: getStatus
+      summary: Get public status
+      description: Returns a tiny public status response.
+      tags:
+        - status
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - version
+                properties:
+                  status:
+                    type: string
+                  version:
+                    type: string

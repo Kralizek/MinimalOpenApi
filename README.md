@@ -251,7 +251,7 @@ public override Task<Results<Created<Todo>, BadRequestProblem>> HandleAsync(Requ
 | HTTP schema serving | `MapOpenApiSchemas()` serves only schemas with `PublishAs="..."` at that exact path |
 | Endpoint customizers | Optional `<OperationId>EndpointRegistration` base for per-route metadata |
 
-See the [sample app](sample/MinimalOpenAPI.Sample.Api) for a complete end-to-end example covering all of these.
+See the focused [sample projects](sample/) for end-to-end examples. Start with [BasicTodo](sample/BasicTodo/README.md) for the simplest contract-first workflow.
 
 ---
 
@@ -466,8 +466,13 @@ src/
   MinimalOpenAPI.Parser.Yaml/   ← YAML parser implementation
   MinimalOpenAPI.Parser.Json/   ← JSON parser implementation
 sample/
-  MinimalOpenAPI.Sample.Api/    ← end-to-end Todo CRUD example
-  MinimalOpenAPI.SmokeTest.Api/ ← minimal consumer built against the packed NuGet artifact
+  SmokeTest/           ← CI/package-consumption sample; validates the packed NuGet artifact
+  BasicTodo/           ← recommended starting point; minimal contract-first Todo API
+  SchemaPublishing/    ← demonstrates PublishAs, MapOpenApiSchemas(), and Swagger UI wiring
+  Parameters/          ← demonstrates all parameter kinds (path, query, header, cookie, $ref)
+  SchemaShapes/        ← demonstrates DTO shapes (enums, allOf, readOnly/writeOnly, additionalProperties)
+  ResponseResults/     ← demonstrates typed result and problem wrapper types
+  GeneratedFiles/      ← demonstrates EmitCompilerGeneratedFiles to inspect generated output
 benchmarks/
   Benchmark/                    ← BenchmarkDotNet suite comparing generated vs hand-written APIs
   WithMinimalOpenAPI/           ← benchmark target app using MinimalOpenAPI-generated endpoints

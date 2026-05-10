@@ -1,0 +1,110 @@
+openapi: "3.0.0"
+info:
+  title: Response Results Sample API
+  version: "1.0.0"
+paths:
+  /orders:
+    post:
+      operationId: createOrder
+      summary: Create order
+      description: Demonstrates Created plus schema-less BadRequest problem response.
+      tags:
+        - orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - externalReference
+                - customerName
+                - amount
+              properties:
+                externalReference:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                customerName:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                amount:
+                  type: number
+                  minimum: 0
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        "400":
+          description: Bad Request
+          content:
+            application/problem+json: {}
+  /orders/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getOrder
+      summary: Get order
+      description: Demonstrates Ok plus schema-backed NotFound problem response.
+      tags:
+        - orders
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        "404":
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                required:
+                  - orderId
+                properties:
+                  orderId:
+                    type: string
+                    format: uuid
+    delete:
+      operationId: cancelOrder
+      summary: Cancel order
+      description: Demonstrates NoContent plus schema-less NotFound problem response.
+      tags:
+        - orders
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          content:
+            application/problem+json: {}
+components:
+  schemas:
+    Order:
+      type: object
+      required:
+        - id
+        - externalReference
+        - customerName
+        - amount
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReference:
+          type: string
+        customerName:
+          type: string
+        amount:
+          type: number
