@@ -48,6 +48,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Todo'
+        "400":
+          description: Bad Request
+          content:
+            application/problem+json: {}
   /todos/{id}:
     parameters:
       - name: id
