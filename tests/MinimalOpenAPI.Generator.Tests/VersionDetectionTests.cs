@@ -313,7 +313,7 @@ public class VersionDetectionTests
     }
 
     [Test]
-    public async Task JsonParser_Reads_ReadOnly_And_WriteOnly()
+    public async Task JsonParser_Reads_ReadOnly_Flag()
     {
         const string json = """
             {
@@ -339,6 +339,32 @@ public class VersionDetectionTests
         var item = doc.Schemas["Item"];
         Assert.That(item.Properties["id"].ReadOnly, Is.True);
         Assert.That(item.Properties["id"].WriteOnly, Is.False);
+    }
+
+    [Test]
+    public async Task JsonParser_Reads_WriteOnly_Flag()
+    {
+        const string json = """
+            {
+              "openapi": "3.0.0",
+              "info": { "title": "Test", "version": "1.0" },
+              "paths": {},
+              "components": {
+                "schemas": {
+                  "Item": {
+                    "type": "object",
+                    "properties": {
+                      "password": { "type": "string", "writeOnly": true }
+                    }
+                  }
+                }
+              }
+            }
+            """;
+
+        var doc = await new JsonOpenApiParser().ParseAsync(json);
+
+        var item = doc.Schemas["Item"];
         Assert.That(item.Properties["password"].WriteOnly, Is.True);
         Assert.That(item.Properties["password"].ReadOnly, Is.False);
     }
