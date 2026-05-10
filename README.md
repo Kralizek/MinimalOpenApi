@@ -94,11 +94,13 @@ DLLs are bundled inside the package and are not published separately.
 
 ### Pre-release packages
 
-Pre-release packages are published to the GitHub Packages NuGet feed on manual execution of the Publish workflow:
+Pre-release packages can be published to the GitHub Packages NuGet feed by manually running the Publish workflow:
 
 ```
 https://nuget.pkg.github.com/Kralizek/index.json
 ```
+
+When a GitHub Release is published, the same workflow uploads the generated packages to the release and publishes them to NuGet.org.
 
 ---
 
@@ -245,7 +247,7 @@ public override Task<Results<Created<Todo>, BadRequestProblem>> HandleAsync(Requ
 | `format: date` | Maps to `DateOnly` |
 | Path parameters | Typed with route constraints (`{id:guid}`, `{page:int}`, …) |
 | Query / header / cookie params | Grouped into a `Parameters` record with `[AsParameters]` |
-| Spec publishing | Every `<OpenApi ... />` item is copied to build and publish output (hashed internal path) |
+| Spec publishing | Every `<OpenApi />` item is copied to build and publish output under `openapi/schemas/<SchemaId>/<filename>` |
 | HTTP schema serving | `MapOpenApiSchemas()` serves only schemas with `PublishAs="..."` at that exact path |
 | Endpoint customizers | Optional `<OperationId>EndpointRegistration` base for per-route metadata |
 
@@ -289,9 +291,19 @@ dotnet run --project benchmarks/Benchmark/Benchmark.csproj -c Release
 
 ---
 
-## Publishing the OpenAPI spec
+## Publishing and serving OpenAPI specs
 
-Declare the schema metadata in the project file:
+MinimalOpenAPI treats the authored OpenAPI file as the source of truth. It does not generate a new OpenAPI document at runtime.
+
+Every `<OpenApi />` item is copied to the build output and publish output under an internal collision-safe path:
+
+```text
+openapi/schemas/<SchemaId>/<filename>
+```
+
+This happens for all OpenAPI files, whether or not they are exposed over HTTP.
+
+To expose a schema file as an HTTP endpoint, add `PublishAs`:
 
 ```xml
 <ItemGroup>
@@ -306,17 +318,41 @@ Then serve it in `Program.cs`:
 
 ```csharp
 app.MapMinimalOpenApiEndpoints();
-app.MapOpenApiSchemas();  // GET /openapi/schema.yaml
+
+var schemas = app.MapOpenApiSchemas(); // maps GET /openapi/schema.yaml
 ```
 
-`MapOpenApiSchemas` maps only items that declare `PublishAs`, and the endpoint path is exactly the `PublishAs` value. It returns descriptors that include `schema.PublicPath` and `schema.Name`:
+Rules:
+
+- `PublishAs` must start with `/`.
+- `PublishAs` values must be unique across all `<OpenApi />` items.
+- OpenAPI files without `PublishAs` are still copied to output/publish, but are not mapped as HTTP endpoints.
+- `DisplayName` and `DisplayVersion` are optional metadata for the returned schema descriptors. They are not read from the OpenAPI document.
+- The optional `prefix` and `schemasDirectory` parameters on `MapOpenApiSchemas()` are legacy compatibility parameters and are ignored by explicit `PublishAs` mapping.
+
+`MapOpenApiSchemas()` returns descriptors for the mapped schema endpoints:
 
 ```csharp
 var schemas = app.MapOpenApiSchemas();
 foreach (var schema in schemas.Schemas)
 {
-    // e.g. options.SwaggerEndpoint(schema.PublicPath, schema.Name);
+    // schema.PublicPath  -> "/openapi/schema.yaml"
+    // schema.Name        -> "Todo API" or filename fallback
+    // schema.Version     -> "1.0.0" or null
+    // schema.Endpoint    -> RouteHandlerBuilder
 }
+```
+
+You can use those descriptors to configure Swagger UI, Scalar, or another OpenAPI UI package:
+
+```csharp
+app.UseSwaggerUI(options =>
+{
+    foreach (var schema in schemas.Schemas)
+    {
+        options.SwaggerEndpoint(schema.PublicPath, schema.FullName);
+    }
+});
 ```
 
 ### Contract-package pattern
@@ -347,7 +383,7 @@ If multiple specs could resolve to the same derived spec name (for example `apis
 
 ## Limitations and non-goals
 
-- **No Swashbuckle/Scalar integration.** MinimalOpenAPI does not generate an OpenAPI document at runtime. To serve original spec files as static HTTP endpoints, set `PublishAs` on `<OpenApi ... />` items and call `MapOpenApiSchemas()`.
+- **No runtime OpenAPI generation.** MinimalOpenAPI does not generate OpenAPI documents from C# code at runtime. It serves authored spec files when `PublishAs` is configured. UI packages such as Swagger UI or Scalar can consume the mapped schema descriptors, but they are optional and not required by MinimalOpenAPI.
 - **`oneOf` / `anyOf` not supported.** `allOf` object schema composition is supported by flattening composed object schemas into a single generated record. `oneOf` and `anyOf` are not yet implemented.
 - **No runtime validation.** Validation attributes on generated properties are informational. ASP.NET Core Minimal APIs do not run `DataAnnotations` validation automatically.
 - **No code-first path.** Use Swashbuckle, NSwag, or `Microsoft.AspNetCore.OpenApi` if you want to generate an OpenAPI document from C# code.
@@ -372,11 +408,11 @@ public sealed class GetItemEndpoint : GetItemEndpointBase
 
 **Build error MOA002 — multiple handler implementations**
 
-Only one class may inherit from a given generated base. Remove or consolidate the duplicate.
+Only one class may inherit from a given base. Remove or consolidate the duplicate.
 
 **Build error MOA003 — multiple customizer implementations**
 
-At most one class may inherit from a given generated `<OperationId>EndpointRegistration` base. Remove or consolidate the duplicate.
+At most one class may inherit from a given `<OperationId>EndpointRegistration` base. Remove or consolidate the duplicate.
 
 **Build error MOA004 — OpenAPI file could not be parsed**
 
@@ -389,6 +425,14 @@ Only `.yaml`, `.yml`, and `.json` are supported. Rename the file or use the corr
 **Warning MOA006 — unknown OpenAPI version**
 
 The `openapi` field is absent or not recognised as a 3.0.x or 3.1.x version string. Code is still generated, but behaviour may be incorrect. Add or correct the `openapi` field at the top of the spec file (e.g. `openapi: "3.1.0"`).
+
+**Build error MOA010 — invalid `ReadWriteSchemaHandling` value**
+
+Supported values are `Ignore`, `Auto`, and `Split`. The default is `Auto`.
+
+**Build error — invalid or duplicate `PublishAs` value**
+
+`PublishAs` must start with `/`, and each published schema path must be unique across all `<OpenApi />` items.
 
 **Handler `HandleAsync` throws `NotImplementedException` at runtime**
 
