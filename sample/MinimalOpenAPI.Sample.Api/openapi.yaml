@@ -3,6 +3,26 @@ info:
   title: Todo API
   version: "1.0.0"
 paths:
+  /echo:
+    get:
+      operationId: echo
+      summary: Echo the X-Correlation-Id header back in the response body
+      description: Used to verify that header binding is case-insensitive at runtime.
+      tags:
+        - echo
+      parameters:
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
   /todos:
     get:
       operationId: listTodos

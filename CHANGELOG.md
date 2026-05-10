@@ -16,9 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rich schema support**: `components/schemas` objects generate `sealed record` types; inline object schemas generate named sibling records; `allOf` object schema composition is flattened into a single generated DTO shape, including nested compositions and sibling properties/required fields; `enum` schemas generate C# `enum` types with `[JsonStringEnumConverter]`; `additionalProperties` maps to `Dictionary<string, T>` with a generated value record for inline object value types; `format: date` maps to `DateOnly`.
 
 
-- **Validation attributes**: OpenAPI constraint keywords (`minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `minItems`, `maxItems`) are emitted as `System.ComponentModel.DataAnnotations` attributes on generated properties.
+- **Validation attributes**: OpenAPI constraint keywords (`minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `minItems`, `maxItems`) are emitted as `System.ComponentModel.DataAnnotations` attributes on generated properties. `format: email` emits `[EmailAddress]`; `format: uri` emits `[Url]`.
 
-- **Parameter support**: path parameters are typed with route constraints; query, header, and cookie parameters are grouped into a `Parameters` record decorated with `[AsParameters]`.
+- **Parameter support**: path parameters are typed with route constraints; query, header, and cookie parameters are grouped into a `Parameters` record decorated with `[AsParameters]`. Parameter `default` values emit C# property initializers (supported types: `string`, `boolean`, `integer`, `number`, `format: uuid`, `format: date`). Header parameter names are preserved verbatim in `[FromHeader(Name = "...")]`; ASP.NET Core binding is case-insensitive.
 
 - **Multiple spec files per project**: each `<OpenApi>` item generates code into its own `{RootNamespace}.{SpecName}` sub-namespace, with the spec name derived from the file name or the `Namespace` MSBuild item metadata.
 

@@ -208,4 +208,57 @@ public class EndpointIntegrationTests
         Assert.That(todo.Metadata.ContainsKey("category"), Is.True);
         Assert.That(todo.Metadata["category"].Value, Is.EqualTo("work"));
     }
+
+    // ── #30 — Header parameter casing (runtime) ───────────────────────────
+
+    [Test]
+    public async Task Echo_WithExactDeclaredHeaderCasing_BindsCorrectly()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/echo");
+        request.Headers.Add("X-Correlation-Id", "exact-case-value");
+        var response = await _client.SendAsync(request);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var body = await response.Content.ReadFromJsonAsync<string>();
+        Assert.That(body, Is.EqualTo("exact-case-value"));
+    }
+
+    [Test]
+    public async Task Echo_WithLowercaseHeaderName_BindsCorrectly()
+    {
+        // Verifies that [FromHeader(Name = "X-Correlation-Id")] binds the value even when
+        // the incoming request uses all-lowercase header names (HTTP headers are
+        // case-insensitive per RFC 7230, and ASP.NET Core honours this).
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/echo");
+        request.Headers.Add("x-correlation-id", "lowercase-value");
+        var response = await _client.SendAsync(request);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var body = await response.Content.ReadFromJsonAsync<string>();
+        Assert.That(body, Is.EqualTo("lowercase-value"));
+    }
+
+    [Test]
+    public async Task Echo_WithUppercaseHeaderName_BindsCorrectly()
+    {
+        // Verifies that [FromHeader(Name = "X-Correlation-Id")] binds the value even when
+        // the incoming request uses all-uppercase header names.
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/echo");
+        request.Headers.Add("X-CORRELATION-ID", "uppercase-value");
+        var response = await _client.SendAsync(request);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var body = await response.Content.ReadFromJsonAsync<string>();
+        Assert.That(body, Is.EqualTo("uppercase-value"));
+    }
+
+    [Test]
+    public async Task Echo_WithAbsentHeader_ReturnsEmptyString()
+    {
+        var response = await _client.GetAsync("/echo");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var body = await response.Content.ReadFromJsonAsync<string>();
+        Assert.That(body, Is.EqualTo(string.Empty));
+    }
 }

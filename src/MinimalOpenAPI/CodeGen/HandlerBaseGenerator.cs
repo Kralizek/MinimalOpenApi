@@ -270,7 +270,11 @@ internal static class HandlerBaseGenerator
                 sb.AppendLine($"        {bindingAttr}");
             foreach (var attr in ValidationAttributeEmitter.GetAttributes(p.Schema, "        "))
                 sb.AppendLine(attr);
-            sb.AppendLine($"        public {type} {propName} {{ get; init; }}");
+            var defaultInitializer = GetDefaultInitializer(p.Schema);
+            if (defaultInitializer is not null)
+                sb.AppendLine($"        public {type} {propName} {{ get; init; }} = {defaultInitializer};");
+            else
+                sb.AppendLine($"        public {type} {propName} {{ get; init; }}");
         }
 
         sb.AppendLine("    }");
@@ -286,6 +290,116 @@ internal static class HandlerBaseGenerator
         ParameterLocation.Cookie => null,
         _ => null
     };
+
+    /// <summary>
+    /// Returns a C# default-value expression for a parameter's <c>default</c> keyword, or
+    /// <see langword="null"/> when the default cannot be safely represented as a literal.
+    /// </summary>
+    private static string? GetDefaultInitializer(OpenApiSchema schema)
+    {
+        if (schema.Default is null) return null;
+        if (schema.Reference is not null) return null; // $ref parameters — skip
+
+        var raw = schema.Default;
+        var type = schema.Type?.ToLowerInvariant();
+        var format = schema.Format?.ToLowerInvariant();
+
+        if (type == "string")
+        {
+            if (format == "uuid")
+            {
+                return System.Guid.TryParse(raw, out var guid)
+                    ? $"global::System.Guid.Parse(\"{guid}\")"
+                    : null;
+            }
+
+            if (format == "date")
+            {
+                // Parse and validate the date strictly so the emitted initializer never throws.
+                // DateTime.TryParseExact is available in netstandard2.0 (unlike DateOnly.TryParse);
+                // we use it purely for validation and then emit a constructor call rather than
+                // a Parse call so that the generated code itself is non-throwing.
+                if (!System.DateTime.TryParseExact(
+                        raw,
+                        "yyyy-MM-dd",
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None,
+                        out var dt))
+                    return null;
+                return $"new global::System.DateOnly({dt.Year}, {dt.Month}, {dt.Day})";
+            }
+
+            return $"\"{EscapeStringLiteral(raw)}\"";
+        }
+
+        if (type == "integer")
+        {
+            if (format == "int64")
+                return long.TryParse(raw, out _) ? raw + "L" : null;
+            return int.TryParse(raw, out _) ? raw : null;
+        }
+
+        if (type == "number")
+        {
+            if (!double.TryParse(raw, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var d))
+                return null;
+
+            if (format == "float")
+                return FormatFloat((float)d);
+
+            return FormatDouble(d);
+        }
+
+        if (type == "boolean")
+        {
+            if (raw.Equals("true", StringComparison.OrdinalIgnoreCase)) return "true";
+            if (raw.Equals("false", StringComparison.OrdinalIgnoreCase)) return "false";
+        }
+
+        return null;
+    }
+
+    private static string EscapeStringLiteral(string value)
+    {
+        var sb = new StringBuilder(value.Length + 4);
+        foreach (var c in value)
+        {
+            switch (c)
+            {
+                case '\\': sb.Append("\\\\"); break;
+                case '"': sb.Append("\\\""); break;
+                case '\n': sb.Append("\\n"); break;
+                case '\r': sb.Append("\\r"); break;
+                case '\t': sb.Append("\\t"); break;
+                default:
+                    if (char.IsControl(c))
+                        sb.Append($"\\u{(int)c:x4}");
+                    else
+                        sb.Append(c);
+                    break;
+            }
+        }
+        return sb.ToString();
+    }
+
+    private static string FormatFloat(float value)
+    {
+        if (value == (float)Math.Floor(value))
+            return ((long)value).ToString(System.Globalization.CultureInfo.InvariantCulture) + "f";
+        return value.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "f";
+    }
+
+    private static string FormatDouble(double value)
+    {
+        if (value == Math.Floor(value)
+            && value > (double)long.MinValue
+            && value < (double)long.MaxValue)
+        {
+            return ((long)value).ToString(System.Globalization.CultureInfo.InvariantCulture) + ".0";
+        }
+        return value.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+    }
 
     private static void AppendProblemResultWrapper(
         StringBuilder sb,
