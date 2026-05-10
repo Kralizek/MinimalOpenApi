@@ -622,6 +622,8 @@ calls — `AddMinimalOpenApi()` and `MapMinimalOpenApiEndpoints()` — both in t
 dependencies (e.g. `DbContext`).  Customizers configure route metadata at
 startup and are stateless, so singleton lifetime is appropriate.
 
-**One schema → one record**: All `components/schemas` objects are emitted as
-`sealed record` types in a single `MinimalOpenApi.Dtos.g.cs` file.  Using
-records gives value-based equality for free, which is useful in tests.
+**Schema-first DTO emission with scoped variants when needed**: `components/schemas`
+are emitted as `sealed record` types in `MinimalOpenApi.Dtos.g.cs`. Depending on
+`ReadWriteSchemaHandling` and reachable `readOnly` / `writeOnly` usage, the generator
+may emit neutral (`Foo`) and/or scoped (`FooRequest`, `FooResponse`) record variants.
+Using records gives value-based equality for free, which is useful in tests.

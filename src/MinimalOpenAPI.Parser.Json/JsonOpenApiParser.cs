@@ -128,6 +128,8 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             Type = resolvedType,
             Format = GetString(node, "format"),
             Nullable = GetBool(node, "nullable") || nullableFromTypeArray,
+            ReadOnly = GetBool(node, "readOnly"),
+            WriteOnly = GetBool(node, "writeOnly"),
             AllOf = ExtractAllOfSchemas(node),
             Properties = properties,
             Required = required,

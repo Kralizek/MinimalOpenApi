@@ -44,6 +44,8 @@ internal static class AllOfSchemaFlattener
                 Type = schema.Type,
                 Format = schema.Format,
                 Nullable = schema.Nullable,
+                ReadOnly = schema.ReadOnly,
+                WriteOnly = schema.WriteOnly,
                 Reference = schema.Reference,
                 Items = resolvedItems,
                 Properties = resolvedProperties,
@@ -57,7 +59,8 @@ internal static class AllOfSchemaFlattener
                 MinItems = schema.MinItems,
                 MaxItems = schema.MaxItems,
                 AdditionalProperties = resolvedAdditionalProperties,
-                AdditionalPropertiesAllowed = schema.AdditionalPropertiesAllowed
+                AdditionalPropertiesAllowed = schema.AdditionalPropertiesAllowed,
+                Default = schema.Default
             };
         }
 
@@ -113,10 +116,13 @@ internal static class AllOfSchemaFlattener
         {
             Type = "object",
             Nullable = schema.Nullable,
+            ReadOnly = schema.ReadOnly,
+            WriteOnly = schema.WriteOnly,
             Properties = mergedProperties,
             Required = mergedRequired.ToList(),
             AdditionalProperties = mergedAdditionalProperties,
-            AdditionalPropertiesAllowed = mergedAdditionalPropertiesAllowed
+            AdditionalPropertiesAllowed = mergedAdditionalPropertiesAllowed,
+            Default = schema.Default
         };
     }
 
@@ -200,13 +206,16 @@ internal static class AllOfSchemaFlattener
             || left.Nullable != right.Nullable
             || !string.Equals(left.Reference, right.Reference, StringComparison.Ordinal)
             || left.AdditionalPropertiesAllowed != right.AdditionalPropertiesAllowed
+            || left.ReadOnly != right.ReadOnly
+            || left.WriteOnly != right.WriteOnly
             || left.MinLength != right.MinLength
             || left.MaxLength != right.MaxLength
             || !string.Equals(left.Pattern, right.Pattern, StringComparison.Ordinal)
             || left.Minimum != right.Minimum
             || left.Maximum != right.Maximum
             || left.MinItems != right.MinItems
-            || left.MaxItems != right.MaxItems)
+            || left.MaxItems != right.MaxItems
+            || !string.Equals(left.Default, right.Default, StringComparison.Ordinal))
         {
             return false;
         }

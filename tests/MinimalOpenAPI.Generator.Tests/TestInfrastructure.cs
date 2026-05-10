@@ -34,6 +34,7 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
     private readonly string _publishAsMetadataKey;
     private readonly string _displayNameMetadataKey;
     private readonly string _displayVersionMetadataKey;
+    private readonly string _readWriteSchemaHandlingMetadataKey;
     private readonly string _namespaceKey;
     private readonly string? _specNameOverride;
     private readonly IReadOnlyDictionary<string, string> _specNameOverridesByFilePath;
@@ -41,6 +42,7 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
     private readonly string? _publishAs;
     private readonly string? _displayName;
     private readonly string? _displayVersion;
+    private readonly string? _readWriteSchemaHandling;
 
     public TestAnalyzerConfigOptionsProvider(
         AdditionalText[] additionalTexts,
@@ -51,13 +53,15 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         string publishAsMetadataKey,
         string displayNameMetadataKey,
         string displayVersionMetadataKey,
+        string readWriteSchemaHandlingMetadataKey,
         string namespaceKey,
         string? specNameOverride = null,
         IReadOnlyDictionary<string, string>? specNameOverridesByFilePath = null,
         string? schemaId = null,
         string? publishAs = null,
         string? displayName = null,
-        string? displayVersion = null)
+        string? displayVersion = null,
+        string? readWriteSchemaHandling = null)
     {
         _additionalTexts = additionalTexts;
         _rootNamespace = rootNamespace;
@@ -67,6 +71,7 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         _publishAsMetadataKey = publishAsMetadataKey;
         _displayNameMetadataKey = displayNameMetadataKey;
         _displayVersionMetadataKey = displayVersionMetadataKey;
+        _readWriteSchemaHandlingMetadataKey = readWriteSchemaHandlingMetadataKey;
         _namespaceKey = namespaceKey;
         _specNameOverride = specNameOverride;
         _specNameOverridesByFilePath = specNameOverridesByFilePath is null
@@ -76,6 +81,7 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         _publishAs = publishAs;
         _displayName = displayName;
         _displayVersion = displayVersion;
+        _readWriteSchemaHandling = readWriteSchemaHandling;
     }
 
     public override AnalyzerConfigOptions GlobalOptions
@@ -112,6 +118,9 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
 
         if (isOpenApi && _displayVersion is not null)
             options[_displayVersionMetadataKey] = _displayVersion;
+
+        if (isOpenApi && _readWriteSchemaHandling is not null)
+            options[_readWriteSchemaHandlingMetadataKey] = _readWriteSchemaHandling;
 
         return new TestAnalyzerConfigOptions(options);
     }
