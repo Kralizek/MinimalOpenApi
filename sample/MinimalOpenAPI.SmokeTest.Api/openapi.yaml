@@ -48,6 +48,23 @@ paths:
       responses:
         "204":
           description: No Content
+  /accounts:
+    post:
+      operationId: createAccount
+      summary: Create an account with request/response directional fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Account'
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
   /tenants/{tenantId}/items:
     get:
       operationId: getTenantItems
@@ -74,3 +91,34 @@ components:
       schema:
         type: string
         format: uuid
+  schemas:
+    Account:
+      type: object
+      required:
+        - id
+        - email
+        - password
+        - profile
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+        password:
+          type: string
+          writeOnly: true
+        profile:
+          $ref: '#/components/schemas/Profile'
+    Profile:
+      type: object
+      required:
+        - createdAt
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        displayName:
+          type: string

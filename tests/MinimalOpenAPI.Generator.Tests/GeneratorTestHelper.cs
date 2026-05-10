@@ -18,6 +18,7 @@ internal static class GeneratorTestHelper
     private static readonly string PublishAsMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiPublishAs";
     private static readonly string DisplayNameMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiDisplayName";
     private static readonly string DisplayVersionMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiDisplayVersion";
+    private static readonly string ReadWriteSchemaHandlingMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiReadWriteSchemaHandling";
     private static readonly string RootNamespaceKey = "build_property.RootNamespace";
 
     /// <summary>
@@ -47,7 +48,8 @@ internal static class GeneratorTestHelper
         string? schemaId = null,
         string? publishAs = null,
         string? displayName = null,
-        string? displayVersion = null)
+        string? displayVersion = null,
+        string? readWriteSchemaHandling = null)
     {
         // Create a minimal compilation for the generator
         var references = new List<MetadataReference>
@@ -83,13 +85,15 @@ internal static class GeneratorTestHelper
             PublishAsMetadataKey,
             DisplayNameMetadataKey,
             DisplayVersionMetadataKey,
+            ReadWriteSchemaHandlingMetadataKey,
             RootNamespaceKey,
             specNameOverride,
             specNameOverridesByFilePath,
             schemaId,
             publishAs,
             displayName,
-            displayVersion);
+            displayVersion,
+            readWriteSchemaHandling);
 
         var driver = CSharpGeneratorDriver
             .Create(generator)

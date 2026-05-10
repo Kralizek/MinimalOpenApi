@@ -12,7 +12,8 @@ internal static class DtoGenerator
     public static DtoGenerationResult Generate(
         Dictionary<string, OpenApiSchema> schemas,
         string rootNamespace,
-        string specName)
+        string specName,
+        SchemaDirectionalityAnalysis directionality)
     {
         if (schemas.Count == 0) return new DtoGenerationResult(string.Empty, []);
 
@@ -35,7 +36,7 @@ internal static class DtoGenerator
                 GenerateEnum(sb, kvp.Key, kvp.Value, emitted);
         }
 
-        // Second pass: emit object schemas as records (with recursive inline-object
+        // Second pass: emit neutral object schemas as records (with recursive inline-object
         // and inline-enum dependency emission handled inside EmitRecordTree).
         foreach (var kvp in schemas)
         {
@@ -48,7 +49,47 @@ internal static class DtoGenerator
             if (TypeMapper.IsDictionarySchema(resolvedSchema))
                 continue; // pure-dictionary schemas map to Dictionary<string, T> at the use site
 
-            EmitRecordTree(sb, name, resolvedSchema, schemas, emitted, allOfConflicts);
+            EmitRecordTree(sb, name, resolvedSchema, schemas, emitted, allOfConflicts, directionality, SchemaGenerationScope.Neutral);
+        }
+
+        // Third pass: emit scoped request/response variants only when required.
+        foreach (var kvp in schemas)
+        {
+            var name = kvp.Key;
+            var schema = kvp.Value;
+            if (schema.Enum is not null) continue;
+
+            var resolvedSchema = AllOfSchemaFlattener.Resolve(schema, schemas, name, allOfConflicts);
+            if (resolvedSchema.Type != "object" && resolvedSchema.Reference is null && resolvedSchema.Properties.Count == 0)
+                continue;
+            if (TypeMapper.IsDictionarySchema(resolvedSchema))
+                continue;
+
+            if (directionality.ShouldGenerateScope(name, SchemaGenerationScope.Request))
+            {
+                EmitRecordTree(
+                    sb,
+                    SchemaDirectionalityAnalysis.ScopedSchemaName(name, SchemaGenerationScope.Request),
+                    resolvedSchema,
+                    schemas,
+                    emitted,
+                    allOfConflicts,
+                    directionality,
+                    SchemaGenerationScope.Request);
+            }
+
+            if (directionality.ShouldGenerateScope(name, SchemaGenerationScope.Response))
+            {
+                EmitRecordTree(
+                    sb,
+                    SchemaDirectionalityAnalysis.ScopedSchemaName(name, SchemaGenerationScope.Response),
+                    resolvedSchema,
+                    schemas,
+                    emitted,
+                    allOfConflicts,
+                    directionality,
+                    SchemaGenerationScope.Response);
+            }
         }
 
         return new DtoGenerationResult(sb.ToString(), allOfConflicts);
@@ -65,7 +106,9 @@ internal static class DtoGenerator
         OpenApiSchema schema,
         Dictionary<string, OpenApiSchema> allSchemas,
         HashSet<string> emitted,
-        List<AllOfPropertyConflict> allOfConflicts)
+        List<AllOfPropertyConflict> allOfConflicts,
+        SchemaDirectionalityAnalysis directionality,
+        SchemaGenerationScope scope)
     {
         if (!emitted.Add(name))
             return; // already emitted or cycle guard
@@ -85,22 +128,28 @@ internal static class DtoGenerator
         // Emit inline-object property types (dependencies) before the parent record.
         foreach (var propKvp in resolvedSchema.Properties)
         {
+            if (!directionality.ShouldIncludeProperty(propKvp.Value, scope))
+                continue;
+
             if (TypeMapper.IsInlineObject(propKvp.Value))
             {
                 var nestedName = name + TypeMapper.ToPascalCase(propKvp.Key);
-                EmitRecordTree(sb, nestedName, propKvp.Value, allSchemas, emitted, allOfConflicts);
+                EmitRecordTree(sb, nestedName, propKvp.Value, allSchemas, emitted, allOfConflicts, directionality, scope);
             }
         }
 
         // Emit inline-object value types for dictionary properties (dependencies) before the parent record.
         foreach (var propKvp in resolvedSchema.Properties)
         {
+            if (!directionality.ShouldIncludeProperty(propKvp.Value, scope))
+                continue;
+
             if (TypeMapper.IsDictionarySchema(propKvp.Value)
                 && propKvp.Value.AdditionalProperties is { } valueSchema
                 && TypeMapper.IsInlineObject(valueSchema))
             {
                 var valueName = name + TypeMapper.ToPascalCase(propKvp.Key) + "Value";
-                EmitRecordTree(sb, valueName, valueSchema, allSchemas, emitted, allOfConflicts);
+                EmitRecordTree(sb, valueName, valueSchema, allSchemas, emitted, allOfConflicts, directionality, scope);
             }
         }
 
@@ -108,6 +157,9 @@ internal static class DtoGenerator
         var inlineMap = new Dictionary<OpenApiSchema, string>();
         foreach (var propKvp in resolvedSchema.Properties)
         {
+            if (!directionality.ShouldIncludeProperty(propKvp.Value, scope))
+                continue;
+
             if (TypeMapper.IsInlineObject(propKvp.Value) || propKvp.Value.Enum is not null)
                 inlineMap[propKvp.Value] = name + TypeMapper.ToPascalCase(propKvp.Key);
         }
@@ -115,6 +167,9 @@ internal static class DtoGenerator
         // Also map inline-object value types for dictionary properties.
         foreach (var propKvp in resolvedSchema.Properties)
         {
+            if (!directionality.ShouldIncludeProperty(propKvp.Value, scope))
+                continue;
+
             if (TypeMapper.IsDictionarySchema(propKvp.Value)
                 && propKvp.Value.AdditionalProperties is { } valueSchema
                 && TypeMapper.IsInlineObject(valueSchema))
@@ -125,7 +180,7 @@ internal static class DtoGenerator
             ? s => inlineMap.TryGetValue(s, out var n) ? n : null
             : null;
 
-        GenerateRecord(sb, name, resolvedSchema, resolveInline);
+        GenerateRecord(sb, name, resolvedSchema, directionality, scope, resolveInline);
         sb.AppendLine();
     }
 
@@ -160,20 +215,29 @@ internal static class DtoGenerator
         StringBuilder sb,
         string name,
         OpenApiSchema schema,
+        SchemaDirectionalityAnalysis directionality,
+        SchemaGenerationScope scope,
         InlineSchemaResolver? resolveInline = null)
     {
         sb.AppendLine($"/// <summary>Generated DTO for schema <c>{name}</c>.</summary>");
         TypeMapper.AppendGeneratedAttributes(sb);
         sb.AppendLine($"public sealed record {name}");
         sb.AppendLine("{");
+        var hadDeclaredProperties = schema.Properties.Count > 0;
 
         foreach (var propKvp in schema.Properties)
         {
             var propName = propKvp.Key;
             var propSchema = propKvp.Value;
+            if (!directionality.ShouldIncludeProperty(propSchema, scope))
+                continue;
             var isRequired = schema.Required.Contains(propName, StringComparer.OrdinalIgnoreCase);
             var nullable = propSchema.Nullable || !isRequired;
-            var typeName = TypeMapper.MapSchema(propSchema, nullable: nullable, resolveInline: resolveInline);
+            var typeName = TypeMapper.MapSchema(
+                propSchema,
+                nullable: nullable,
+                resolveInline: resolveInline,
+                resolveReference: referenceName => directionality.ResolveSchemaReference(referenceName, scope));
             var csharpName = TypeMapper.ToPascalCase(propName);
 
             sb.AppendLine($"    [JsonPropertyName(\"{propName}\")]");
@@ -193,7 +257,7 @@ internal static class DtoGenerator
 
         // When additionalProperties: true is set alongside named properties, capture
         // any extra key-value pairs via [JsonExtensionData].
-        if (schema.AdditionalPropertiesAllowed && schema.Properties.Count > 0)
+        if (schema.AdditionalPropertiesAllowed && hadDeclaredProperties)
         {
             sb.AppendLine($"    [JsonExtensionData]");
             sb.AppendLine($"    public global::System.Collections.Generic.Dictionary<string, global::System.Text.Json.JsonElement>? Extensions {{ get; init; }}");

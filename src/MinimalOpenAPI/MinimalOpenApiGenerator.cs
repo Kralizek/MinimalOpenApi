@@ -30,6 +30,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     private const string PublishAsMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiPublishAs";
     private const string DisplayNameMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiDisplayName";
     private const string DisplayVersionMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiDisplayVersion";
+    private const string ReadWriteSchemaHandlingMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiReadWriteSchemaHandling";
     private const string RootNamespaceKey = "build_property.RootNamespace";
 
     /// <summary>
@@ -170,7 +171,18 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             return false;
         }
 
-        generationInput = parsed.ToGenerationInput();
+        if (!TryParseReadWriteSchemaHandling(parsed.ReadWriteSchemaHandling, out var readWriteSchemaHandling))
+        {
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.InvalidReadWriteSchemaHandling,
+                CreateOpenApiLocation(parsed.Path),
+                parsed.Path,
+                parsed.ReadWriteSchemaHandling ?? string.Empty));
+            generationInput = default!;
+            return false;
+        }
+
+        generationInput = parsed.ToGenerationInput(readWriteSchemaHandling);
         return true;
     }
 
@@ -199,6 +211,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         options.TryGetValue(PublishAsMetadataKey, out var publishAs);
         options.TryGetValue(DisplayNameMetadataKey, out var displayName);
         options.TryGetValue(DisplayVersionMetadataKey, out var displayVersion);
+        options.TryGetValue(ReadWriteSchemaHandlingMetadataKey, out var readWriteSchemaHandling);
         var specName = DeriveSpecName(path, explicitNamespace);
 
         return new OpenApiFileInput(
@@ -208,7 +221,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             SchemaId: schemaId ?? string.Empty,
             PublishAs: string.IsNullOrWhiteSpace(publishAs) ? null : publishAs,
             DisplayName: string.IsNullOrWhiteSpace(displayName) ? null : displayName,
-            DisplayVersion: string.IsNullOrWhiteSpace(displayVersion) ? null : displayVersion);
+            DisplayVersion: string.IsNullOrWhiteSpace(displayVersion) ? null : displayVersion,
+            ReadWriteSchemaHandling: string.IsNullOrWhiteSpace(readWriteSchemaHandling) ? null : readWriteSchemaHandling);
     }
 
     private static ParsedOpenApiFile ParseOpenApiFile(OpenApiFileInput file, string rootNamespace)
@@ -226,6 +240,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 PublishAs: file.PublishAs,
                 DisplayName: file.DisplayName,
                 DisplayVersion: file.DisplayVersion,
+                ReadWriteSchemaHandling: file.ReadWriteSchemaHandling,
                 ParseError: null,
                 UnsupportedExtension: ext);
         }
@@ -242,6 +257,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 PublishAs: file.PublishAs,
                 DisplayName: file.DisplayName,
                 DisplayVersion: file.DisplayVersion,
+                ReadWriteSchemaHandling: file.ReadWriteSchemaHandling,
                 ParseError: null,
                 UnsupportedExtension: null);
         }
@@ -256,6 +272,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 PublishAs: file.PublishAs,
                 DisplayName: file.DisplayName,
                 DisplayVersion: file.DisplayVersion,
+                ReadWriteSchemaHandling: file.ReadWriteSchemaHandling,
                 ParseError: ex.Message,
                 UnsupportedExtension: null);
         }
@@ -508,10 +525,15 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         if (!TryResolveParameterReferences(spc, doc, openApiFilePath, out var operations))
             return;
 
+        var directionality = SchemaDirectionalityAnalysis.Create(
+            doc.Schemas,
+            operations,
+            input.ReadWriteSchemaHandling);
+
         // Generate DTOs
         if (doc.Schemas.Count > 0)
         {
-            var dtoResult = DtoGenerator.Generate(doc.Schemas, rootNamespace, specName);
+            var dtoResult = DtoGenerator.Generate(doc.Schemas, rootNamespace, specName, directionality);
             if (!string.IsNullOrWhiteSpace(dtoResult.Source))
                 spc.AddSource(SchemaHintName(specName), dtoResult.Source);
 
@@ -536,7 +558,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
             // Generate handler base
             var handlerConflicts = new List<MinimalOpenAPI.Generator.CodeGen.AllOfPropertyConflict>();
-            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, doc.Schemas, handlerConflicts);
+            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, directionality, doc.Schemas, handlerConflicts);
             spc.AddSource(OperationHintName(specName, handlerBase), handlerSource);
 
             foreach (var conflict in handlerConflicts.Distinct())
@@ -622,8 +644,38 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         spc.AddSource(InfrastructureHintName(specName, "DependencyInjection"), diSource);
 
         // Generate endpoint mapping
-        var mappingSource = EndpointMappingGenerator.Generate(operations, customizers, rootNamespace, specName);
+        var mappingSource = EndpointMappingGenerator.Generate(operations, customizers, rootNamespace, specName, directionality);
         spc.AddSource(InfrastructureHintName(specName, "EndpointMapping"), mappingSource);
+    }
+
+    private static bool TryParseReadWriteSchemaHandling(string? value, out ReadWriteSchemaHandling handling)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            handling = ReadWriteSchemaHandling.Auto;
+            return true;
+        }
+
+        if (string.Equals(value, "Ignore", StringComparison.OrdinalIgnoreCase))
+        {
+            handling = ReadWriteSchemaHandling.Ignore;
+            return true;
+        }
+
+        if (string.Equals(value, "Auto", StringComparison.OrdinalIgnoreCase))
+        {
+            handling = ReadWriteSchemaHandling.Auto;
+            return true;
+        }
+
+        if (string.Equals(value, "Split", StringComparison.OrdinalIgnoreCase))
+        {
+            handling = ReadWriteSchemaHandling.Split;
+            return true;
+        }
+
+        handling = default;
+        return false;
     }
 
     /// <summary>Information about a class discovered via syntax analysis.</summary>
@@ -640,7 +692,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         string SchemaId,
         string? PublishAs,
         string? DisplayName,
-        string? DisplayVersion);
+        string? DisplayVersion,
+        string? ReadWriteSchemaHandling);
 
     /// <summary>Parsed file state, including parser/extension failures used for diagnostics.</summary>
     private sealed record ParsedOpenApiFile(
@@ -652,6 +705,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         string? PublishAs,
         string? DisplayName,
         string? DisplayVersion,
+        string? ReadWriteSchemaHandling,
         string? ParseError,
         string? UnsupportedExtension)
     {
@@ -660,7 +714,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             ParseError is null &&
             UnsupportedExtension is null;
 
-        public OpenApiGenerationInput ToGenerationInput() =>
+        public OpenApiGenerationInput ToGenerationInput(ReadWriteSchemaHandling readWriteSchemaHandling) =>
             new(
                 Document!,
                 Path,
@@ -669,7 +723,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 SchemaId,
                 PublishAs,
                 DisplayName,
-                DisplayVersion);
+                DisplayVersion,
+                readWriteSchemaHandling);
     }
 
     /// <summary>Generation-ready non-null OpenAPI input.</summary>
@@ -681,7 +736,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         string SchemaId,
         string? PublishAs,
         string? DisplayName,
-        string? DisplayVersion);
+        string? DisplayVersion,
+        ReadWriteSchemaHandling ReadWriteSchemaHandling);
 
     /// <summary>Combined generator pipeline state consumed by source output registration.</summary>
     private sealed record GeneratorPipelineInput(

@@ -13,6 +13,16 @@ public sealed class OpenApiSchema
     public bool Nullable { get; init; }
 
     /// <summary>
+    /// Indicates the property is only present in responses (<c>readOnly: true</c>).
+    /// </summary>
+    public bool ReadOnly { get; init; }
+
+    /// <summary>
+    /// Indicates the property is only present in requests (<c>writeOnly: true</c>).
+    /// </summary>
+    public bool WriteOnly { get; init; }
+
+    /// <summary>
     /// The name of a component schema referenced via <c>$ref</c> (e.g. <c>TodoItem</c>).
     /// When set, all other fields are ignored.
     /// </summary>

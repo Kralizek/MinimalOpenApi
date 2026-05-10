@@ -41,7 +41,7 @@ openapi.json  ──►       (build time)          │
 
 The Roslyn source generator reads the OpenAPI file at build time and emits:
 
-- **DTO records** — one `sealed record` per `components/schemas` object.
+- **DTO records** — neutral `sealed record` types for `components/schemas`, plus request/response-scoped variants when needed.
 - **Handler base classes** — one abstract `<OperationId>EndpointBase` per operation with a strongly-typed `HandleAsync` signature.
 - **DI registration** — a generated `AddGeneratedEndpoints` extension and a `[ModuleInitializer]` that wires everything up automatically.
 - **Endpoint mapping** — a generated `MapEndpoints` that registers all routes.
@@ -235,7 +235,9 @@ public override Task<Results<Created<Todo>, BadRequestProblem>> HandleAsync(Requ
 | YAML and JSON specs | `<OpenApi Include="openapi.yaml" />` or `openapi.json` |
 | OpenAPI 3.0 and 3.1 | Both versions normalised to the same internal model |
 | Multiple spec files | Each spec gets its own `{RootNamespace}.{SpecName}` sub-namespace |
-| DTO records | One `sealed record` per `components/schemas` object |
+| DTO records | Neutral `sealed record` per `components/schemas`; scoped `FooRequest` / `FooResponse` emitted when required |
+| `readOnly` / `writeOnly` filtering | Request DTOs omit `readOnly`; response DTOs omit `writeOnly` |
+| `ReadWriteSchemaHandling` metadata | `Ignore`, `Auto` (default), `Split` control DTO scoping strategy |
 | Enum types | `enum` schemas produce C# `enum` with `[JsonStringEnumConverter]` |
 | Inline object schemas | Nested object properties produce named sibling records |
 | `additionalProperties` | Maps to `Dictionary<string, T>`; inline object value types get a generated record |
@@ -248,6 +250,27 @@ public override Task<Results<Created<Todo>, BadRequestProblem>> HandleAsync(Requ
 | Endpoint customizers | Optional `<OperationId>EndpointRegistration` base for per-route metadata |
 
 See the [sample app](sample/MinimalOpenAPI.Sample.Api) for a complete end-to-end example covering all of these.
+
+---
+
+## `readOnly` / `writeOnly` handling modes
+
+Configure behavior per `<OpenApi />` item:
+
+```xml
+<ItemGroup>
+  <OpenApi Include="openapi.yaml"
+           ReadWriteSchemaHandling="Auto" />
+</ItemGroup>
+```
+
+Supported values:
+
+- `Ignore`: parse flags but keep neutral DTO shape (`Foo`) in request/response signatures.
+- `Auto` (default): use `FooRequest` / `FooResponse` only when direct or reachable `readOnly` / `writeOnly` differences exist.
+- `Split`: always use request/response-scoped body graphs from operation roots (`FooRequest` / `FooResponse`), even when currently identical.
+
+Example: with `Account.id: readOnly` and `Account.password: writeOnly`, generated request/response signatures use `AccountRequest` and `AccountResponse`, while neutral schemas still keep a single DTO.
 
 ---
 

@@ -86,4 +86,13 @@ internal static class DiagnosticDescriptors
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    /// <summary>The <c>ReadWriteSchemaHandling</c> item metadata contains an unsupported value.</summary>
+    public static readonly DiagnosticDescriptor InvalidReadWriteSchemaHandling = new(
+        id: "MOA010",
+        title: "Invalid ReadWriteSchemaHandling value",
+        messageFormat: "OpenApi item '{0}' has ReadWriteSchemaHandling='{1}'. Supported values are Ignore, Auto, Split.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

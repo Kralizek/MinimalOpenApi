@@ -29,6 +29,7 @@
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiPublishAs" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiDisplayName" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiDisplayVersion" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiReadWriteSchemaHandling" />
     <CompilerVisibleProperty Include="RootNamespace" />
   </ItemGroup>
 
@@ -54,6 +55,9 @@
     MinimalOpenApiPublishAs / MinimalOpenApiDisplayName / MinimalOpenApiDisplayVersion
     mirror the matching OpenApi item metadata so the generator can register runtime
     schema mapping metadata without parsing file contents.
+
+    MinimalOpenApiReadWriteSchemaHandling mirrors OpenApi.ReadWriteSchemaHandling and
+    controls request/response DTO scoping for readOnly/writeOnly properties.
   -->
   <Target Name="AddMinimalOpenApiFilesToAdditionalFiles"
           BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile">
@@ -64,7 +68,8 @@
                        MinimalOpenApiSchemaId="$([System.Math]::Abs($([MSBuild]::StableStringHash('%(FullPath)'))))"
                        MinimalOpenApiPublishAs="%(OpenApi.PublishAs)"
                        MinimalOpenApiDisplayName="%(OpenApi.DisplayName)"
-                       MinimalOpenApiDisplayVersion="%(OpenApi.DisplayVersion)" />
+                       MinimalOpenApiDisplayVersion="%(OpenApi.DisplayVersion)"
+                       MinimalOpenApiReadWriteSchemaHandling="%(OpenApi.ReadWriteSchemaHandling)" />
     </ItemGroup>
   </Target>
 

@@ -11,3 +11,4 @@ MOA006 | MinimalOpenAPI | Warning | Unknown OpenAPI version
 MOA007 | MinimalOpenAPI | Warning | Conflicting allOf property definitions
 MOA008 | MinimalOpenAPI | Error | Unresolved parameter reference
 MOA009 | MinimalOpenAPI | Error | Duplicate OpenAPI spec name
+MOA010 | MinimalOpenAPI | Error | Invalid ReadWriteSchemaHandling value

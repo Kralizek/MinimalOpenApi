@@ -112,7 +112,8 @@ internal static class TypeMapper
         OpenApiSchema schema,
         bool nullable = false,
         string? contractsNamespace = null,
-        InlineSchemaResolver? resolveInline = null)
+        InlineSchemaResolver? resolveInline = null,
+        Func<string, string>? resolveReference = null)
     {
         // Explicit raw-JSON sentinel: emitted when allOf flattening encounters incompatible
         // property definitions. Map directly to JsonElement rather than falling through to
@@ -126,16 +127,19 @@ internal static class TypeMapper
 
         if (schema.Reference is not null)
         {
-            var typeName = contractsNamespace is not null
-                ? $"global::{contractsNamespace}.{schema.Reference}"
+            var referenceName = resolveReference is not null
+                ? resolveReference(schema.Reference)
                 : schema.Reference;
+            var typeName = contractsNamespace is not null
+                ? $"global::{contractsNamespace}.{referenceName}"
+                : referenceName;
             return nullable ? $"{typeName}?" : typeName;
         }
 
         if (schema.Type?.ToLowerInvariant() == "array")
         {
             var itemType = schema.Items is not null
-                ? MapSchema(schema.Items, contractsNamespace: contractsNamespace, resolveInline: resolveInline)
+                ? MapSchema(schema.Items, contractsNamespace: contractsNamespace, resolveInline: resolveInline, resolveReference: resolveReference)
                 : "object";
             var arrayType = $"{itemType}[]";
             return nullable ? $"{arrayType}?" : arrayType;
@@ -147,7 +151,7 @@ internal static class TypeMapper
         {
             string valueType;
             if (schema.AdditionalProperties is not null)
-                valueType = MapSchema(schema.AdditionalProperties, contractsNamespace: contractsNamespace, resolveInline: resolveInline);
+                valueType = MapSchema(schema.AdditionalProperties, contractsNamespace: contractsNamespace, resolveInline: resolveInline, resolveReference: resolveReference);
             else
                 valueType = "global::System.Text.Json.JsonElement"; // additionalProperties: true — payloads are assumed to be JSON
             var dictType = $"global::System.Collections.Generic.Dictionary<string, {valueType}>";
@@ -195,10 +199,11 @@ internal static class TypeMapper
         int statusCode,
         OpenApiSchema? schema,
         string? contractsNamespace = null,
-        InlineSchemaResolver? resolveInline = null)
+        InlineSchemaResolver? resolveInline = null,
+        Func<string, string>? resolveReference = null)
     {
         var responseType = schema is not null
-            ? MapSchema(schema, contractsNamespace: contractsNamespace, resolveInline: resolveInline)
+            ? MapSchema(schema, contractsNamespace: contractsNamespace, resolveInline: resolveInline, resolveReference: resolveReference)
             : null;
 
         if (responseType is not null && responseType != "object")
@@ -222,23 +227,25 @@ internal static class TypeMapper
     public static string MapResponseResultType(
         OpenApiResponse response,
         string? contractsNamespace = null,
-        InlineSchemaResolver? resolveInline = null)
+        InlineSchemaResolver? resolveInline = null,
+        Func<string, string>? resolveReference = null)
     {
         if (IsProblemResponse(response))
             return GetProblemResultTypeName(response.StatusCode);
 
-        return MapStatusCode(response.StatusCode, response.Schema, contractsNamespace, resolveInline);
+        return MapStatusCode(response.StatusCode, response.Schema, contractsNamespace, resolveInline, resolveReference);
     }
 
     /// <summary>Builds the return type for a handler: Results&lt;T1, T2, ...&gt; or single type.</summary>
     public static string BuildReturnType(
         List<OpenApiResponse> responses,
         string? contractsNamespace = null,
-        InlineSchemaResolver? resolveInline = null)
+        InlineSchemaResolver? resolveInline = null,
+        Func<string, string>? resolveReference = null)
     {
         var types = responses
             .OrderBy(r => r.StatusCode)
-            .Select(r => MapResponseResultType(r, contractsNamespace, resolveInline))
+            .Select(r => MapResponseResultType(r, contractsNamespace, resolveInline, resolveReference))
             .Distinct()
             .ToList();
 

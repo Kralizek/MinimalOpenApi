@@ -131,6 +131,62 @@ public class VersionDetectionTests
         Assert.That(item.Properties["name"].Nullable, Is.True);
     }
 
+    [Test]
+    public async Task YamlParser_Reads_ReadOnly_And_WriteOnly()
+    {
+        const string yaml = """
+            openapi: "3.0.0"
+            info:
+              title: Test
+              version: "1.0"
+            paths: {}
+            components:
+              schemas:
+                Item:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      readOnly: true
+                    password:
+                      type: string
+                      writeOnly: true
+            """;
+
+        var doc = await new YamlOpenApiParser().ParseAsync(yaml);
+
+        var item = doc.Schemas["Item"];
+        Assert.That(item.Properties["id"].ReadOnly, Is.True);
+        Assert.That(item.Properties["id"].WriteOnly, Is.False);
+        Assert.That(item.Properties["password"].WriteOnly, Is.True);
+        Assert.That(item.Properties["password"].ReadOnly, Is.False);
+    }
+
+    [Test]
+    public async Task YamlParser_Defaults_ReadOnly_And_WriteOnly_To_False()
+    {
+        const string yaml = """
+            openapi: "3.0.0"
+            info:
+              title: Test
+              version: "1.0"
+            paths: {}
+            components:
+              schemas:
+                Item:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+            """;
+
+        var doc = await new YamlOpenApiParser().ParseAsync(yaml);
+
+        var item = doc.Schemas["Item"];
+        Assert.That(item.Properties["name"].ReadOnly, Is.False);
+        Assert.That(item.Properties["name"].WriteOnly, Is.False);
+    }
+
     // ── JSON parser ───────────────────────────────────────────────────────
 
     [Test]
@@ -254,6 +310,91 @@ public class VersionDetectionTests
         var item = doc.Schemas["Item"];
         Assert.That(item.Properties["name"].Type, Is.EqualTo("string"));
         Assert.That(item.Properties["name"].Nullable, Is.True);
+    }
+
+    [Test]
+    public async Task JsonParser_Reads_ReadOnly_Flag()
+    {
+        const string json = """
+            {
+              "openapi": "3.0.0",
+              "info": { "title": "Test", "version": "1.0" },
+              "paths": {},
+              "components": {
+                "schemas": {
+                  "Item": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string", "readOnly": true },
+                      "password": { "type": "string", "writeOnly": true }
+                    }
+                  }
+                }
+              }
+            }
+            """;
+
+        var doc = await new JsonOpenApiParser().ParseAsync(json);
+
+        var item = doc.Schemas["Item"];
+        Assert.That(item.Properties["id"].ReadOnly, Is.True);
+        Assert.That(item.Properties["id"].WriteOnly, Is.False);
+    }
+
+    [Test]
+    public async Task JsonParser_Reads_WriteOnly_Flag()
+    {
+        const string json = """
+            {
+              "openapi": "3.0.0",
+              "info": { "title": "Test", "version": "1.0" },
+              "paths": {},
+              "components": {
+                "schemas": {
+                  "Item": {
+                    "type": "object",
+                    "properties": {
+                      "password": { "type": "string", "writeOnly": true }
+                    }
+                  }
+                }
+              }
+            }
+            """;
+
+        var doc = await new JsonOpenApiParser().ParseAsync(json);
+
+        var item = doc.Schemas["Item"];
+        Assert.That(item.Properties["password"].WriteOnly, Is.True);
+        Assert.That(item.Properties["password"].ReadOnly, Is.False);
+    }
+
+    [Test]
+    public async Task JsonParser_Defaults_ReadOnly_And_WriteOnly_To_False()
+    {
+        const string json = """
+            {
+              "openapi": "3.0.0",
+              "info": { "title": "Test", "version": "1.0" },
+              "paths": {},
+              "components": {
+                "schemas": {
+                  "Item": {
+                    "type": "object",
+                    "properties": {
+                      "name": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+            """;
+
+        var doc = await new JsonOpenApiParser().ParseAsync(json);
+
+        var item = doc.Schemas["Item"];
+        Assert.That(item.Properties["name"].ReadOnly, Is.False);
+        Assert.That(item.Properties["name"].WriteOnly, Is.False);
     }
 
     // ── Generator-level diagnostics ───────────────────────────────────────
