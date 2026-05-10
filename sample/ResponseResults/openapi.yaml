@@ -76,50 +76,6 @@ paths:
                   orderId:
                     type: string
                     format: uuid
-    put:
-      operationId: updateOrderStatus
-      summary: Update order status
-      description: >
-        Demonstrates multiple outcome handling: Ok, schema-less NotFound, and
-        Conflict problem with a schema-backed payload.
-      tags:
-        - orders
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - status
-              properties:
-                status:
-                  $ref: '#/components/schemas/OrderStatus'
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Order'
-        "404":
-          description: Not Found
-          content:
-            application/problem+json: {}
-        "409":
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                type: object
-                required:
-                  - currentStatus
-                  - requestedStatus
-                properties:
-                  currentStatus:
-                    $ref: '#/components/schemas/OrderStatus'
-                  requestedStatus:
-                    $ref: '#/components/schemas/OrderStatus'
     delete:
       operationId: cancelOrder
       summary: Cancel order
@@ -135,13 +91,6 @@ paths:
             application/problem+json: {}
 components:
   schemas:
-    OrderStatus:
-      type: string
-      enum:
-        - pending
-        - confirmed
-        - shipped
-        - cancelled
     Order:
       type: object
       required:
@@ -149,7 +98,6 @@ components:
         - externalReference
         - customerName
         - amount
-        - status
       properties:
         id:
           type: string
@@ -160,5 +108,3 @@ components:
           type: string
         amount:
           type: number
-        status:
-          $ref: '#/components/schemas/OrderStatus'

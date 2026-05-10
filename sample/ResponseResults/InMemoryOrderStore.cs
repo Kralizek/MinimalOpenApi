@@ -9,8 +9,6 @@ public sealed class InMemoryOrderStore
 
     public Order? Get(Guid id) => _orders.GetValueOrDefault(id);
 
-    public IReadOnlyCollection<Order> List() => _orders.Values.ToList().AsReadOnly();
-
     public Order Add(string externalReference, string customerName, double amount)
     {
         var id = Guid.NewGuid();
@@ -19,33 +17,10 @@ public sealed class InMemoryOrderStore
             Id = id,
             ExternalReference = externalReference,
             CustomerName = customerName,
-            Amount = amount,
-            Status = OrderStatus.Pending
+            Amount = amount
         };
         _orders[id] = order;
         return order;
-    }
-
-    public bool TryUpdateStatus(Guid id, OrderStatus status, out Order? order, out OrderStatus? currentStatus)
-    {
-        if (!_orders.TryGetValue(id, out var existing))
-        {
-            order = null;
-            currentStatus = null;
-            return false;
-        }
-
-        if (existing.Status == OrderStatus.Cancelled || existing.Status == status)
-        {
-            order = null;
-            currentStatus = existing.Status;
-            return false;
-        }
-
-        _orders[id] = existing with { Status = status };
-        order = _orders[id];
-        currentStatus = null;
-        return true;
     }
 
     public bool Cancel(Guid id) => _orders.Remove(id);

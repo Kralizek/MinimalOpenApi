@@ -10,10 +10,8 @@ This sample demonstrates generated endpoint result types and response handling.
 | Schema-less `BadRequestProblem` | `createOrder` | `CreateOrderHandler.cs` |
 | `Ok<T>` result | `getOrder` | `GetOrderHandler.cs` |
 | Schema-backed `NotFoundProblem` | `getOrder` | `GetOrderHandler.cs` |
-| Multiple outcome types | `updateOrderStatus` | `UpdateOrderStatusHandler.cs` |
-| Schema-less `NotFoundProblem` | `updateOrderStatus` | `UpdateOrderStatusHandler.cs` |
-| Schema-backed `ConflictProblem` | `updateOrderStatus` | `UpdateOrderStatusHandler.cs` |
 | `NoContent` result | `cancelOrder` | `CancelOrderHandler.cs` |
+| Schema-less `NotFoundProblem` | `cancelOrder` | `CancelOrderHandler.cs` |
 
 ## Generated wrapper types
 
@@ -23,8 +21,7 @@ MinimalOpenAPI generates typed problem wrapper types from `application/problem+j
 |----------------|--------|--------|
 | `BadRequestProblem` | 400 | Schema-less (wraps `ProblemDetails`) |
 | `NotFoundProblem` (in `getOrder`) | 404 | Schema-backed with `OrderId` field |
-| `NotFoundProblem` (in `updateOrderStatus`) | 404 | Schema-less (wraps `ProblemDetails`) |
-| `ConflictProblem` | 409 | Schema-backed with `CurrentStatus`/`RequestedStatus` |
+| `NotFoundProblem` (in `cancelOrder`) | 404 | Schema-less (wraps `ProblemDetails`) |
 
 ## Interesting files
 
@@ -33,7 +30,7 @@ MinimalOpenAPI generates typed problem wrapper types from `application/problem+j
 | `openapi.yaml` | Multiple `application/problem+json` responses, some with schemas |
 | `CreateOrderHandler.cs` | `Results<Created<Order>, BadRequestProblem>` usage |
 | `GetOrderHandler.cs` | `Results<Ok<Order>, NotFoundProblem>` with typed payload |
-| `UpdateOrderStatusHandler.cs` | Three-way `Results<Ok, NotFound, Conflict>` |
+| `CancelOrderHandler.cs` | `Results<NoContent, NotFoundProblem>` schema-less problem |
 
 ## How to run
 

@@ -1,0 +1,5 @@
+# Roslyn emits generated source files here when EmitCompilerGeneratedFiles=true.
+# The Generated/ directory is intentionally excluded from source control — its
+# contents are always reproducible by running `dotnet build`.
+# See README.md for instructions on inspecting the generated files locally.
+Generated/

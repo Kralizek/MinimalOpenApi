@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
 
 using MinimalOpenAPI.Samples.BasicTodo.Openapi.Contracts;
 using MinimalOpenAPI.Samples.BasicTodo.Openapi.Endpoints;
@@ -13,19 +12,9 @@ public sealed class CreateTodoHandler : CreateTodoEndpointBase
 
     public CreateTodoHandler(InMemoryTodoStore store) => _store = store;
 
-    public override Task<Results<Created<Todo>, BadRequestProblem>> HandleAsync(Request request, CancellationToken cancellationToken)
+    public override Task<Created<Todo>> HandleAsync(Request request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Title))
-        {
-            return Task.FromResult<Results<Created<Todo>, BadRequestProblem>>(
-                new BadRequestProblem(new ProblemDetails
-                {
-                    Title = "Invalid request",
-                    Detail = "The request is invalid."
-                }));
-        }
-
         var todo = _store.Add(request.Title, request.Description);
-        return Task.FromResult<Results<Created<Todo>, BadRequestProblem>>(TypedResults.Created($"/todos/{todo.Id}", todo));
+        return Task.FromResult(TypedResults.Created($"/todos/{todo.Id}", todo));
     }
 }

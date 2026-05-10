@@ -21,7 +21,6 @@
 
   <ItemGroup>
     <OpenApi Include="openapi.yaml"
-             PublishAs="/openapi/schema.yaml"
              DisplayName="Basic Todo API"
              DisplayVersion="1.0.0" />
   </ItemGroup>
