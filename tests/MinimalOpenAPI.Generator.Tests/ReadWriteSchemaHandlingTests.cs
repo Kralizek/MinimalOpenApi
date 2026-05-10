@@ -189,6 +189,24 @@ public class ReadWriteSchemaHandlingTests
         Assert.That(diagnostic!.GetMessage(), Does.Contain("ReadWriteSchemaHandling='UnsupportedValue'"));
     }
 
+    [Test]
+    public void Auto_ScopedVariantPreservesJsonExtensionData_WhenDirectionalFilteringRemovesAllDeclaredProperties()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: string.Empty,
+            additionalFiles: [("openapi.yaml", ExtensionDataDirectionalSpecYaml)]);
+
+        var dtos = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+        var patchBagRequest = GetRecordBlock(dtos, "PatchBagRequest");
+        var patchBagResponse = GetRecordBlock(dtos, "PatchBagResponse");
+
+        Assert.That(patchBagRequest, Does.Contain("[JsonExtensionData]"));
+        Assert.That(patchBagRequest, Does.Contain("Dictionary<string, global::System.Text.Json.JsonElement>? Extensions"));
+        Assert.That(patchBagRequest, Does.Not.Contain("[JsonPropertyName(\"id\")]"));
+        Assert.That(patchBagResponse, Does.Contain("[JsonPropertyName(\"id\")]"));
+        Assert.That(patchBagResponse, Does.Contain("[JsonExtensionData]"));
+    }
+
     private const string DirectionalSpecYaml = """
         openapi: "3.0.0"
         info:
@@ -364,6 +382,39 @@ public class ReadWriteSchemaHandlingTests
                   format: uuid
                 name:
                   type: string
+        """;
+
+    private const string ExtensionDataDirectionalSpecYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Extension Data Directionality API
+          version: "1.0.0"
+        paths:
+          /patch:
+            post:
+              operationId: patchBag
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/PatchBag'
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/PatchBag'
+        components:
+          schemas:
+            PatchBag:
+              type: object
+              additionalProperties: true
+              properties:
+                id:
+                  type: string
+                  readOnly: true
         """;
 
     private static string GetRecordBlock(string source, string recordName)

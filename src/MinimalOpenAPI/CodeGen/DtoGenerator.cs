@@ -223,7 +223,7 @@ internal static class DtoGenerator
         TypeMapper.AppendGeneratedAttributes(sb);
         sb.AppendLine($"public sealed record {name}");
         sb.AppendLine("{");
-        var hasIncludedProperties = false;
+        var hadDeclaredProperties = schema.Properties.Count > 0;
 
         foreach (var propKvp in schema.Properties)
         {
@@ -231,7 +231,6 @@ internal static class DtoGenerator
             var propSchema = propKvp.Value;
             if (!directionality.ShouldIncludeProperty(propSchema, scope))
                 continue;
-            hasIncludedProperties = true;
             var isRequired = schema.Required.Contains(propName, StringComparer.OrdinalIgnoreCase);
             var nullable = propSchema.Nullable || !isRequired;
             var typeName = TypeMapper.MapSchema(
@@ -258,7 +257,7 @@ internal static class DtoGenerator
 
         // When additionalProperties: true is set alongside named properties, capture
         // any extra key-value pairs via [JsonExtensionData].
-        if (schema.AdditionalPropertiesAllowed && hasIncludedProperties)
+        if (schema.AdditionalPropertiesAllowed && hadDeclaredProperties)
         {
             sb.AppendLine($"    [JsonExtensionData]");
             sb.AppendLine($"    public global::System.Collections.Generic.Dictionary<string, global::System.Text.Json.JsonElement>? Extensions {{ get; init; }}");
