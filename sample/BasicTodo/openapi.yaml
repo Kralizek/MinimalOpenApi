@@ -1,0 +1,105 @@
+openapi: "3.0.0"
+info:
+  title: Basic Todo API
+  version: "1.0.0"
+paths:
+  /todos:
+    get:
+      operationId: listTodos
+      summary: List todo items
+      description: Returns the current todo items from the in-memory store.
+      tags:
+        - todos
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Todo'
+    post:
+      operationId: createTodo
+      summary: Create a todo item
+      description: Creates a todo item and returns the created resource.
+      tags:
+        - todos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                description:
+                  type: string
+                  nullable: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+  /todos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getTodo
+      summary: Get a todo item
+      description: Returns the todo item with the specified identifier.
+      tags:
+        - todos
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteTodo
+      summary: Delete a todo item
+      description: Permanently removes the todo item with the specified identifier.
+      tags:
+        - todos
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not found
+components:
+  schemas:
+    Todo:
+      type: object
+      required:
+        - id
+        - title
+        - isComplete
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+        isComplete:
+          type: boolean

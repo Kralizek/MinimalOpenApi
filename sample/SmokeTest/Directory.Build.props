@@ -1,0 +1,13 @@
+<Project>
+  <!--
+    Standalone smoke-test consumer.
+
+    This file intentionally shadows the repo-wide Directory.Build.props so that
+    the smoke-test project is self-contained: no MinVer versioning, no central
+    package management, and no other repo-wide build customisations that are
+    irrelevant (or actively harmful) when building a clean package consumer.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+</Project>

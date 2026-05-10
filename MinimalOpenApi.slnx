@@ -5,7 +5,12 @@
     <Project Path="benchmarks/WithoutMinimalOpenApi/WithoutMinimalOpenApi.csproj" />
   </Folder>
   <Folder Name="/sample/">
-    <Project Path="sample/MinimalOpenAPI.Sample.Api/Sample.Api.csproj" />
+    <Project Path="sample/BasicTodo/BasicTodo.csproj" />
+    <Project Path="sample/GeneratedFiles/GeneratedFiles.csproj" />
+    <Project Path="sample/Parameters/Parameters.csproj" />
+    <Project Path="sample/ResponseResults/ResponseResults.csproj" />
+    <Project Path="sample/SchemaPublishing/SchemaPublishing.csproj" />
+    <Project Path="sample/SchemaShapes/SchemaShapes.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/MinimalOpenAPI.Abstractions/MinimalOpenAPI.Abstractions.csproj" />

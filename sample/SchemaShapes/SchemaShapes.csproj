@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>MinimalOpenAPI.Samples.SchemaShapes</RootNamespace>
+  </PropertyGroup>
+
+  <Import Project="../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
+
+  <ItemGroup>
+    <!--
+      ReadWriteSchemaHandling="Auto" (the default): generates request/response-scoped
+      DTOs only when readOnly/writeOnly differences exist in the schema graph.
+    -->
+    <OpenApi Include="openapi.yaml"
+             ReadWriteSchemaHandling="Auto"
+             DisplayName="Schema Shapes Sample API"
+             DisplayVersion="1.0.0" />
+  </ItemGroup>
+
+</Project>

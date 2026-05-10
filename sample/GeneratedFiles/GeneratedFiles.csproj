@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>MinimalOpenAPI.Samples.GeneratedFiles</RootNamespace>
+    <!--
+      Tell Roslyn to emit generated source files to disk.
+      This makes MinimalOpenAPI's generated files visible for inspection.
+      All source generators used by this project emit files here, not only MinimalOpenAPI.
+    -->
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <!--
+      The directory under which Roslyn writes generated files.
+      Files appear under: Generated/<GeneratorName>/<HintName>.cs
+      MinimalOpenAPI uses hint names like: MinimalOpenApi/<SpecName>/Schemas/...
+    -->
+    <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
+
+  <!--
+    Exclude the emitted files from compilation.
+    MinimalOpenAPI already adds generated sources to the compilation through Roslyn,
+    so compiling emitted .cs files again would cause duplicate type definitions.
+    This exclusion is required whenever CompilerGeneratedFilesOutputPath is inside
+    the project directory tree.
+  -->
+  <ItemGroup>
+    <Compile Remove="Generated/**/*.cs" />
+  </ItemGroup>
+
+  <Import Project="../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
+
+  <ItemGroup>
+    <OpenApi Include="openapi.yaml"
+             DisplayName="Generated Files Sample API"
+             DisplayVersion="1.0.0" />
+  </ItemGroup>
+
+</Project>

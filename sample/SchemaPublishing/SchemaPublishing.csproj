@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>MinimalOpenAPI.Samples.SchemaPublishing</RootNamespace>
+  </PropertyGroup>
+
+  <Import Project="../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      public-api.yaml is exposed over HTTP at /openapi/public-api.yaml.
+      All OpenAPI files are copied to build/publish output; only files with
+      PublishAs are mapped as HTTP endpoints.
+    -->
+    <OpenApi Include="public-api.yaml"
+             PublishAs="/openapi/public-api.yaml"
+             DisplayName="Public Sample API"
+             DisplayVersion="1.0.0" />
+    <!--
+      internal-api.yaml is NOT exposed over HTTP (no PublishAs).
+      It is still copied to build/publish output under openapi/schemas/.
+    -->
+    <OpenApi Include="internal-api.yaml" />
+  </ItemGroup>
+
+</Project>

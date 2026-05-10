@@ -29,8 +29,13 @@ tests/
   MinimalOpenAPI.Runtime.Tests/     ← unit tests for runtime services
   MinimalOpenAPI.IntegrationTests/  ← WebApplicationFactory end-to-end tests
 sample/
-  MinimalOpenAPI.Sample.Api/    ← full Todo CRUD example; use it to verify end-to-end behaviour
-  MinimalOpenAPI.SmokeTest.Api/ ← minimal consumer that builds against the packed NuGet artifact; validates the generator works as a real downstream project would experience it
+  SmokeTest/           ← CI/package-consumption sample; validates the packed NuGet artifact
+  BasicTodo/           ← recommended learning starting point; minimal contract-first Todo API
+  SchemaPublishing/    ← demonstrates PublishAs, MapOpenApiSchemas(), and Swagger UI wiring
+  Parameters/          ← demonstrates all parameter kinds (path, query, header, cookie, component $ref)
+  SchemaShapes/        ← demonstrates DTO shapes (enums, allOf, readOnly/writeOnly, additionalProperties)
+  ResponseResults/     ← demonstrates typed result and problem wrapper types
+  GeneratedFiles/      ← demonstrates EmitCompilerGeneratedFiles to inspect generated output
 docs/
   architecture.md               ← internals, data flow, design decisions, extensibility
   releasing.md                  ← versioning (MinVer / Git tags) and release process
@@ -92,7 +97,7 @@ unzip -l /tmp/local-packages/MinimalOpenAPI.*.nupkg
 For source-generator or runtime behaviour changes, also run the sample app and exercise the relevant endpoints:
 
 ```bash
-cd sample/MinimalOpenAPI.Sample.Api
+cd sample/BasicTodo
 dotnet run
 ```
 
@@ -103,11 +108,11 @@ For source-generator changes, also run the smoke test to confirm the packed arti
 dotnet pack --configuration Release --output artifacts
 
 # 2. Restore and build the smoke-test consumer (exercises the generator end-to-end)
-dotnet restore sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj
-dotnet build sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj --no-restore --configuration Release --warnaserror
+dotnet restore sample/SmokeTest/SmokeTest.csproj
+dotnet build sample/SmokeTest/SmokeTest.csproj --no-restore --configuration Release --warnaserror
 
 # 3. Publish the smoke-test consumer (exercises the OpenAPI file publish targets)
-dotnet publish sample/MinimalOpenAPI.SmokeTest.Api/SmokeTest.Api.csproj --no-restore --configuration Release --output /tmp/smoketest-publish
+dotnet publish sample/SmokeTest/SmokeTest.csproj --no-restore --configuration Release --output /tmp/smoketest-publish
 # Verify the spec file was published at the expected path:
 # Verify the spec file was published under the unique schema-id subdirectory:
 find /tmp/smoketest-publish/openapi/schemas -name "openapi.yaml" | grep -q . && echo "OpenAPI spec published OK"
@@ -120,7 +125,7 @@ find /tmp/smoketest-publish/openapi/schemas -name "openapi.yaml" | grep -q . && 
 ### Source generator changes
 - Cover the change with a new or updated generator test in `MinimalOpenAPI.Generator.Tests`.
 - Also run `MinimalOpenAPI.IntegrationTests` to catch end-to-end regressions.
-- Run the smoke test (pack + build `MinimalOpenAPI.SmokeTest.Api`) to confirm the packed NuGet artifact still works as a real downstream consumer would experience it.
+- Run the smoke test (pack + build `sample/SmokeTest`) to confirm the packed NuGet artifact still works as a real downstream consumer would experience it.
 - Diagnostics live in `MinimalOpenAPI.Generator`; the codes are `MOA001`–`MOA005` (see `docs/architecture.md` §8).
 
 ### Runtime changes
