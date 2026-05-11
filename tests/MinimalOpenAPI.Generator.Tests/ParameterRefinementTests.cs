@@ -449,7 +449,7 @@ public class ParameterRefinementTests
     }
 
     [Test]
-    public void RequiredNonNullableQueryParameter_UsesRequiredProperty()
+    public void RequiredNonNullableQueryParameter_UsesDefaultForgivingInitializer()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
             userSource: NoOpHandlerImpl,
@@ -457,7 +457,7 @@ public class ParameterRefinementTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "ListItemsEndpointBase.g.cs");
 
-        Assert.That(source, Does.Contain("public required string SecretKey { get; init; }"));
+        Assert.That(source, Does.Contain("public string SecretKey { get; init; } = default!;"));
     }
 
     [Test]
@@ -631,6 +631,6 @@ public class ParameterRefinementTests
         // X-Correlation-Id is optional → string?
         Assert.That(source, Does.Contain("public string? XCorrelationId"));
         // X-Request-Id is required and non-nullable.
-        Assert.That(source, Does.Contain("public required string XRequestId { get; init; }"));
+        Assert.That(source, Does.Contain("public string XRequestId { get; init; } = default!;"));
     }
 }
