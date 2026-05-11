@@ -11,9 +11,10 @@ This sample concentrates all parameter-related behavior in one place.
 | Operation-level override of path-level parameter | `openapi.yaml` `createTenantItem` operation |
 | Path route constraints from schema format | `tenantId` with `format: uuid` → `{tenantId:guid}` |
 | Query parameters grouped into `Parameters` record | `page`, `pageSize`, `api-version` |
-| Header parameters | `X-Correlation-Id`, `X-Contact-Email`, `X-Contact-Uri` |
+| Header parameters | `X-Request-Id` (required), `X-Correlation-Id`, `X-Contact-Email`, `X-Contact-Uri` |
 | `format: email` / `format: uri` annotations | `ContactEmail`, `ContactUri` parameters |
 | Parameter default values | `page: default: 1`, `pageSize: default: 20`, `api-version: default: "1.0"` |
+| Required non-nullable generated parameter properties | `X-Request-Id` emits `public string XRequestId { get; init; } = default!;` |
 | Cookie parameters | `sessionId` — see note below |
 
 ## Cookie parameter binding limitation
@@ -45,6 +46,7 @@ curl "http://localhost:5000/tenants/00000000-0000-0000-0000-000000000001/items?p
 
 # With header params
 curl "http://localhost:5000/tenants/00000000-0000-0000-0000-000000000001/items" \
+  -H "X-Request-Id: req-123" \
   -H "X-Correlation-Id: my-correlation-id" \
   -H "X-Contact-Email: user@example.com"
 
