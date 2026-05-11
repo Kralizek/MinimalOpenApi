@@ -117,6 +117,26 @@ public class ParameterRefinementTests
                   description: OK
         """;
 
+    private const string RequiredStringQueryYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /items:
+            get:
+              operationId: listItems
+              parameters:
+                - name: secret-key
+                  in: query
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                "200":
+                  description: OK
+        """;
+
     private const string EmailAndUriYaml = """
         openapi: "3.0.0"
         info:
@@ -429,6 +449,18 @@ public class ParameterRefinementTests
     }
 
     [Test]
+    public void RequiredNonNullableQueryParameter_UsesDefaultForgivingInitializer()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: NoOpHandlerImpl,
+            additionalFiles: [("openapi.yaml", RequiredStringQueryYaml)]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "ListItemsEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("public string SecretKey { get; init; } = default!;"));
+    }
+
+    [Test]
     public void DateQueryParameter_WithInvalidDefault_EmitsNoInitializer()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -598,7 +630,7 @@ public class ParameterRefinementTests
 
         // X-Correlation-Id is optional → string?
         Assert.That(source, Does.Contain("public string? XCorrelationId"));
-        // X-Request-Id is required → string (non-nullable)
-        Assert.That(source, Does.Contain("public string XRequestId"));
+        // X-Request-Id is required and non-nullable.
+        Assert.That(source, Does.Contain("public string XRequestId { get; init; } = default!;"));
     }
 }

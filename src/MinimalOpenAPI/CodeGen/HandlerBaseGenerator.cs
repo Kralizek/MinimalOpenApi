@@ -299,6 +299,8 @@ internal static class HandlerBaseGenerator
             var defaultInitializer = GetDefaultInitializer(p.Schema);
             if (defaultInitializer is not null)
                 sb.AppendLine($"        public {type} {propName} {{ get; init; }} = {defaultInitializer};");
+            else if (p.Required && !type.EndsWith("?"))
+                sb.AppendLine($"        public {type} {propName} {{ get; init; }} = default!;");
             else
                 sb.AppendLine($"        public {type} {propName} {{ get; init; }}");
         }
