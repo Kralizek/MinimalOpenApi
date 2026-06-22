@@ -153,6 +153,21 @@ internal static class DtoGenerator
             }
         }
 
+        // Emit inline-object item types for array properties (dependencies) before the parent record.
+        foreach (var propKvp in resolvedSchema.Properties)
+        {
+            if (!directionality.ShouldIncludeProperty(propKvp.Value, scope))
+                continue;
+
+            if (propKvp.Value.Type?.ToLowerInvariant() == "array"
+                && propKvp.Value.Items is { } itemSchema
+                && TypeMapper.IsInlineObject(itemSchema))
+            {
+                var itemName = name + TypeMapper.ToPascalCase(propKvp.Key) + "Item";
+                EmitRecordTree(sb, itemName, itemSchema, allSchemas, emitted, allOfConflicts, directionality, scope);
+            }
+        }
+
         // Build a resolver that maps each inline schema instance to its derived name.
         var inlineMap = new Dictionary<OpenApiSchema, string>();
         foreach (var propKvp in resolvedSchema.Properties)
@@ -174,6 +189,18 @@ internal static class DtoGenerator
                 && propKvp.Value.AdditionalProperties is { } valueSchema
                 && TypeMapper.IsInlineObject(valueSchema))
                 inlineMap[valueSchema] = name + TypeMapper.ToPascalCase(propKvp.Key) + "Value";
+        }
+
+        // Also map inline-object item types for array properties.
+        foreach (var propKvp in resolvedSchema.Properties)
+        {
+            if (!directionality.ShouldIncludeProperty(propKvp.Value, scope))
+                continue;
+
+            if (propKvp.Value.Type?.ToLowerInvariant() == "array"
+                && propKvp.Value.Items is { } itemSchema
+                && TypeMapper.IsInlineObject(itemSchema))
+                inlineMap[itemSchema] = name + TypeMapper.ToPascalCase(propKvp.Key) + "Item";
         }
 
         InlineSchemaResolver? resolveInline = inlineMap.Count > 0

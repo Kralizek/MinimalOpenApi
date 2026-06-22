@@ -223,6 +223,21 @@ internal static class HandlerBaseGenerator
                 CollectNestedInlineSchemas(valueSchema, valueName, scope, directionality, collected);
                 collected.Add((valueSchema, valueName, scope));
             }
+            else if (propSchema.Type?.ToLowerInvariant() == "array" && propSchema.Items is { } itemSchema)
+            {
+                var itemName = derivedName + "Item";
+                if (TypeMapper.IsInlineObject(itemSchema))
+                {
+                    // Recurse into the item schema first so its own nested types are declared
+                    // before the item type itself.
+                    CollectNestedInlineSchemas(itemSchema, itemName, scope, directionality, collected);
+                    collected.Add((itemSchema, itemName, scope));
+                }
+                else if (itemSchema.Enum is not null)
+                {
+                    collected.Add((itemSchema, itemName, scope));
+                }
+            }
         }
     }
 
