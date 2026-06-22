@@ -1668,4 +1668,405 @@ internal static class OpenApiFixtures
           }
         }
         """;
+
+    // ── Inline array-item schema fixtures ────────────────────────────────────
+    //
+    // These fixtures verify that inline object schemas used as the `items` of an
+    // array property are collected and emitted as nested generated records.
+
+    /// <summary>
+    /// An operation whose inline 200 response contains an array property
+    /// (<c>items</c>) whose item schema is itself an inline object.
+    /// Expected nested records: <c>OkResponse</c>, <c>OkResponseItemsItem</c>.
+    /// </summary>
+    public const string GetRecipesWithInlineArrayItemYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /recipes:
+            get:
+              operationId: getRecipes
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        required:
+                          - items
+                          - total
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              type: object
+                              required:
+                                - id
+                                - name
+                              properties:
+                                id:
+                                  type: string
+                                  format: uuid
+                                name:
+                                  type: string
+                          total:
+                            type: integer
+        """;
+
+    /// <summary>
+    /// An operation whose inline request body contains an array property
+    /// (<c>entries</c>) whose item schema is an inline object.
+    /// Expected nested records: <c>Request</c>, <c>RequestEntriesItem</c>.
+    /// </summary>
+    public const string BatchCreateWithInlineArrayItemYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /batch:
+            post:
+              operationId: batchCreate
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      required:
+                        - entries
+                      properties:
+                        entries:
+                          type: array
+                          items:
+                            type: object
+                            required:
+                              - name
+                            properties:
+                              name:
+                                type: string
+              responses:
+                "200":
+                  description: OK
+        """;
+
+    /// <summary>
+    /// An operation whose inline 200 response contains an array property whose
+    /// item schema itself contains a nested inline object property (<c>metadata</c>).
+    /// Expected: <c>OkResponse</c>, <c>OkResponseItemsItem</c>,
+    /// <c>OkResponseItemsItemMetadata</c>.
+    /// </summary>
+    public const string GetItemsWithNestedInlineObjectInArrayItemYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /items:
+            get:
+              operationId: getItems
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        required:
+                          - items
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              type: object
+                              required:
+                                - id
+                                - metadata
+                              properties:
+                                id:
+                                  type: string
+                                  format: uuid
+                                metadata:
+                                  type: object
+                                  properties:
+                                    source:
+                                      type: string
+        """;
+
+    /// <summary>
+    /// An operation whose inline 200 response contains an array property whose
+    /// item schema itself contains a nested array property (<c>steps</c>) whose
+    /// item schema is also an inline object.
+    /// Expected: <c>OkResponse</c>, <c>OkResponseItemsItemStepsItem</c>,
+    /// <c>OkResponseItemsItem</c>.
+    /// </summary>
+    public const string GetItemsWithNestedArrayInArrayItemYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /items:
+            get:
+              operationId: getItems
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        required:
+                          - items
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              type: object
+                              required:
+                                - id
+                                - steps
+                              properties:
+                                id:
+                                  type: string
+                                  format: uuid
+                                steps:
+                                  type: array
+                                  items:
+                                    type: object
+                                    required:
+                                      - text
+                                    properties:
+                                      text:
+                                        type: string
+        """;
+
+    /// <summary>
+    /// A component schema (<c>Catalog</c>) with an array property (<c>entries</c>)
+    /// whose item schema is an inline object.
+    /// Expected records: <c>CatalogEntriesItem</c>, <c>Catalog</c>.
+    /// </summary>
+    public const string GetCatalogWithInlineArrayItemComponentYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /catalog:
+            get:
+              operationId: getCatalog
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Catalog'
+        components:
+          schemas:
+            Catalog:
+              type: object
+              required:
+                - entries
+              properties:
+                entries:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - id
+                      - title
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      title:
+                        type: string
+        """;
+
+    /// <summary>
+    /// An inline 200 response with a <c>matrix</c> property that is an array-of-arrays whose
+    /// inner item schema is an inline object.
+    /// Expected: handler record <c>OkResponseMatrixItemItem</c>; property type <c>OkResponseMatrixItemItem[][]</c>.
+    /// </summary>
+    public const string GetMatrixWithNestedArrayItemYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /matrix:
+            get:
+              operationId: getMatrix
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        required:
+                          - matrix
+                        properties:
+                          matrix:
+                            type: array
+                            items:
+                              type: array
+                              items:
+                                type: object
+                                required:
+                                  - value
+                                properties:
+                                  value:
+                                    type: string
+        """;
+
+    /// <summary>
+    /// A component schema (<c>Grid</c>) with a <c>cells</c> property that is an array-of-arrays
+    /// whose inner item schema is an inline object.
+    /// Expected records: <c>GridCellsItemItem</c>, <c>Grid</c>; property type <c>GridCellsItemItem[][]</c>.
+    /// </summary>
+    public const string GetGridWithNestedArrayItemComponentYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /grid:
+            get:
+              operationId: getGrid
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Grid'
+        components:
+          schemas:
+            Grid:
+              type: object
+              required:
+                - cells
+              properties:
+                cells:
+                  type: array
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - value
+                      properties:
+                        value:
+                          type: string
+        """;
+
+    /// <summary>
+    /// An operation-scoped inline response (<c>OkResponse</c>) with a <c>statuses</c> array
+    /// property whose item schema is an inline enum.
+    /// Handler-local enum emission is not yet supported, so the expected fallback is
+    /// <c>string[]</c> (the safe primitive fallback for a <c>type: string</c> enum).
+    /// </summary>
+    public const string GetStatusesWithInlineEnumArrayItemYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /statuses:
+            get:
+              operationId: getStatuses
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        required:
+                          - statuses
+                        properties:
+                          statuses:
+                            type: array
+                            items:
+                              type: string
+                              enum:
+                                - pending
+                                - active
+                                - closed
+        """;
+
+    /// <summary>
+    /// An operation-scoped inline response (<c>OkResponse</c>) with a direct inline enum
+    /// property. Handler-local enum emission is not yet supported, so the expected fallback is
+    /// <c>string</c> (the safe primitive fallback for a <c>type: string</c> enum).
+    /// </summary>
+    public const string GetStatusSummaryWithInlineEnumPropertyYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /status-summary:
+            get:
+              operationId: getStatusSummary
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        required:
+                          - status
+                        properties:
+                          status:
+                            type: string
+                            enum:
+                              - pending
+                              - active
+                              - closed
+        """;
+
+    /// <summary>
+    /// A component schema (<c>Report</c>) with a <c>statuses</c> array property whose item
+    /// schema is an inline enum.
+    /// Expected: top-level enum <c>ReportStatusesItem</c>; property type <c>ReportStatusesItem[]</c>.
+    /// </summary>
+    public const string GetReportWithInlineEnumArrayItemComponentYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /report:
+            get:
+              operationId: getReport
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Report'
+        components:
+          schemas:
+            Report:
+              type: object
+              required:
+                - statuses
+              properties:
+                statuses:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - pending
+                      - active
+                      - closed
+        """;
 }

@@ -153,6 +153,19 @@ internal static class DtoGenerator
             }
         }
 
+        // Emit inline-object and inline-enum item types for array properties (dependencies) before the parent record.
+        foreach (var propKvp in resolvedSchema.Properties)
+        {
+            if (!directionality.ShouldIncludeProperty(propKvp.Value, scope))
+                continue;
+
+            if (propKvp.Value.Type?.ToLowerInvariant() == "array" && propKvp.Value.Items is { } itemSchema)
+            {
+                var itemName = name + TypeMapper.ToPascalCase(propKvp.Key) + "Item";
+                EmitArrayItemSchema(sb, itemSchema, itemName, allSchemas, emitted, allOfConflicts, directionality, scope);
+            }
+        }
+
         // Build a resolver that maps each inline schema instance to its derived name.
         var inlineMap = new Dictionary<OpenApiSchema, string>();
         foreach (var propKvp in resolvedSchema.Properties)
@@ -176,12 +189,73 @@ internal static class DtoGenerator
                 inlineMap[valueSchema] = name + TypeMapper.ToPascalCase(propKvp.Key) + "Value";
         }
 
+        // Also map inline-object and inline-enum item types for array properties.
+        foreach (var propKvp in resolvedSchema.Properties)
+        {
+            if (!directionality.ShouldIncludeProperty(propKvp.Value, scope))
+                continue;
+
+            if (propKvp.Value.Type?.ToLowerInvariant() == "array" && propKvp.Value.Items is { } itemSchema)
+            {
+                var itemName = name + TypeMapper.ToPascalCase(propKvp.Key) + "Item";
+                BuildArrayItemInlineMap(itemSchema, itemName, inlineMap);
+            }
+        }
+
         InlineSchemaResolver? resolveInline = inlineMap.Count > 0
             ? s => inlineMap.TryGetValue(s, out var n) ? n : null
             : null;
 
         GenerateRecord(sb, name, resolvedSchema, directionality, scope, resolveInline);
         sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Emits the record or enum for an array item schema, recursing into inner items when
+    /// the item schema is itself an array (array-of-array support).
+    /// </summary>
+    private static void EmitArrayItemSchema(
+        StringBuilder sb,
+        OpenApiSchema itemSchema,
+        string itemName,
+        Dictionary<string, OpenApiSchema> allSchemas,
+        HashSet<string> emitted,
+        List<AllOfPropertyConflict> allOfConflicts,
+        SchemaDirectionalityAnalysis directionality,
+        SchemaGenerationScope scope)
+    {
+        if (TypeMapper.IsInlineObject(itemSchema))
+        {
+            EmitRecordTree(sb, itemName, itemSchema, allSchemas, emitted, allOfConflicts, directionality, scope);
+        }
+        else if (itemSchema.Enum is not null)
+        {
+            GenerateEnum(sb, itemName, itemSchema, emitted);
+        }
+        else if (itemSchema.Type?.ToLowerInvariant() == "array" && itemSchema.Items is { } innerItemSchema)
+        {
+            // array-of-array: walk into the inner item schema using an extra "Item" suffix.
+            EmitArrayItemSchema(sb, innerItemSchema, itemName + "Item", allSchemas, emitted, allOfConflicts, directionality, scope);
+        }
+    }
+
+    /// <summary>
+    /// Populates <paramref name="inlineMap"/> with inline schema → type-name entries for
+    /// array item schemas, recursing through nested arrays (array-of-array support).
+    /// </summary>
+    private static void BuildArrayItemInlineMap(
+        OpenApiSchema itemSchema,
+        string itemName,
+        Dictionary<OpenApiSchema, string> inlineMap)
+    {
+        if (TypeMapper.IsInlineObject(itemSchema) || itemSchema.Enum is not null)
+        {
+            inlineMap[itemSchema] = itemName;
+        }
+        else if (itemSchema.Type?.ToLowerInvariant() == "array" && itemSchema.Items is { } innerItemSchema)
+        {
+            BuildArrayItemInlineMap(innerItemSchema, itemName + "Item", inlineMap);
+        }
     }
 
     private static void GenerateEnum(

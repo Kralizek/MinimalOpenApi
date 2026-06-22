@@ -53,8 +53,8 @@ internal static class HandlerBaseGenerator
             }
         }
 
-        // Recursively collect all nested inline schemas (inline objects, enums, and dictionary
-        // value types) from the flattened effective schemas.  The list is ordered so that
+        // Recursively collect all nested inline object schemas (including dictionary
+        // value types and array item schemas) from the flattened effective schemas.  The list is ordered so that
         // dependencies appear before the schemas that reference them, which matches the
         // emission order required for the nested record declarations.
         var nestedSchemas = new List<(OpenApiSchema Schema, string TypeName, SchemaGenerationScope Scope)>();
@@ -184,11 +184,11 @@ internal static class HandlerBaseGenerator
     }
 
     /// <summary>
-    /// Recursively walks <paramref name="effectiveSchema"/> and collects every inline object,
-    /// inline enum, and dictionary-value inline-object property, together with the derived C#
-    /// type name each one will be emitted as.  Items are added in dependency order: a nested
-    /// type is added only after all of its own nested types have been added first, so the
-    /// resulting list can be iterated in order to emit declarations without forward references.
+    /// Recursively walks <paramref name="effectiveSchema"/> and collects every inline object
+    /// and dictionary-value inline-object property, together with the derived C# type name each
+    /// one will be emitted as. Items are added in dependency order: a nested type is added only
+    /// after all of its own nested types have been added first, so the resulting list can be
+    /// iterated in order to emit declarations without forward references.
     /// </summary>
     private static void CollectNestedInlineSchemas(
         OpenApiSchema effectiveSchema,
@@ -211,10 +211,6 @@ internal static class HandlerBaseGenerator
                 CollectNestedInlineSchemas(propSchema, derivedName, scope, directionality, collected);
                 collected.Add((propSchema, derivedName, scope));
             }
-            else if (propSchema.Enum is not null)
-            {
-                collected.Add((propSchema, derivedName, scope));
-            }
             else if (TypeMapper.IsDictionarySchema(propSchema)
                 && propSchema.AdditionalProperties is { } valueSchema
                 && TypeMapper.IsInlineObject(valueSchema))
@@ -223,6 +219,40 @@ internal static class HandlerBaseGenerator
                 CollectNestedInlineSchemas(valueSchema, valueName, scope, directionality, collected);
                 collected.Add((valueSchema, valueName, scope));
             }
+            else if (propSchema.Type?.ToLowerInvariant() == "array" && propSchema.Items is { } itemSchema)
+            {
+                var itemName = derivedName + "Item";
+                CollectArrayItemInlineSchemas(itemSchema, itemName, scope, directionality, collected);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Walks an array item schema and collects any inline object types it introduces.
+    /// Only inline object item schemas are collected; inline enum item schemas are intentionally
+    /// ignored so that operation-scoped inline enum array items fall back to the primitive
+    /// <c>string[]</c> type until handler-local enum emission is implemented.
+    /// When the item schema is itself an array, recurses into its own items so that
+    /// arbitrary array nesting (e.g. <c>array.items.items.type = object</c>) is handled.
+    /// </summary>
+    private static void CollectArrayItemInlineSchemas(
+        OpenApiSchema itemSchema,
+        string itemName,
+        SchemaGenerationScope scope,
+        SchemaDirectionalityAnalysis directionality,
+        List<(OpenApiSchema Schema, string TypeName, SchemaGenerationScope Scope)> collected)
+    {
+        if (TypeMapper.IsInlineObject(itemSchema))
+        {
+            // Recurse into the item schema first so its own nested types are declared
+            // before the item type itself.
+            CollectNestedInlineSchemas(itemSchema, itemName, scope, directionality, collected);
+            collected.Add((itemSchema, itemName, scope));
+        }
+        else if (itemSchema.Type?.ToLowerInvariant() == "array" && itemSchema.Items is { } innerItemSchema)
+        {
+            // array-of-array: walk into the inner item schema using an extra "Item" suffix.
+            CollectArrayItemInlineSchemas(innerItemSchema, itemName + "Item", scope, directionality, collected);
         }
     }
 
