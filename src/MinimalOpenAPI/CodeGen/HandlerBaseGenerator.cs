@@ -53,7 +53,7 @@ internal static class HandlerBaseGenerator
             }
         }
 
-        // Recursively collect all nested inline schemas (inline objects, enums, and dictionary
+        // Recursively collect all nested inline object schemas (including dictionary
         // value types) from the flattened effective schemas.  The list is ordered so that
         // dependencies appear before the schemas that reference them, which matches the
         // emission order required for the nested record declarations.
@@ -184,11 +184,11 @@ internal static class HandlerBaseGenerator
     }
 
     /// <summary>
-    /// Recursively walks <paramref name="effectiveSchema"/> and collects every inline object,
-    /// inline enum, and dictionary-value inline-object property, together with the derived C#
-    /// type name each one will be emitted as.  Items are added in dependency order: a nested
-    /// type is added only after all of its own nested types have been added first, so the
-    /// resulting list can be iterated in order to emit declarations without forward references.
+    /// Recursively walks <paramref name="effectiveSchema"/> and collects every inline object
+    /// and dictionary-value inline-object property, together with the derived C# type name each
+    /// one will be emitted as. Items are added in dependency order: a nested type is added only
+    /// after all of its own nested types have been added first, so the resulting list can be
+    /// iterated in order to emit declarations without forward references.
     /// </summary>
     private static void CollectNestedInlineSchemas(
         OpenApiSchema effectiveSchema,
@@ -209,10 +209,6 @@ internal static class HandlerBaseGenerator
             {
                 // Recurse first so that deeper types are declared before this one.
                 CollectNestedInlineSchemas(propSchema, derivedName, scope, directionality, collected);
-                collected.Add((propSchema, derivedName, scope));
-            }
-            else if (propSchema.Enum is not null)
-            {
                 collected.Add((propSchema, derivedName, scope));
             }
             else if (TypeMapper.IsDictionarySchema(propSchema)

@@ -590,9 +590,56 @@ public class InlineArrayItemSchemaTests
     }
 
     /// <summary>
+    /// Inline operation-scoped response schema with a direct inline enum property.
+    /// Handler-local enum emission is not yet implemented, so the generator must fall back
+    /// to the safe primitive type (<c>string</c>) rather than emitting an empty nested record.
+    /// </summary>
+    [TestFixture]
+    public class InlineResponseWithInlineEnumPropertySchema
+    {
+        private static readonly (string, string)[] AdditionalFiles =
+        [
+            ("openapi.yaml", OpenApiFixtures.GetStatusSummaryWithInlineEnumPropertyYaml)
+        ];
+
+        private const string HandlerImpl = """
+            public class GetStatusSummaryHandler : GetStatusSummaryEndpointBase
+            {
+                public override System.Threading.Tasks.Task<
+                    global::Microsoft.AspNetCore.Http.HttpResults.Ok<OkResponse>> HandleAsync(
+                    System.Threading.CancellationToken ct) => throw new System.NotImplementedException();
+            }
+            """;
+
+        [Test]
+        public void InlineEnumPropertyFallsBackToString()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "GetStatusSummaryEndpointBase.g.cs");
+
+            Assert.That(source, Does.Contain("public required string Status { get; init; }"));
+        }
+
+        [Test]
+        public void NoEmptyGeneratedRecordForInlineEnumProperty()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "GetStatusSummaryEndpointBase.g.cs");
+
+            Assert.That(source, Does.Not.Contain("public sealed record OkResponseStatus"));
+        }
+    }
+
+    /// <summary>
     /// Component schema (<c>Report</c>) with a <c>statuses</c> array property whose item
-    /// schema is an inline enum. Verifies that DtoGenerator handles inline enum array items
-    /// consistently with the handler generator.
+    /// schema is an inline enum. Verifies that DtoGenerator still generates a real enum for
+    /// component-level inline enum array items.
     /// </summary>
     [TestFixture]
     public class ComponentSchemaWithInlineEnumArrayItemSchema
