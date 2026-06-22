@@ -538,6 +538,58 @@ public class InlineArrayItemSchemaTests
     }
 
     /// <summary>
+    /// Inline operation-scoped response schema with a <c>statuses</c> array property whose
+    /// item schema is an inline enum.  Handler-local enum emission is not yet implemented, so
+    /// the generator must fall back to the safe primitive type (<c>string[]</c>) rather than
+    /// emitting an empty generated record for the enum type.
+    /// </summary>
+    [TestFixture]
+    public class InlineResponseWithInlineEnumArrayItemSchema
+    {
+        private static readonly (string, string)[] AdditionalFiles =
+        [
+            ("openapi.yaml", OpenApiFixtures.GetStatusesWithInlineEnumArrayItemYaml)
+        ];
+
+        private const string HandlerImpl = """
+            public class GetStatusesHandler : GetStatusesEndpointBase
+            {
+                public override System.Threading.Tasks.Task<
+                    global::Microsoft.AspNetCore.Http.HttpResults.Ok<OkResponse>> HandleAsync(
+                    System.Threading.CancellationToken ct) => throw new System.NotImplementedException();
+            }
+            """;
+
+        [Test]
+        public void InlineEnumArrayItemFallsBackToStringArray()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "GetStatusesEndpointBase.g.cs");
+
+            // Without handler-local enum emission the property must use the safe string[] fallback.
+            Assert.That(source, Does.Contain("public required string[] Statuses { get; init; }"));
+        }
+
+        [Test]
+        public void NoEmptyGeneratedRecordForInlineEnumArrayItem()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "GetStatusesEndpointBase.g.cs");
+
+            // Collecting the enum and emitting it through AppendNestedRecord would produce an
+            // empty record (e.g. "public sealed record OkResponseStatusesItem { }").
+            // Verify that no such spurious record is emitted.
+            Assert.That(source, Does.Not.Contain("OkResponseStatusesItem"));
+        }
+    }
+
+    /// <summary>
     /// Component schema (<c>Report</c>) with a <c>statuses</c> array property whose item
     /// schema is an inline enum. Verifies that DtoGenerator handles inline enum array items
     /// consistently with the handler generator.

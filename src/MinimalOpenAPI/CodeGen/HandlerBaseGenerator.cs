@@ -250,10 +250,6 @@ internal static class HandlerBaseGenerator
             CollectNestedInlineSchemas(itemSchema, itemName, scope, directionality, collected);
             collected.Add((itemSchema, itemName, scope));
         }
-        else if (itemSchema.Enum is not null)
-        {
-            collected.Add((itemSchema, itemName, scope));
-        }
         else if (itemSchema.Type?.ToLowerInvariant() == "array" && itemSchema.Items is { } innerItemSchema)
         {
             // array-of-array: walk into the inner item schema using an extra "Item" suffix.

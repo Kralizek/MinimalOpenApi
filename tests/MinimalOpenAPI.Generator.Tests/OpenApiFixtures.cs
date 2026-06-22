@@ -1966,6 +1966,41 @@ internal static class OpenApiFixtures
         """;
 
     /// <summary>
+    /// An operation-scoped inline response (<c>OkResponse</c>) with a <c>statuses</c> array
+    /// property whose item schema is an inline enum.
+    /// Handler-local enum emission is not yet supported, so the expected fallback is
+    /// <c>string[]</c> (the safe primitive fallback for a <c>type: string</c> enum).
+    /// </summary>
+    public const string GetStatusesWithInlineEnumArrayItemYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /statuses:
+            get:
+              operationId: getStatuses
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        required:
+                          - statuses
+                        properties:
+                          statuses:
+                            type: array
+                            items:
+                              type: string
+                              enum:
+                                - pending
+                                - active
+                                - closed
+        """;
+
+    /// <summary>
     /// A component schema (<c>Report</c>) with a <c>statuses</c> array property whose item
     /// schema is an inline enum.
     /// Expected: top-level enum <c>ReportStatusesItem</c>; property type <c>ReportStatusesItem[]</c>.
