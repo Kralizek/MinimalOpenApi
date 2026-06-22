@@ -1886,4 +1886,120 @@ internal static class OpenApiFixtures
                       title:
                         type: string
         """;
+
+    /// <summary>
+    /// An inline 200 response with a <c>matrix</c> property that is an array-of-arrays whose
+    /// inner item schema is an inline object.
+    /// Expected: handler record <c>OkResponseMatrixItemItem</c>; property type <c>OkResponseMatrixItemItem[][]</c>.
+    /// </summary>
+    public const string GetMatrixWithNestedArrayItemYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /matrix:
+            get:
+              operationId: getMatrix
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        required:
+                          - matrix
+                        properties:
+                          matrix:
+                            type: array
+                            items:
+                              type: array
+                              items:
+                                type: object
+                                required:
+                                  - value
+                                properties:
+                                  value:
+                                    type: string
+        """;
+
+    /// <summary>
+    /// A component schema (<c>Grid</c>) with a <c>cells</c> property that is an array-of-arrays
+    /// whose inner item schema is an inline object.
+    /// Expected records: <c>GridCellsItemItem</c>, <c>Grid</c>; property type <c>GridCellsItemItem[][]</c>.
+    /// </summary>
+    public const string GetGridWithNestedArrayItemComponentYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /grid:
+            get:
+              operationId: getGrid
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Grid'
+        components:
+          schemas:
+            Grid:
+              type: object
+              required:
+                - cells
+              properties:
+                cells:
+                  type: array
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - value
+                      properties:
+                        value:
+                          type: string
+        """;
+
+    /// <summary>
+    /// A component schema (<c>Report</c>) with a <c>statuses</c> array property whose item
+    /// schema is an inline enum.
+    /// Expected: top-level enum <c>ReportStatusesItem</c>; property type <c>ReportStatusesItem[]</c>.
+    /// </summary>
+    public const string GetReportWithInlineEnumArrayItemComponentYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /report:
+            get:
+              operationId: getReport
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Report'
+        components:
+          schemas:
+            Report:
+              type: object
+              required:
+                - statuses
+              properties:
+                statuses:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - pending
+                      - active
+                      - closed
+        """;
 }

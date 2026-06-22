@@ -387,4 +387,230 @@ public class InlineArrayItemSchemaTests
                 "CatalogEntriesItem must be declared before Catalog so it is in scope.");
         }
     }
+
+    /// <summary>
+    /// Inline 200 response with a <c>matrix</c> property that is array-of-array whose
+    /// inner items is an inline object. Verifies recursion through two array boundaries.
+    /// </summary>
+    [TestFixture]
+    public class InlineResponseWithNestedArrayOfArrayItemSchema
+    {
+        private static readonly (string, string)[] AdditionalFiles =
+        [
+            ("openapi.yaml", OpenApiFixtures.GetMatrixWithNestedArrayItemYaml)
+        ];
+
+        private const string HandlerImpl = """
+            public class GetMatrixHandler : GetMatrixEndpointBase
+            {
+                public override System.Threading.Tasks.Task<
+                    global::Microsoft.AspNetCore.Http.HttpResults.Ok<OkResponse>> HandleAsync(
+                    System.Threading.CancellationToken ct) => throw new System.NotImplementedException();
+            }
+            """;
+
+        [Test]
+        public void InnerArrayItemInlineObjectProducesNestedRecord()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "GetMatrixEndpointBase.g.cs");
+
+            Assert.That(source, Does.Contain("public sealed record OkResponseMatrixItemItem"));
+        }
+
+        [Test]
+        public void InnerArrayItemRecordContainsCorrectProperty()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "GetMatrixEndpointBase.g.cs");
+
+            Assert.That(source, Does.Contain("public required string Value { get; init; }"));
+        }
+
+        [Test]
+        public void MatrixPropertyUsesDoubleArrayType()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "GetMatrixEndpointBase.g.cs");
+
+            Assert.That(source, Does.Contain("public required OkResponseMatrixItemItem[][] Matrix { get; init; }"));
+        }
+
+        [Test]
+        public void InnerArrayItemRecordEmittedBeforeResponseRecord()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "GetMatrixEndpointBase.g.cs");
+
+            var itemItemIndex = source.IndexOf("public sealed record OkResponseMatrixItemItem", StringComparison.Ordinal);
+            var responseIndex = source.IndexOf($"public sealed record OkResponse{Environment.NewLine}", StringComparison.Ordinal);
+
+            Assert.That(itemItemIndex, Is.LessThan(responseIndex),
+                "OkResponseMatrixItemItem must be declared before OkResponse so it is in scope.");
+        }
+    }
+
+    /// <summary>
+    /// Component schema (<c>Grid</c>) with a <c>cells</c> property that is array-of-array
+    /// whose inner items is an inline object. Verifies DtoGenerator recursion through
+    /// two array boundaries.
+    /// </summary>
+    [TestFixture]
+    public class ComponentSchemaWithNestedArrayOfArrayItemSchema
+    {
+        private static readonly (string, string)[] AdditionalFiles =
+        [
+            ("openapi.yaml", OpenApiFixtures.GetGridWithNestedArrayItemComponentYaml)
+        ];
+
+        private const string HandlerImpl = """
+            public class GetGridHandler : GetGridEndpointBase
+            {
+                public override System.Threading.Tasks.Task<
+                    global::Microsoft.AspNetCore.Http.HttpResults.Ok<global::TestProject.Openapi.Contracts.Grid>> HandleAsync(
+                    System.Threading.CancellationToken ct) => throw new System.NotImplementedException();
+            }
+            """;
+
+        [Test]
+        public void InnerArrayItemInlineObjectProducesTopLevelRecord()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+            Assert.That(source, Does.Contain("public sealed record GridCellsItemItem"));
+        }
+
+        [Test]
+        public void InnerArrayItemRecordContainsCorrectProperty()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+            Assert.That(source, Does.Contain("public required string Value { get; init; }"));
+        }
+
+        [Test]
+        public void GridRecordUsesDoubleArrayType()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+            Assert.That(source, Does.Contain("public required GridCellsItemItem[][] Cells { get; init; }"));
+        }
+
+        [Test]
+        public void InnerArrayItemRecordEmittedBeforeGridRecord()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+            var itemItemIndex = source.IndexOf("public sealed record GridCellsItemItem", StringComparison.Ordinal);
+            var gridIndex = source.IndexOf($"public sealed record Grid{Environment.NewLine}", StringComparison.Ordinal);
+
+            Assert.That(itemItemIndex, Is.LessThan(gridIndex),
+                "GridCellsItemItem must be declared before Grid so it is in scope.");
+        }
+    }
+
+    /// <summary>
+    /// Component schema (<c>Report</c>) with a <c>statuses</c> array property whose item
+    /// schema is an inline enum. Verifies that DtoGenerator handles inline enum array items
+    /// consistently with the handler generator.
+    /// </summary>
+    [TestFixture]
+    public class ComponentSchemaWithInlineEnumArrayItemSchema
+    {
+        private static readonly (string, string)[] AdditionalFiles =
+        [
+            ("openapi.yaml", OpenApiFixtures.GetReportWithInlineEnumArrayItemComponentYaml)
+        ];
+
+        private const string HandlerImpl = """
+            public class GetReportHandler : GetReportEndpointBase
+            {
+                public override System.Threading.Tasks.Task<
+                    global::Microsoft.AspNetCore.Http.HttpResults.Ok<global::TestProject.Openapi.Contracts.Report>> HandleAsync(
+                    System.Threading.CancellationToken ct) => throw new System.NotImplementedException();
+            }
+            """;
+
+        [Test]
+        public void InlineEnumArrayItemProducesTopLevelEnum()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+            Assert.That(source, Does.Contain("public enum ReportStatusesItem"));
+        }
+
+        [Test]
+        public void GeneratedEnumContainsExpectedMembers()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+            Assert.That(source, Does.Contain("Pending"));
+            Assert.That(source, Does.Contain("Active"));
+            Assert.That(source, Does.Contain("Closed"));
+        }
+
+        [Test]
+        public void ReportRecordUsesGeneratedEnumType()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+            Assert.That(source, Does.Contain("public required ReportStatusesItem[] Statuses { get; init; }"));
+        }
+
+        [Test]
+        public void GeneratedEnumEmittedBeforeReportRecord()
+        {
+            var (result, _) = GeneratorTestHelper.RunGenerator(
+                userSource: HandlerImpl,
+                additionalFiles: AdditionalFiles);
+
+            var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+
+            var enumIndex = source.IndexOf("public enum ReportStatusesItem", StringComparison.Ordinal);
+            var reportIndex = source.IndexOf($"public sealed record Report{Environment.NewLine}", StringComparison.Ordinal);
+
+            Assert.That(enumIndex, Is.LessThan(reportIndex),
+                "ReportStatusesItem enum must be declared before Report so it is in scope.");
+        }
+    }
 }

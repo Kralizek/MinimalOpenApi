@@ -226,18 +226,38 @@ internal static class HandlerBaseGenerator
             else if (propSchema.Type?.ToLowerInvariant() == "array" && propSchema.Items is { } itemSchema)
             {
                 var itemName = derivedName + "Item";
-                if (TypeMapper.IsInlineObject(itemSchema))
-                {
-                    // Recurse into the item schema first so its own nested types are declared
-                    // before the item type itself.
-                    CollectNestedInlineSchemas(itemSchema, itemName, scope, directionality, collected);
-                    collected.Add((itemSchema, itemName, scope));
-                }
-                else if (itemSchema.Enum is not null)
-                {
-                    collected.Add((itemSchema, itemName, scope));
-                }
+                CollectArrayItemInlineSchemas(itemSchema, itemName, scope, directionality, collected);
             }
+        }
+    }
+
+    /// <summary>
+    /// Walks an array item schema and collects any inline types it introduces.
+    /// When the item schema is itself an array, recurses into its own items so that
+    /// arbitrary array nesting (e.g. <c>array.items.items.type = object</c>) is handled.
+    /// </summary>
+    private static void CollectArrayItemInlineSchemas(
+        OpenApiSchema itemSchema,
+        string itemName,
+        SchemaGenerationScope scope,
+        SchemaDirectionalityAnalysis directionality,
+        List<(OpenApiSchema Schema, string TypeName, SchemaGenerationScope Scope)> collected)
+    {
+        if (TypeMapper.IsInlineObject(itemSchema))
+        {
+            // Recurse into the item schema first so its own nested types are declared
+            // before the item type itself.
+            CollectNestedInlineSchemas(itemSchema, itemName, scope, directionality, collected);
+            collected.Add((itemSchema, itemName, scope));
+        }
+        else if (itemSchema.Enum is not null)
+        {
+            collected.Add((itemSchema, itemName, scope));
+        }
+        else if (itemSchema.Type?.ToLowerInvariant() == "array" && itemSchema.Items is { } innerItemSchema)
+        {
+            // array-of-array: walk into the inner item schema using an extra "Item" suffix.
+            CollectArrayItemInlineSchemas(innerItemSchema, itemName + "Item", scope, directionality, collected);
         }
     }
 
