@@ -217,7 +217,7 @@ public class InlineArrayItemSchemaTests
         }
 
         [Test]
-        public void DeclarationOrderIsDeepesDependencyFirst()
+        public void DeclarationOrderIsDeepestDependencyFirst()
         {
             var (result, _) = GeneratorTestHelper.RunGenerator(
                 userSource: HandlerImpl,
