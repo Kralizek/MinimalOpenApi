@@ -153,7 +153,7 @@ internal static class DtoGenerator
             }
         }
 
-        // Emit inline-object item types for array properties (dependencies) before the parent record.
+        // Emit inline-object and inline-enum item types for array properties (dependencies) before the parent record.
         foreach (var propKvp in resolvedSchema.Properties)
         {
             if (!directionality.ShouldIncludeProperty(propKvp.Value, scope))
