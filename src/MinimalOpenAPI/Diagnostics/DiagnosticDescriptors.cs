@@ -102,6 +102,6 @@ internal static class DiagnosticDescriptors
         title: "Unsupported multipart/form-data field shape",
         messageFormat: "Multipart form-data property '{0}' in form record '{1}' has an unsupported shape for form binding. Only scalars, IFormFile (string/binary), IReadOnlyList<IFormFile> (array of binary), and nested object types are supported. This property has been omitted from the generated form DTO.",
         category: Category,
-        defaultSeverity: DiagnosticSeverity.Warning,
+        defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 }

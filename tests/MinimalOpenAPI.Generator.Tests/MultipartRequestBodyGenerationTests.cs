@@ -554,8 +554,11 @@ public class MultipartRequestBodyGenerationTests
             userSource: handlerImpl,
             additionalFiles: additionalFiles);
 
-        Assert.That(result.Diagnostics.Any(d => d.Id == "MOA011"), Is.True,
+        var moa011 = result.Diagnostics.FirstOrDefault(d => d.Id == "MOA011");
+        Assert.That(moa011, Is.Not.Null,
             "An array-of-objects multipart field must emit a MOA011 diagnostic");
+        Assert.That(moa011!.Severity, Is.EqualTo(Microsoft.CodeAnalysis.DiagnosticSeverity.Error),
+            "MOA011 must be an error so that generation of an incomplete form DTO is blocking");
     }
 
 }

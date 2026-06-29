@@ -429,6 +429,76 @@ public class UploadDocumentEndpointBase
 }
 ```
 
+### Nested object properties
+
+Inline `type: object` properties and `$ref` object properties are each emitted as a sibling form record. ASP.NET Core binds them using dotted form keys automatically — a `[FromForm(Name = "metadata")]` property on `Request` whose record type has `[FromForm(Name = "title")]` binds `metadata.title` from the form body.
+
+**OpenAPI spec with nested object:**
+
+```yaml
+requestBody:
+  required: true
+  content:
+    multipart/form-data:
+      schema:
+        type: object
+        required:
+          - file
+          - metadata
+        properties:
+          file:
+            type: string
+            format: binary
+          metadata:
+            type: object
+            required:
+              - title
+            properties:
+              title:
+                type: string
+              source:
+                type: string
+```
+
+**Generated handler base:**
+
+```csharp
+public class UploadDocumentEndpointBase
+{
+    public sealed record RequestMetadata
+    {
+        [global::Microsoft.AspNetCore.Mvc.FromForm(Name = "title")]
+        public required string Title { get; init; }
+
+        [global::Microsoft.AspNetCore.Mvc.FromForm(Name = "source")]
+        public string? Source { get; init; }
+    }
+
+    public sealed record Request
+    {
+        [global::Microsoft.AspNetCore.Mvc.FromForm(Name = "file")]
+        public required global::Microsoft.AspNetCore.Http.IFormFile File { get; init; }
+
+        [global::Microsoft.AspNetCore.Mvc.FromForm(Name = "metadata")]
+        public required RequestMetadata Metadata { get; init; }
+    }
+
+    // ...
+}
+```
+
+**Expected form keys for the nested example above:**
+
+```text
+file=<binary>
+metadata.title=My Title
+metadata.source=CRM
+```
+
+### Unsupported field shapes
+
+Array-of-object properties (e.g. `tags: array of { name: string }`) and dictionary fields cannot be bound via `multipart/form-data`. The generator emits a **`MOA011` error** for such fields and omits them from the form DTO. Fix the spec or restructure the field to proceed.
+
 **Notes:**
 - Antiforgery and request size policies are **not** configured automatically. Apply them via an endpoint customizer inheriting from `<OperationId>EndpointRegistration`.
 - File validation and storage are application code — the generator only produces the binding plumbing.
