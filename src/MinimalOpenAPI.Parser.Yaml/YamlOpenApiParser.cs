@@ -290,12 +290,42 @@ public sealed class YamlOpenApiParser : IOpenApiParser
         var bodyNode = GetMapping(opNode, "requestBody");
         if (bodyNode is null) return null;
 
-        var schemaNode = GetMapping(bodyNode, "content", "application/json", "schema");
+        TryGetSupportedRequestBodyContent(bodyNode, out var contentType, out var mediaTypeNode);
+        var schemaNode = mediaTypeNode is not null ? GetMapping(mediaTypeNode, "schema") : null;
         return new OpenApiRequestBody
         {
             Required = GetBool(bodyNode, "required"),
+            ContentType = contentType,
             Schema = schemaNode is not null ? ExtractSchema(schemaNode) : null
         };
+    }
+
+    private static bool TryGetSupportedRequestBodyContent(
+        YamlMappingNode bodyNode,
+        out string? contentType,
+        out YamlMappingNode? mediaTypeNode)
+    {
+        contentType = null;
+        mediaTypeNode = null;
+
+        var contentNode = GetMapping(bodyNode, "content");
+        if (contentNode is null) return false;
+
+        if (GetMapping(contentNode, "application/json") is { } jsonNode)
+        {
+            contentType = "application/json";
+            mediaTypeNode = jsonNode;
+            return true;
+        }
+
+        if (GetMapping(contentNode, "multipart/form-data") is { } multipartNode)
+        {
+            contentType = "multipart/form-data";
+            mediaTypeNode = multipartNode;
+            return true;
+        }
+
+        return false;
     }
 
     private static List<OpenApiResponse> ExtractResponses(YamlMappingNode opNode)

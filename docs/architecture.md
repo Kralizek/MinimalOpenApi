@@ -176,7 +176,7 @@ bundled under `analyzers/dotnet/cs/` in the `MinimalOpenAPI` package.
   method, parameters, request body, responses, summary, description, tags).
 - `OpenApiParameter` — a single parameter with its location (`Path`, `Query`,
   `Header`, `Cookie`), name, schema, and required flag.
-- `OpenApiRequestBody` — optional request body with its schema.
+- `OpenApiRequestBody` — optional request body with its selected content type and schema.
 - `OpenApiResponse` — status code, description, and optional response schema.
 - `OpenApiSchema` — a recursive type covering primitives, arrays (`type: array`
   with `items`), object schemas (with `properties` and `required`), `$ref`
