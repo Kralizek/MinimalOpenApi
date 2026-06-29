@@ -318,4 +318,33 @@ public class MultipartRequestBodyGenerationTests
         Assert.That(source, Does.Contain("[global::Microsoft.AspNetCore.Mvc.FromForm]"),
             "Lambda parameter must be decorated with [FromForm] for multipart bodies (JSON spec)");
     }
+
+    // ── Required + nullable: true field ──────────────────────────────────
+
+    [Test]
+    public void RequiredNullableField_EmitsNullableType()
+    {
+        var additionalFiles = new (string, string)[]
+        {
+            ("openapi.yaml", OpenApiFixtures.NullableRequiredFieldYaml)
+        };
+
+        const string handlerImpl = """
+            public class NullableUploadHandler : NullableUploadEndpointBase
+            {
+                public override System.Threading.Tasks.Task<global::Microsoft.AspNetCore.Http.IResult> HandleAsync(
+                    Request request,
+                    System.Threading.CancellationToken cancellationToken) => throw new System.NotImplementedException();
+            }
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: handlerImpl,
+            additionalFiles: additionalFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "NullableUploadEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("global::Microsoft.AspNetCore.Http.IFormFile? File"),
+            "A required field with nullable: true must be emitted as a nullable type");
+    }
 }

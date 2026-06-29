@@ -2201,4 +2201,36 @@ internal static class OpenApiFixtures
                 "204":
                   description: No Content
         """;
+
+    /// <summary>
+    /// A POST endpoint with a <c>multipart/form-data</c> request body that has a field
+    /// which is both required and <c>nullable: true</c> — the generated property should
+    /// be nullable even though the field appears in the <c>required</c> array.
+    /// </summary>
+    public const string NullableRequiredFieldYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /nullable-upload:
+            post:
+              operationId: nullableUpload
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      type: object
+                      required:
+                        - file
+                      properties:
+                        file:
+                          type: string
+                          format: binary
+                          nullable: true
+              responses:
+                "204":
+                  description: No Content
+        """;
 }

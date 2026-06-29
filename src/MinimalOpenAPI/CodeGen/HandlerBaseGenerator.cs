@@ -342,7 +342,7 @@ internal static class HandlerBaseGenerator
                 continue;
 
             var isRequired = schema.Required.Contains(propName, StringComparer.OrdinalIgnoreCase);
-            var nullable = !isRequired;
+            var nullable = propSchema.Nullable || !isRequired;
             var csharpTypeName = TypeMapper.MapFormFieldSchema(propSchema, nullable: nullable);
             var csharpName = TypeMapper.ToPascalCase(propName);
 
