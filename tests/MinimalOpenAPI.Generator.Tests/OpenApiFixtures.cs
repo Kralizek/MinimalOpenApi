@@ -2073,8 +2073,7 @@ internal static class OpenApiFixtures
 
     /// <summary>
     /// A POST endpoint with a <c>multipart/form-data</c> request body.
-    /// The parser should populate <c>ContentType = "multipart/form-data"</c> and preserve the schema,
-    /// but the generator must NOT emit a JSON request DTO or body parameter for it (pending #79).
+    /// Contains a mix of optional/required fields and a binary file field.
     /// </summary>
     public const string UploadFileYaml = """
         openapi: "3.0.0"
@@ -2134,5 +2133,72 @@ internal static class OpenApiFixtures
             }
           }
         }
+        """;
+
+    /// <summary>
+    /// A POST endpoint with a <c>multipart/form-data</c> request body that has a single
+    /// required binary file field and an optional text description field.
+    /// </summary>
+    public const string UploadDocumentYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /documents:
+            post:
+              operationId: uploadDocument
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      type: object
+                      required:
+                        - file
+                      properties:
+                        file:
+                          type: string
+                          format: binary
+                        description:
+                          type: string
+              responses:
+                "204":
+                  description: No Content
+        """;
+
+    /// <summary>
+    /// A POST endpoint with a <c>multipart/form-data</c> request body that has an
+    /// array-of-binary field (multiple file uploads) and a required text field.
+    /// </summary>
+    public const string UploadMultipleFilesYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /batch-upload:
+            post:
+              operationId: batchUpload
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      type: object
+                      required:
+                        - files
+                        - category
+                      properties:
+                        files:
+                          type: array
+                          items:
+                            type: string
+                            format: binary
+                        category:
+                          type: string
+              responses:
+                "204":
+                  description: No Content
         """;
 }

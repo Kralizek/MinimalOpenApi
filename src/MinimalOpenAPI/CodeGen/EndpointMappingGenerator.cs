@@ -65,7 +65,7 @@ internal static class EndpointMappingGenerator
         // Resolver: inline schema → FULLY-QUALIFIED nested type name for use outside the class.
         InlineSchemaResolver inlineResolver = s =>
         {
-            if (TypeMapper.ShouldGenerateBody(operation.RequestBody)
+            if (TypeMapper.ShouldGenerateJsonBody(operation.RequestBody)
                 && operation.RequestBody?.Schema is { } reqSchema
                 && ReferenceEquals(s, reqSchema)
                 && TypeMapper.IsInlineObject(reqSchema))
@@ -171,10 +171,15 @@ internal static class EndpointMappingGenerator
         if (operation.Parameters.Any(p => p.Location != ParameterLocation.Path))
             parts.Add($"[global::Microsoft.AspNetCore.Http.AsParameters] global::{handlerClass}.Parameters parameters");
 
-        if (TypeMapper.ShouldGenerateBody(operation.RequestBody))
+        if (TypeMapper.ShouldGenerateJsonBody(operation.RequestBody))
         {
             parts.Add(
                 $"{TypeMapper.MapSchema(operation.RequestBody!.Schema!, contractsNamespace: contractsNs, resolveInline: inlineResolver, resolveReference: referenceName => directionality.ResolveSchemaReference(referenceName, SchemaGenerationScope.Request))} request");
+        }
+        else if (TypeMapper.ShouldGenerateMultipartFormBody(operation.RequestBody))
+        {
+            parts.Add(
+                $"[global::Microsoft.AspNetCore.Mvc.FromForm] global::{handlerClass}.{TypeMapper.GetInlineRequestBodyTypeName()} request");
         }
 
         parts.Add($"{handlerClass} handler");

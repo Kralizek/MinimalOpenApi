@@ -247,6 +247,7 @@ public override Task<Results<Created<Todo>, BadRequestProblem>> HandleAsync(Requ
 | `format: date` | Maps to `DateOnly` |
 | Path parameters | Typed with route constraints (`{id:guid}`, `{page:int}`, …) |
 | Query / header / cookie params | Grouped into a `Parameters` record with `[AsParameters]` |
+| `multipart/form-data` request bodies | Generates a form-bound nested `Request` record with `[FromForm]` attributes; `string/binary` → `IFormFile`, array-of-binary → `IReadOnlyList<IFormFile>` |
 | Spec publishing | Every `<OpenApi />` item is copied to build and publish output under `openapi/schemas/<SchemaId>/<filename>` |
 | HTTP schema serving | `MapOpenApiSchemas()` serves only schemas with `PublishAs="..."` at that exact path |
 | Endpoint customizers | Optional `<OperationId>EndpointRegistration` base for per-route metadata |
@@ -378,6 +379,59 @@ Generated namespaces:
 - `{RootNamespace}.Payment.Contracts` / `{RootNamespace}.Payment.Endpoints`
 
 If multiple specs could resolve to the same derived spec name (for example `apis/admin/openapi.yaml` and `apis/public/openapi.yaml`), set explicit `Namespace` metadata on one or more `<OpenApi>` items so each generated namespace segment is unique.
+
+---
+
+## File upload with `multipart/form-data`
+
+For operations with a `multipart/form-data` request body the generator produces a nested `Request`
+record whose properties are decorated with `[FromForm(Name = "...")]` instead of `[JsonPropertyName]`.
+File fields (`type: string`, `format: binary`) map to `IFormFile`; arrays of file fields map to
+`IReadOnlyList<IFormFile>`.
+
+**OpenAPI spec:**
+
+```yaml
+requestBody:
+  required: true
+  content:
+    multipart/form-data:
+      schema:
+        type: object
+        required:
+          - file
+        properties:
+          file:
+            type: string
+            format: binary
+          description:
+            type: string
+```
+
+**Generated handler base:**
+
+```csharp
+public class UploadDocumentEndpointBase
+{
+    public sealed record Request
+    {
+        [global::Microsoft.AspNetCore.Mvc.FromForm(Name = "file")]
+        public required global::Microsoft.AspNetCore.Http.IFormFile File { get; init; }
+
+        [global::Microsoft.AspNetCore.Mvc.FromForm(Name = "description")]
+        public string? Description { get; init; }
+    }
+
+    public virtual global::System.Threading.Tasks.Task<...> HandleAsync(
+        Request request,
+        global::System.Threading.CancellationToken cancellationToken)
+        => throw new global::System.NotImplementedException(...);
+}
+```
+
+**Notes:**
+- Antiforgery and request size policies are **not** configured automatically. Apply them via an endpoint customizer inheriting from `<OperationId>EndpointRegistration`.
+- File validation and storage are application code — the generator only produces the binding plumbing.
 
 ---
 

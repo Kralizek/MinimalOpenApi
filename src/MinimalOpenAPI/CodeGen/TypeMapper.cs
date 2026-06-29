@@ -42,6 +42,48 @@ internal static class TypeMapper
     public const string GeneratorVersion = "1.0.0";
 
     /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="schema"/> represents a single
+    /// file upload field — i.e. <c>type: string</c> with <c>format: binary</c>.
+    /// Only used in the <c>multipart/form-data</c> request-body context; the <c>string/binary</c>
+    /// mapping is <em>not</em> applied globally by <see cref="MapSchema"/>.
+    /// </summary>
+    public static bool IsFormFileSchema(OpenApiSchema schema)
+        => string.Equals(schema.Type, "string", StringComparison.OrdinalIgnoreCase)
+           && string.Equals(schema.Format, "binary", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="schema"/> is an array whose
+    /// items are file upload fields (<c>type: string</c>, <c>format: binary</c>).
+    /// Maps to <c>IReadOnlyList&lt;IFormFile&gt;</c> in multipart context.
+    /// </summary>
+    public static bool IsFormFileArraySchema(OpenApiSchema schema)
+        => string.Equals(schema.Type, "array", StringComparison.OrdinalIgnoreCase)
+           && schema.Items is not null
+           && IsFormFileSchema(schema.Items);
+
+    /// <summary>
+    /// Maps a single <c>multipart/form-data</c> field schema to its C# type name.
+    /// <list type="bullet">
+    ///   <item><c>string/binary</c> → <c>global::Microsoft.AspNetCore.Http.IFormFile</c></item>
+    ///   <item><c>array</c> of <c>string/binary</c> → <c>global::System.Collections.Generic.IReadOnlyList&lt;IFormFile&gt;</c></item>
+    ///   <item>all other scalars → delegated to <see cref="MapSchema"/></item>
+    /// </list>
+    /// </summary>
+    public static string MapFormFieldSchema(OpenApiSchema schema, bool nullable = false)
+    {
+        const string iFormFile = "global::Microsoft.AspNetCore.Http.IFormFile";
+        const string iFormFileList = "global::System.Collections.Generic.IReadOnlyList<global::Microsoft.AspNetCore.Http.IFormFile>";
+
+        if (IsFormFileSchema(schema))
+            return nullable ? $"{iFormFile}?" : iFormFile;
+
+        if (IsFormFileArraySchema(schema))
+            return nullable ? $"{iFormFileList}?" : iFormFileList;
+
+        return MapSchema(schema, nullable: nullable);
+    }
+
+    /// <summary>
     /// Returns <see langword="true"/> when the schema represents a free-form map —
     /// i.e. it has no named <c>properties</c> and either has a typed
     /// <c>additionalProperties</c> schema or has <c>additionalProperties: true</c>.
@@ -81,17 +123,32 @@ internal static class TypeMapper
         => string.Equals(response.ContentType, "application/problem+json", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Returns <see langword="true"/> when a request body should produce a generated DTO and handler
-    /// parameter.  Only <c>application/json</c> bodies (or bodies with no resolved content type) are
-    /// handled by the current generator; other media types such as <c>multipart/form-data</c> are
-    /// recognised by the parser but not yet wired up for code generation.
-    /// Bodies with no explicit content type (<c>ContentType == null</c>) are treated as JSON for
-    /// backward compatibility with specs that were parsed before content-type tracking was introduced.
+    /// Returns <see langword="true"/> when the request body should produce a generated JSON DTO
+    /// and handler parameter.  Covers <c>application/json</c> bodies and bodies with no resolved
+    /// content type (backward-compatibility for specs parsed before content-type tracking was added).
     /// </summary>
-    public static bool ShouldGenerateBody(OpenApiRequestBody? requestBody)
+    public static bool ShouldGenerateJsonBody(OpenApiRequestBody? requestBody)
         => requestBody?.Schema is not null
            && (requestBody.ContentType is null
                || string.Equals(requestBody.ContentType, "application/json", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Returns <see langword="true"/> when the request body should produce a generated multipart
+    /// form-data DTO and handler parameter.  Requires <c>ContentType == "multipart/form-data"</c>
+    /// and a schema of <c>type: object</c>.
+    /// </summary>
+    public static bool ShouldGenerateMultipartFormBody(OpenApiRequestBody? requestBody)
+        => requestBody?.Schema is not null
+           && string.Equals(requestBody.ContentType, "multipart/form-data", StringComparison.OrdinalIgnoreCase)
+           && string.Equals(requestBody.Schema!.Type, "object", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Returns <see langword="true"/> when the request body should produce a generated DTO and
+    /// handler parameter — either as a JSON body (see <see cref="ShouldGenerateJsonBody"/>) or as
+    /// a multipart form-data body (see <see cref="ShouldGenerateMultipartFormBody"/>).
+    /// </summary>
+    public static bool ShouldGenerateBody(OpenApiRequestBody? requestBody)
+        => ShouldGenerateJsonBody(requestBody) || ShouldGenerateMultipartFormBody(requestBody);
 
     /// <summary>Returns the C# default-value expression for <paramref name="typeName"/>.</summary>
     public static string GetDefaultValue(string typeName) => typeName switch

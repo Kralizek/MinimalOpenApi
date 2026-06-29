@@ -35,7 +35,7 @@ internal static class HandlerBaseGenerator
         // nested record contains all merged properties, not just the raw allOf list.
         var inlineSchemas = new List<(OpenApiSchema OriginalSchema, OpenApiSchema EffectiveSchema, string TypeName, SchemaGenerationScope Scope)>();
         if (operation.RequestBody?.Schema is { } reqSchema && TypeMapper.IsInlineObject(reqSchema)
-            && TypeMapper.ShouldGenerateBody(operation.RequestBody))
+            && TypeMapper.ShouldGenerateJsonBody(operation.RequestBody))
         {
             var effective = reqSchema.AllOf.Count > 0
                 ? AllOfSchemaFlattener.Resolve(reqSchema, schemas, TypeMapper.GetInlineRequestBodyTypeName(), conflictSink)
@@ -94,6 +94,13 @@ internal static class HandlerBaseGenerator
         TypeMapper.AppendGeneratedAttributes(sb);
         sb.AppendLine($"public class {handlerClass}");
         sb.AppendLine("{");
+
+        // Emit the multipart form-data Request record when applicable.
+        if (TypeMapper.ShouldGenerateMultipartFormBody(operation.RequestBody))
+        {
+            AppendMultipartFormRecord(sb, TypeMapper.GetInlineRequestBodyTypeName(), operation.RequestBody!.Schema!, directionality);
+            sb.AppendLine();
+        }
 
         // Emit all nested records (deepest dependencies first so each type is declared before
         // it is referenced by a parent record).
@@ -168,7 +175,7 @@ internal static class HandlerBaseGenerator
         }
 
         // Request body
-        if (TypeMapper.ShouldGenerateBody(operation.RequestBody))
+        if (TypeMapper.ShouldGenerateJsonBody(operation.RequestBody))
         {
             var bodyType = TypeMapper.MapSchema(
                 operation.RequestBody!.Schema!,
@@ -176,6 +183,10 @@ internal static class HandlerBaseGenerator
                 resolveInline: localResolver,
                 resolveReference: referenceName => directionality.ResolveSchemaReference(referenceName, SchemaGenerationScope.Request));
             list.Add($"{bodyType} request");
+        }
+        else if (TypeMapper.ShouldGenerateMultipartFormBody(operation.RequestBody))
+        {
+            list.Add($"{TypeMapper.GetInlineRequestBodyTypeName()} request");
         }
 
         // CancellationToken always last
@@ -301,6 +312,46 @@ internal static class HandlerBaseGenerator
             {
                 sb.AppendLine($"        public required {csharpTypeName} {csharpName} {{ get; init; }}");
             }
+        }
+
+        sb.AppendLine("    }");
+    }
+
+    /// <summary>
+    /// Appends a nested <c>sealed record</c> for a <c>multipart/form-data</c> request body.
+    /// Properties use <c>[global::Microsoft.AspNetCore.Mvc.FromForm(Name = "...")]</c> instead
+    /// of <c>[JsonPropertyName]</c>, and file fields (<c>string/binary</c>) are mapped to
+    /// <c>IFormFile</c> rather than <c>string</c>.
+    /// </summary>
+    private static void AppendMultipartFormRecord(
+        StringBuilder sb,
+        string typeName,
+        OpenApiSchema schema,
+        SchemaDirectionalityAnalysis directionality)
+    {
+        sb.AppendLine($"    /// <summary>Form data DTO for the <c>multipart/form-data</c> request body of this operation.</summary>");
+        TypeMapper.AppendGeneratedAttributes(sb, "    ");
+        sb.AppendLine($"    public sealed record {typeName}");
+        sb.AppendLine("    {");
+
+        foreach (var propKvp in schema.Properties)
+        {
+            var propName = propKvp.Key;
+            var propSchema = propKvp.Value;
+            if (!directionality.ShouldIncludeProperty(propSchema, SchemaGenerationScope.Request))
+                continue;
+
+            var isRequired = schema.Required.Contains(propName, StringComparer.OrdinalIgnoreCase);
+            var nullable = !isRequired;
+            var csharpTypeName = TypeMapper.MapFormFieldSchema(propSchema, nullable: nullable);
+            var csharpName = TypeMapper.ToPascalCase(propName);
+
+            sb.AppendLine($"        [global::Microsoft.AspNetCore.Mvc.FromForm(Name = \"{propName}\")]");
+
+            if (isRequired)
+                sb.AppendLine($"        public required {csharpTypeName} {csharpName} {{ get; init; }}");
+            else
+                sb.AppendLine($"        public {csharpTypeName} {csharpName} {{ get; init; }}");
         }
 
         sb.AppendLine("    }");
