@@ -34,7 +34,8 @@ internal static class HandlerBaseGenerator
         // For allOf schemas, also pre-compute the flattened (effective) shape so that the
         // nested record contains all merged properties, not just the raw allOf list.
         var inlineSchemas = new List<(OpenApiSchema OriginalSchema, OpenApiSchema EffectiveSchema, string TypeName, SchemaGenerationScope Scope)>();
-        if (operation.RequestBody?.Schema is { } reqSchema && TypeMapper.IsInlineObject(reqSchema))
+        if (operation.RequestBody?.Schema is { } reqSchema && TypeMapper.IsInlineObject(reqSchema)
+            && TypeMapper.ShouldGenerateBody(operation.RequestBody))
         {
             var effective = reqSchema.AllOf.Count > 0
                 ? AllOfSchemaFlattener.Resolve(reqSchema, schemas, TypeMapper.GetInlineRequestBodyTypeName(), conflictSink)
@@ -167,10 +168,10 @@ internal static class HandlerBaseGenerator
         }
 
         // Request body
-        if (operation.RequestBody?.Schema is not null)
+        if (TypeMapper.ShouldGenerateBody(operation.RequestBody))
         {
             var bodyType = TypeMapper.MapSchema(
-                operation.RequestBody.Schema,
+                operation.RequestBody!.Schema!,
                 contractsNamespace: contractsNs,
                 resolveInline: localResolver,
                 resolveReference: referenceName => directionality.ResolveSchemaReference(referenceName, SchemaGenerationScope.Request));

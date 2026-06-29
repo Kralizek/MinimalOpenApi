@@ -2069,4 +2069,70 @@ internal static class OpenApiFixtures
                       - active
                       - closed
         """;
+
+
+    /// <summary>
+    /// A POST endpoint with a <c>multipart/form-data</c> request body.
+    /// The parser should populate <c>ContentType = "multipart/form-data"</c> and preserve the schema,
+    /// but the generator must NOT emit a JSON request DTO or body parameter for it (pending #79).
+    /// </summary>
+    public const string UploadFileYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /uploads:
+            post:
+              operationId: uploadFile
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      type: object
+                      properties:
+                        fileName:
+                          type: string
+                        fileContent:
+                          type: string
+                          format: binary
+              responses:
+                "204":
+                  description: No Content
+        """;
+
+    /// <summary>
+    /// A POST endpoint with a <c>multipart/form-data</c> request body (JSON format).
+    /// </summary>
+    public const string UploadFileJson = """
+        {
+          "openapi": "3.0.0",
+          "info": { "title": "Test API", "version": "1.0.0" },
+          "paths": {
+            "/uploads": {
+              "post": {
+                "operationId": "uploadFile",
+                "requestBody": {
+                  "required": true,
+                  "content": {
+                    "multipart/form-data": {
+                      "schema": {
+                        "type": "object",
+                        "properties": {
+                          "fileName": { "type": "string" },
+                          "fileContent": { "type": "string", "format": "binary" }
+                        }
+                      }
+                    }
+                  }
+                },
+                "responses": {
+                  "204": { "description": "No Content" }
+                }
+              }
+            }
+          }
+        }
+        """;
 }

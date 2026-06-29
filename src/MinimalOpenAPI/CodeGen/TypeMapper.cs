@@ -80,6 +80,19 @@ internal static class TypeMapper
     public static bool IsProblemResponse(OpenApiResponse response)
         => string.Equals(response.ContentType, "application/problem+json", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Returns <see langword="true"/> when a request body should produce a generated DTO and handler
+    /// parameter.  Only <c>application/json</c> bodies (or bodies with no resolved content type) are
+    /// handled by the current generator; other media types such as <c>multipart/form-data</c> are
+    /// recognised by the parser but not yet wired up for code generation.
+    /// Bodies with no explicit content type (<c>ContentType == null</c>) are treated as JSON for
+    /// backward compatibility with specs that were parsed before content-type tracking was introduced.
+    /// </summary>
+    public static bool ShouldGenerateBody(OpenApiRequestBody? requestBody)
+        => requestBody?.Schema is not null
+           && (requestBody.ContentType is null
+               || string.Equals(requestBody.ContentType, "application/json", StringComparison.OrdinalIgnoreCase));
+
     /// <summary>Returns the C# default-value expression for <paramref name="typeName"/>.</summary>
     public static string GetDefaultValue(string typeName) => typeName switch
     {

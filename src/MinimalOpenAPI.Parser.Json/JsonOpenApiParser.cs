@@ -300,12 +300,42 @@ public sealed class JsonOpenApiParser : IOpenApiParser
         var bodyNode = GetObject(opNode, "requestBody");
         if (bodyNode is null) return null;
 
-        var schemaNode = GetObject(bodyNode, "content", "application/json", "schema");
+        TryGetSupportedRequestBodyContent(bodyNode, out var contentType, out var mediaTypeNode);
+        var schemaNode = mediaTypeNode is not null ? GetObject(mediaTypeNode, "schema") : null;
         return new OpenApiRequestBody
         {
             Required = GetBool(bodyNode, "required"),
+            ContentType = contentType,
             Schema = schemaNode is not null ? ExtractSchema(schemaNode) : null
         };
+    }
+
+    private static bool TryGetSupportedRequestBodyContent(
+        JsonObject bodyNode,
+        out string? contentType,
+        out JsonObject? mediaTypeNode)
+    {
+        contentType = null;
+        mediaTypeNode = null;
+
+        var contentNode = GetObject(bodyNode, "content");
+        if (contentNode is null) return false;
+
+        if (GetObject(contentNode, "application/json") is { } jsonNode)
+        {
+            contentType = "application/json";
+            mediaTypeNode = jsonNode;
+            return true;
+        }
+
+        if (GetObject(contentNode, "multipart/form-data") is { } multipartNode)
+        {
+            contentType = "multipart/form-data";
+            mediaTypeNode = multipartNode;
+            return true;
+        }
+
+        return false;
     }
 
     private static List<OpenApiResponse> ExtractResponses(JsonObject opNode)

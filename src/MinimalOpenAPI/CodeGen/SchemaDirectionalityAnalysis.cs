@@ -60,8 +60,19 @@ internal sealed class SchemaDirectionalityAnalysis
         {
             foreach (var operation in operations)
             {
+                // Only traverse request-body schemas that the generator will actually emit
+                // (application/json or no recognised content type).  Multipart bodies are
+                // parsed and stored but not yet wired for code generation (#79).
+                // ShouldGenerateBody guarantees requestBody and Schema are both non-null when true.
+                OpenApiSchema? requestBodySchema = null;
+                if (TypeMapper.ShouldGenerateBody(operation.RequestBody)
+                    && operation.RequestBody?.Schema is { } bodySchema)
+                {
+                    requestBodySchema = bodySchema;
+                }
+
                 TraverseOperationSchemaGraph(
-                    operation.RequestBody?.Schema,
+                    requestBodySchema,
                     SchemaGenerationScope.Request,
                     handling,
                     schemas,

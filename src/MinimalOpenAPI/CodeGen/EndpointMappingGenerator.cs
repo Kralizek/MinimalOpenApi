@@ -65,7 +65,8 @@ internal static class EndpointMappingGenerator
         // Resolver: inline schema → FULLY-QUALIFIED nested type name for use outside the class.
         InlineSchemaResolver inlineResolver = s =>
         {
-            if (operation.RequestBody?.Schema is { } reqSchema
+            if (TypeMapper.ShouldGenerateBody(operation.RequestBody)
+                && operation.RequestBody?.Schema is { } reqSchema
                 && ReferenceEquals(s, reqSchema)
                 && TypeMapper.IsInlineObject(reqSchema))
                 return $"{handlerFqn}.{TypeMapper.GetInlineRequestBodyTypeName()}";
@@ -170,10 +171,10 @@ internal static class EndpointMappingGenerator
         if (operation.Parameters.Any(p => p.Location != ParameterLocation.Path))
             parts.Add($"[global::Microsoft.AspNetCore.Http.AsParameters] global::{handlerClass}.Parameters parameters");
 
-        if (operation.RequestBody?.Schema is not null)
+        if (TypeMapper.ShouldGenerateBody(operation.RequestBody))
         {
             parts.Add(
-                $"{TypeMapper.MapSchema(operation.RequestBody.Schema, contractsNamespace: contractsNs, resolveInline: inlineResolver, resolveReference: referenceName => directionality.ResolveSchemaReference(referenceName, SchemaGenerationScope.Request))} request");
+                $"{TypeMapper.MapSchema(operation.RequestBody!.Schema!, contractsNamespace: contractsNs, resolveInline: inlineResolver, resolveReference: referenceName => directionality.ResolveSchemaReference(referenceName, SchemaGenerationScope.Request))} request");
         }
 
         parts.Add($"{handlerClass} handler");
@@ -192,7 +193,7 @@ internal static class EndpointMappingGenerator
         if (operation.Parameters.Any(p => p.Location != ParameterLocation.Path))
             args.Add("parameters");
 
-        if (operation.RequestBody?.Schema is not null)
+        if (TypeMapper.ShouldGenerateBody(operation.RequestBody))
             args.Add("request");
 
         args.Add("ct");

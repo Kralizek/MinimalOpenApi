@@ -6,6 +6,9 @@ public sealed class OpenApiRequestBody
     /// <summary>Whether the request body must be present for the operation to succeed.</summary>
     public bool Required { get; init; }
 
+    /// <summary>The selected request body media type (for example <c>application/json</c> or <c>multipart/form-data</c>), or <see langword="null"/> if no supported content type was found.</summary>
+    public string? ContentType { get; init; }
+
     /// <summary>The schema describing the expected body content, or <see langword="null"/> if unspecified.</summary>
     public OpenApiSchema? Schema { get; init; }
 }
