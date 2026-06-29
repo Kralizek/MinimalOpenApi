@@ -85,6 +85,8 @@ internal static class TypeMapper
     /// parameter.  Only <c>application/json</c> bodies (or bodies with no resolved content type) are
     /// handled by the current generator; other media types such as <c>multipart/form-data</c> are
     /// recognised by the parser but not yet wired up for code generation.
+    /// Bodies with no explicit content type (<c>ContentType == null</c>) are treated as JSON for
+    /// backward compatibility with specs that were parsed before content-type tracking was introduced.
     /// </summary>
     public static bool ShouldGenerateBody(OpenApiRequestBody? requestBody)
         => requestBody?.Schema is not null
