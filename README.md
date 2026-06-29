@@ -500,7 +500,8 @@ metadata.source=CRM
 Array-of-object properties (e.g. `tags: array of { name: string }`) and dictionary fields cannot be bound via `multipart/form-data`. The generator emits a **`MOA011` error** for such fields and omits them from the form DTO. Fix the spec or restructure the field to proceed.
 
 **Notes:**
-- Antiforgery and request size policies are **not** configured automatically. Apply them via an endpoint customizer inheriting from `<OperationId>EndpointRegistration`.
+- Antiforgery is not disabled by the generator. ASP.NET Core form-bound Minimal API endpoints require antiforgery validation by default. Applications that expose browser/cookie-authenticated upload forms should call `AddAntiforgery()` and `UseAntiforgery()` in the app pipeline. Bearer-token, API-key, or internal endpoints can opt out explicitly with `.DisableAntiforgery()` from the endpoint customizer.
+- Request size limits are application responsibility and are not configured by the generator.
 - File validation and storage are application code — the generator only produces the binding plumbing.
 
 ---
