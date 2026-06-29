@@ -13,15 +13,10 @@ public partial class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        builder.Services.AddAntiforgery();
         builder.Services.AddMinimalOpenApi();
 
         var app = builder.Build();
 
-        // This is a REST API consumed by non-browser clients; CSRF protection is not required.
-        // DisableAntiforgery() removes the antiforgery-required metadata that [FromForm]
-        // endpoints emit automatically, so no antiforgery middleware is needed.
-        app.UseAntiforgery();
         app.MapMinimalOpenApiEndpoints().DisableAntiforgery();
 
         await app.RunAsync();

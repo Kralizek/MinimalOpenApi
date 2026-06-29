@@ -347,4 +347,215 @@ public class MultipartRequestBodyGenerationTests
         Assert.That(source, Does.Contain("global::Microsoft.AspNetCore.Http.IFormFile? File"),
             "A required field with nullable: true must be emitted as a nullable type");
     }
+    // ── Nested inline object ──────────────────────────────────────────────
+
+    private static readonly (string, string)[] NestedInlineFiles =
+    [
+        ("openapi.yaml", OpenApiFixtures.NestedInlineObjectMultipartYaml)
+    ];
+
+    private const string NestedUploadHandlerImpl = """
+        public class NestedUploadHandler : NestedUploadEndpointBase
+        {
+            public override System.Threading.Tasks.Task<global::Microsoft.AspNetCore.Http.IResult> HandleAsync(
+                Request request,
+                System.Threading.CancellationToken cancellationToken) => throw new System.NotImplementedException();
+        }
+        """;
+
+    [Test]
+    public void InlineObject_EmitsNestedFormRecord()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: NestedUploadHandlerImpl,
+            additionalFiles: NestedInlineFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "NestedUploadEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("public sealed record RequestMetadata"),
+            "Inline object property should produce a nested RequestMetadata record");
+    }
+
+    [Test]
+    public void InlineObject_NestedRecord_HasFromFormAttributes()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: NestedUploadHandlerImpl,
+            additionalFiles: NestedInlineFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "NestedUploadEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("[global::Microsoft.AspNetCore.Mvc.FromForm(Name = \"title\")]"),
+            "Nested record properties must carry [FromForm(Name)] attributes");
+        Assert.That(source, Does.Contain("[global::Microsoft.AspNetCore.Mvc.FromForm(Name = \"source\")]"),
+            "Optional nested scalar property must carry [FromForm(Name)] attribute");
+    }
+
+    [Test]
+    public void InlineObject_NestedRecord_HasNoJsonPropertyName()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: NestedUploadHandlerImpl,
+            additionalFiles: NestedInlineFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "NestedUploadEndpointBase.g.cs");
+
+        Assert.That(source, Does.Not.Contain("[JsonPropertyName"),
+            "Form DTOs must not carry [JsonPropertyName] attributes");
+    }
+
+    [Test]
+    public void InlineObject_RootRecord_ReferencesNestedFormType()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: NestedUploadHandlerImpl,
+            additionalFiles: NestedInlineFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "NestedUploadEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("required RequestMetadata Metadata"),
+            "Required inline object property must reference the generated form record type");
+    }
+
+    [Test]
+    public void InlineObject_OptionalNestedField_IsNullable()
+    {
+        const string specWithOptionalMetadata = """
+            openapi: "3.0.0"
+            info:
+              title: Test API
+              version: "1.0.0"
+            paths:
+              /nested-upload:
+                post:
+                  operationId: nestedUpload
+                  requestBody:
+                    required: true
+                    content:
+                      multipart/form-data:
+                        schema:
+                          type: object
+                          required:
+                            - file
+                          properties:
+                            file:
+                              type: string
+                              format: binary
+                            metadata:
+                              type: object
+                              properties:
+                                title:
+                                  type: string
+                  responses:
+                    "200":
+                      description: OK
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: NestedUploadHandlerImpl,
+            additionalFiles: [("openapi.yaml", specWithOptionalMetadata)]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "NestedUploadEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("RequestMetadata? Metadata"),
+            "Optional inline object property must be emitted as a nullable form record type");
+    }
+
+    // ── $ref object ───────────────────────────────────────────────────────
+
+    private static readonly (string, string)[] RefObjectFiles =
+    [
+        ("openapi.yaml", OpenApiFixtures.RefObjectMultipartYaml)
+    ];
+
+    private const string TaggedUploadHandlerImpl = """
+        public class TaggedUploadHandler : TaggedUploadEndpointBase
+        {
+            public override System.Threading.Tasks.Task<global::Microsoft.AspNetCore.Http.IResult> HandleAsync(
+                Request request,
+                System.Threading.CancellationToken cancellationToken) => throw new System.NotImplementedException();
+        }
+        """;
+
+    [Test]
+    public void RefObject_EmitsNestedFormRecord()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: TaggedUploadHandlerImpl,
+            additionalFiles: RefObjectFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "TaggedUploadEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("public sealed record RequestTag"),
+            "$ref object property should produce a form-specific nested RequestTag record");
+    }
+
+    [Test]
+    public void RefObject_NestedRecord_HasFromFormAttributes()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: TaggedUploadHandlerImpl,
+            additionalFiles: RefObjectFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "TaggedUploadEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("[global::Microsoft.AspNetCore.Mvc.FromForm(Name = \"name\")]"),
+            "$ref nested record must carry [FromForm(Name)] on all properties");
+        Assert.That(source, Does.Contain("[global::Microsoft.AspNetCore.Mvc.FromForm(Name = \"value\")]"),
+            "$ref nested record must carry [FromForm(Name)] on all properties");
+    }
+
+    [Test]
+    public void RefObject_NestedRecord_HasNoJsonPropertyName()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: TaggedUploadHandlerImpl,
+            additionalFiles: RefObjectFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "TaggedUploadEndpointBase.g.cs");
+
+        Assert.That(source, Does.Not.Contain("[JsonPropertyName"),
+            "$ref form DTOs must not carry [JsonPropertyName] attributes");
+    }
+
+    [Test]
+    public void RefObject_RootRecord_ReferencesNestedFormType()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: TaggedUploadHandlerImpl,
+            additionalFiles: RefObjectFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "TaggedUploadEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("RequestTag? Tag"),
+            "Optional $ref object property must reference the generated form record type as nullable");
+    }
+
+    // ── Unsupported shapes ────────────────────────────────────────────────
+
+    [Test]
+    public void ArrayOfObjects_EmitsMoa011Diagnostic()
+    {
+        var additionalFiles = new (string, string)[]
+        {
+            ("openapi.yaml", OpenApiFixtures.UnsupportedArrayOfObjectsMultipartYaml)
+        };
+
+        const string handlerImpl = """
+            public class MultiTaggedUploadHandler : MultiTaggedUploadEndpointBase
+            {
+                public override System.Threading.Tasks.Task<global::Microsoft.AspNetCore.Http.IResult> HandleAsync(
+                    Request request,
+                    System.Threading.CancellationToken cancellationToken) => throw new System.NotImplementedException();
+            }
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: handlerImpl,
+            additionalFiles: additionalFiles);
+
+        Assert.That(result.Diagnostics.Any(d => d.Id == "MOA011"), Is.True,
+            "An array-of-objects multipart field must emit a MOA011 diagnostic");
+    }
+
 }

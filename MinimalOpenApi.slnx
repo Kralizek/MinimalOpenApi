@@ -22,6 +22,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/MinimalOpenAPI.Generator.Tests/MinimalOpenAPI.Generator.Tests.csproj" />
     <Project Path="tests/MinimalOpenAPI.IntegrationTests/MinimalOpenAPI.IntegrationTests.csproj" />
+    <Project Path="tests/MinimalOpenAPI.MultipartNested.IntegrationTests/MinimalOpenAPI.MultipartNested.IntegrationTests.csproj" />
     <Project Path="tests/MinimalOpenAPI.Runtime.Tests/MinimalOpenAPI.Runtime.Tests.csproj" />
   </Folder>
 </Solution>

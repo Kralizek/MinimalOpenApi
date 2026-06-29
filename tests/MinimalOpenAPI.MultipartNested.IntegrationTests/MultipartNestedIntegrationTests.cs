@@ -1,11 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 
-using Microsoft.AspNetCore.TestHost;
-
 using MinimalOpenAPI.Samples.MultipartNested.Openapi.Contracts;
 
-namespace MinimalOpenAPI.IntegrationTests;
+namespace MinimalOpenAPI.MultipartNested.IntegrationTests;
 
 /// <summary>
 /// Integration tests that prove ASP.NET Core correctly binds nested
@@ -20,24 +18,7 @@ public class MultipartNestedIntegrationTests
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
-        _factory = new WebApplicationFactory<MinimalOpenAPI.Samples.MultipartNested.Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                // When the integration test project references both BasicTodo and MultipartNested,
-                // both assemblies' [ModuleInitializer]s run in the same process and register their
-                // handlers into the shared static ServiceCollectionExtensions lists. Remove any
-                // descriptors from the BasicTodo assembly so DI validation doesn't fail on the
-                // missing InMemoryTodoStore dependency.
-                builder.ConfigureTestServices(services =>
-                {
-                    var toRemove = services
-                        .Where(d => d.ServiceType?.Namespace?.StartsWith(
-                            "MinimalOpenAPI.Samples.BasicTodo", StringComparison.Ordinal) == true)
-                        .ToList();
-                    foreach (var descriptor in toRemove)
-                        services.Remove(descriptor);
-                });
-            });
+        _factory = new WebApplicationFactory<MinimalOpenAPI.Samples.MultipartNested.Program>();
         _client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
     }
 
@@ -57,12 +38,9 @@ public class MultipartNestedIntegrationTests
         content.Add(new StringContent("My Source"), "metadata.source");
 
         var response = await _client.PostAsync("/uploads", content);
-        var body = await response.Content.ReadAsStringAsync();
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), body);
-        var result = await System.Text.Json.JsonSerializer.DeserializeAsync<UploadResponse>(
-            await response.Content.ReadAsStreamAsync(),
-            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var result = await response.Content.ReadFromJsonAsync<UploadResponse>();
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.FileName, Is.EqualTo("test.bin"));
         Assert.That(result.MetadataTitle, Is.EqualTo("My Title"));

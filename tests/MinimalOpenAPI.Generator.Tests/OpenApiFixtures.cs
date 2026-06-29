@@ -2233,4 +2233,125 @@ internal static class OpenApiFixtures
                 "204":
                   description: No Content
         """;
+
+    /// <summary>
+    /// A POST endpoint with a <c>multipart/form-data</c> request body where one property is an
+    /// inline <c>type: object</c> — the generator should emit a nested <c>RequestMetadata</c>
+    /// form record in addition to the root <c>Request</c> record.
+    /// </summary>
+    public const string NestedInlineObjectMultipartYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /nested-upload:
+            post:
+              operationId: nestedUpload
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      type: object
+                      required:
+                        - file
+                        - metadata
+                      properties:
+                        file:
+                          type: string
+                          format: binary
+                        metadata:
+                          type: object
+                          required:
+                            - title
+                          properties:
+                            title:
+                              type: string
+                            source:
+                              type: string
+              responses:
+                "200":
+                  description: OK
+        """;
+
+    /// <summary>
+    /// A POST endpoint with a <c>multipart/form-data</c> request body where one property is a
+    /// <c>$ref</c> to a component schema — the generator should emit a form-specific nested
+    /// record (e.g. <c>RequestTag</c>) rather than reusing the JSON DTO.
+    /// </summary>
+    public const string RefObjectMultipartYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /tagged-upload:
+            post:
+              operationId: taggedUpload
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      type: object
+                      required:
+                        - file
+                      properties:
+                        file:
+                          type: string
+                          format: binary
+                        tag:
+                          $ref: "#/components/schemas/UploadTag"
+              responses:
+                "200":
+                  description: OK
+        components:
+          schemas:
+            UploadTag:
+              type: object
+              properties:
+                name:
+                  type: string
+                value:
+                  type: string
+        """;
+
+    /// <summary>
+    /// A POST endpoint with a <c>multipart/form-data</c> request body where a property is an
+    /// array of complex objects — this shape is not bindable via form data and should trigger
+    /// a <c>MOA011</c> diagnostic.
+    /// </summary>
+    public const string UnsupportedArrayOfObjectsMultipartYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /multi-tagged-upload:
+            post:
+              operationId: multiTaggedUpload
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      type: object
+                      required:
+                        - file
+                      properties:
+                        file:
+                          type: string
+                          format: binary
+                        tags:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+              responses:
+                "200":
+                  description: OK
+        """;
 }
