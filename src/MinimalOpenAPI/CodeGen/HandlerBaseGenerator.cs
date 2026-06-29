@@ -5,6 +5,12 @@ using MinimalOpenAPI.Abstractions.Models;
 namespace MinimalOpenAPI.Generator.CodeGen;
 
 /// <summary>
+/// A multipart form-data property that was skipped during code generation because its
+/// schema shape cannot be bound via ASP.NET Core form binding.
+/// </summary>
+internal sealed record MultipartUnsupportedShape(string FormRecordTypeName, string PropertyName);
+
+/// <summary>
 /// Generates abstract handler base classes for each operation.
 /// Inline object schemas (those without a <c>$ref</c>) in <c>requestBody</c> or
 /// <c>responses</c> are emitted as nested <c>sealed record</c> types inside the base
@@ -18,7 +24,8 @@ internal static class HandlerBaseGenerator
         string specName,
         SchemaDirectionalityAnalysis directionality,
         IReadOnlyDictionary<string, OpenApiSchema>? allSchemas = null,
-        List<AllOfPropertyConflict>? allOfConflicts = null)
+        List<AllOfPropertyConflict>? allOfConflicts = null,
+        List<MultipartUnsupportedShape>? multipartUnsupportedShapes = null)
     {
         var contractsNs = $"{rootNamespace}.{specName}.Contracts";
         var handlerClass = TypeMapper.HandlerClassName(operation.OperationId);
@@ -98,7 +105,8 @@ internal static class HandlerBaseGenerator
         // Emit the multipart form-data Request record when applicable.
         if (TypeMapper.ShouldGenerateMultipartFormBody(operation.RequestBody))
         {
-            AppendMultipartFormRecord(sb, TypeMapper.GetInlineRequestBodyTypeName(), operation.RequestBody!.Schema!, directionality);
+            var multipartSink = multipartUnsupportedShapes ?? [];
+            AppendMultipartFormRecord(sb, TypeMapper.GetInlineRequestBodyTypeName(), operation.RequestBody!.Schema!, directionality, schemas, multipartSink);
             sb.AppendLine();
         }
 
@@ -318,18 +326,110 @@ internal static class HandlerBaseGenerator
     }
 
     /// <summary>
-    /// Appends a nested <c>sealed record</c> for a <c>multipart/form-data</c> request body.
-    /// Properties use <c>[global::Microsoft.AspNetCore.Mvc.FromForm(Name = "...")]</c> instead
-    /// of <c>[JsonPropertyName]</c>, and file fields (<c>string/binary</c>) are mapped to
-    /// <c>IFormFile</c> rather than <c>string</c>.
+    /// Appends nested <c>sealed record</c>s for a <c>multipart/form-data</c> request body.
+    /// <para>
+    /// Nested object properties (inline or via <c>$ref</c>) produce their own form-specific
+    /// records (e.g. <c>RequestMetadata</c> for a property named <c>metadata</c>) emitted in
+    /// dependency order so that each type is declared before it is referenced.  All generated
+    /// form record properties use <c>[FromForm(Name = "...")]</c> with the original OpenAPI
+    /// field name, matching the ASP.NET Core form binding key convention
+    /// (e.g. <c>metadata.title</c> for the <c>title</c> field nested inside <c>metadata</c>).
+    /// </para>
+    /// <para>
+    /// File fields (<c>string/binary</c>) map to <c>IFormFile</c>; arrays of file fields map to
+    /// <c>IReadOnlyList&lt;IFormFile&gt;</c>.  Array-of-object and dictionary fields are not
+    /// bindable via form data and are omitted — a <see cref="MultipartUnsupportedShape"/> entry
+    /// is added to <paramref name="unsupportedShapes"/> for each such field so that the caller
+    /// can emit a <c>MOA011</c> diagnostic.
+    /// </para>
     /// </summary>
     private static void AppendMultipartFormRecord(
         StringBuilder sb,
         string typeName,
         OpenApiSchema schema,
-        SchemaDirectionalityAnalysis directionality)
+        SchemaDirectionalityAnalysis directionality,
+        IReadOnlyDictionary<string, OpenApiSchema> allSchemas,
+        List<MultipartUnsupportedShape> unsupportedShapes)
     {
-        sb.AppendLine($"    /// <summary>Form data DTO for the <c>multipart/form-data</c> request body of this operation.</summary>");
+        // Collect all nested form records in dependency order (deepest first).
+        // Each entry: (resolved schema, C# type name, original propSchema for lookup).
+        var nestedFormTypes = new List<(OpenApiSchema Schema, string TypeName, OpenApiSchema OriginalPropSchema)>();
+        CollectMultipartFormNestedTypes(schema, typeName, directionality, allSchemas, nestedFormTypes);
+
+        // Build a resolver: given a propSchema (by identity), returns the C# type name for
+        // its generated form record, or null if it is not a nested object type.
+        FormTypeResolver resolveFormType = propSchema =>
+        {
+            foreach (var (_, nestedTypeName, originalPropSchema) in nestedFormTypes)
+                if (ReferenceEquals(originalPropSchema, propSchema)) return nestedTypeName;
+            return null;
+        };
+
+        // Emit nested types first (dependencies already in correct order).
+        foreach (var (nestedSchema, nestedTypeName, _) in nestedFormTypes)
+        {
+            AppendSingleMultipartFormRecord(sb, nestedTypeName, nestedSchema, directionality, allSchemas, resolveFormType, unsupportedShapes);
+            sb.AppendLine();
+        }
+
+        // Emit the root Request record.
+        AppendSingleMultipartFormRecord(sb, typeName, schema, directionality, allSchemas, resolveFormType, unsupportedShapes);
+    }
+
+    /// <summary>
+    /// Recursively collects all form-specific nested record types required by
+    /// <paramref name="schema"/>'s object properties in dependency order.
+    /// </summary>
+    private static void CollectMultipartFormNestedTypes(
+        OpenApiSchema schema,
+        string parentTypeName,
+        SchemaDirectionalityAnalysis directionality,
+        IReadOnlyDictionary<string, OpenApiSchema> allSchemas,
+        List<(OpenApiSchema Schema, string TypeName, OpenApiSchema OriginalPropSchema)> collected)
+    {
+        foreach (var propKvp in schema.Properties)
+        {
+            var propName = propKvp.Key;
+            var propSchema = propKvp.Value;
+            if (!directionality.ShouldIncludeProperty(propSchema, SchemaGenerationScope.Request))
+                continue;
+
+            var nestedTypeName = parentTypeName + TypeMapper.ToPascalCase(propName);
+
+            // Resolve the property to an object schema (inline or via $ref).
+            OpenApiSchema? resolvedSchema = null;
+            if (propSchema.Reference is not null)
+            {
+                allSchemas.TryGetValue(propSchema.Reference, out resolvedSchema);
+            }
+            else if (TypeMapper.IsInlineObject(propSchema))
+            {
+                resolvedSchema = propSchema;
+            }
+
+            if (resolvedSchema is null || !TypeMapper.IsInlineObject(resolvedSchema))
+                continue;
+
+            // Recurse first so dependencies are emitted before the type that uses them.
+            CollectMultipartFormNestedTypes(resolvedSchema, nestedTypeName, directionality, allSchemas, collected);
+            collected.Add((resolvedSchema, nestedTypeName, propSchema));
+        }
+    }
+
+    /// <summary>
+    /// Emits a single form-data <c>sealed record</c> with <c>[FromForm(Name = "...")]</c>
+    /// attributes on every property.
+    /// </summary>
+    private static void AppendSingleMultipartFormRecord(
+        StringBuilder sb,
+        string typeName,
+        OpenApiSchema schema,
+        SchemaDirectionalityAnalysis directionality,
+        IReadOnlyDictionary<string, OpenApiSchema> allSchemas,
+        FormTypeResolver resolveFormType,
+        List<MultipartUnsupportedShape> unsupportedShapes)
+    {
+        sb.AppendLine($"    /// <summary>Form data DTO for the <c>{typeName}</c> record of this operation.</summary>");
         TypeMapper.AppendGeneratedAttributes(sb, "    ");
         sb.AppendLine($"    public sealed record {typeName}");
         sb.AppendLine("    {");
@@ -343,18 +443,66 @@ internal static class HandlerBaseGenerator
 
             var isRequired = schema.Required.Contains(propName, StringComparer.OrdinalIgnoreCase);
             var nullable = propSchema.Nullable || !isRequired;
-            var csharpTypeName = TypeMapper.MapFormFieldSchema(propSchema, nullable: nullable);
             var csharpName = TypeMapper.ToPascalCase(propName);
+
+            string csharpTypeName;
+
+            var nestedFormTypeName = resolveFormType(propSchema);
+            if (nestedFormTypeName is not null)
+            {
+                // Nested object type — use the generated form-specific record.
+                csharpTypeName = nullable ? $"{nestedFormTypeName}?" : nestedFormTypeName;
+            }
+            else if (IsUnsupportedMultipartFormShape(propSchema, allSchemas))
+            {
+                // Cannot bind via form data — emit a diagnostic entry and skip.
+                unsupportedShapes.Add(new MultipartUnsupportedShape(typeName, propName));
+                continue;
+            }
+            else
+            {
+                // Scalar, IFormFile, or IReadOnlyList<IFormFile>.
+                csharpTypeName = TypeMapper.MapFormFieldSchema(propSchema, nullable: nullable);
+            }
 
             sb.AppendLine($"        [global::Microsoft.AspNetCore.Mvc.FromForm(Name = \"{propName}\")]");
 
-            if (isRequired)
+            if (isRequired && !nullable)
                 sb.AppendLine($"        public required {csharpTypeName} {csharpName} {{ get; init; }}");
             else
                 sb.AppendLine($"        public {csharpTypeName} {csharpName} {{ get; init; }}");
         }
 
         sb.AppendLine("    }");
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="propSchema"/> has a shape that
+    /// cannot be bound from <c>multipart/form-data</c>: arrays of complex objects or
+    /// dictionary types.
+    /// </summary>
+    private static bool IsUnsupportedMultipartFormShape(
+        OpenApiSchema propSchema,
+        IReadOnlyDictionary<string, OpenApiSchema> allSchemas)
+    {
+        // Array of complex objects cannot be bound from form data.
+        if (string.Equals(propSchema.Type, "array", StringComparison.OrdinalIgnoreCase)
+            && propSchema.Items is not null)
+        {
+            var items = propSchema.Items;
+            if (TypeMapper.IsInlineObject(items))
+                return true;
+            if (items.Reference is not null
+                && allSchemas.TryGetValue(items.Reference, out var refItemSchema)
+                && TypeMapper.IsInlineObject(refItemSchema))
+                return true;
+        }
+
+        // Dictionary types cannot be bound from form data.
+        if (TypeMapper.IsDictionarySchema(propSchema))
+            return true;
+
+        return false;
     }
 
     /// <summary>

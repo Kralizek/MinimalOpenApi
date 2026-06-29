@@ -7,6 +7,7 @@
   <Folder Name="/sample/">
     <Project Path="sample/BasicTodo/BasicTodo.csproj" />
     <Project Path="sample/GeneratedFiles/GeneratedFiles.csproj" />
+    <Project Path="sample/MultipartNested/MultipartNested.csproj" />
     <Project Path="sample/Parameters/Parameters.csproj" />
     <Project Path="sample/ResponseResults/ResponseResults.csproj" />
     <Project Path="sample/SchemaPublishing/SchemaPublishing.csproj" />

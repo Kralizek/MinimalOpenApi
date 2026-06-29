@@ -15,6 +15,14 @@ namespace MinimalOpenAPI.Generator.CodeGen;
 internal delegate string? InlineSchemaResolver(OpenApiSchema schema);
 
 /// <summary>
+/// Resolves the generated form-specific C# type name for a multipart property schema.
+/// Used inside <c>AppendMultipartFormRecord</c> to look up nested form record types by
+/// original property schema identity.  Returns <see langword="null"/> when the property
+/// schema does not correspond to a nested form object type.
+/// </summary>
+internal delegate string? FormTypeResolver(OpenApiSchema propSchema);
+
+/// <summary>
 /// Shared utilities for mapping OpenAPI concepts to C# types and identifiers.
 /// </summary>
 internal static class TypeMapper

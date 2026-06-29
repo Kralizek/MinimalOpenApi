@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../sample/BasicTodo/BasicTodo.csproj" />
+    <ProjectReference Include="../../sample/MultipartNested/MultipartNested.csproj" />
   </ItemGroup>
 
 </Project>
