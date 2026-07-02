@@ -247,6 +247,7 @@ public override Task<Results<Created<Todo>, BadRequestProblem>> HandleAsync(Requ
 | `format: date` | Maps to `DateOnly` |
 | Path parameters | Typed with route constraints (`{id:guid}`, `{page:int}`, …) |
 | Query / header / cookie params | Grouped into a `Parameters` record with `[AsParameters]` |
+| `multipart/form-data` request bodies | Generates a form-bound nested `Request` record with `[FromForm]` attributes; `string/binary` → `IFormFile`, array-of-binary → `IReadOnlyList<IFormFile>` |
 | Spec publishing | Every `<OpenApi />` item is copied to build and publish output under `openapi/schemas/<SchemaId>/<filename>` |
 | HTTP schema serving | `MapOpenApiSchemas()` serves only schemas with `PublishAs="..."` at that exact path |
 | Endpoint customizers | Optional `<OperationId>EndpointRegistration` base for per-route metadata |
@@ -378,6 +379,130 @@ Generated namespaces:
 - `{RootNamespace}.Payment.Contracts` / `{RootNamespace}.Payment.Endpoints`
 
 If multiple specs could resolve to the same derived spec name (for example `apis/admin/openapi.yaml` and `apis/public/openapi.yaml`), set explicit `Namespace` metadata on one or more `<OpenApi>` items so each generated namespace segment is unique.
+
+---
+
+## File upload with `multipart/form-data`
+
+For operations with a `multipart/form-data` request body the generator produces a nested `Request`
+record whose properties are decorated with `[FromForm(Name = "...")]` instead of `[JsonPropertyName]`.
+File fields (`type: string`, `format: binary`) map to `IFormFile`; arrays of file fields map to
+`IReadOnlyList<IFormFile>`.
+
+**OpenAPI spec:**
+
+```yaml
+requestBody:
+  required: true
+  content:
+    multipart/form-data:
+      schema:
+        type: object
+        required:
+          - file
+        properties:
+          file:
+            type: string
+            format: binary
+          description:
+            type: string
+```
+
+**Generated handler base:**
+
+```csharp
+public class UploadDocumentEndpointBase
+{
+    public sealed record Request
+    {
+        [global::Microsoft.AspNetCore.Mvc.FromForm(Name = "file")]
+        public required global::Microsoft.AspNetCore.Http.IFormFile File { get; init; }
+
+        [global::Microsoft.AspNetCore.Mvc.FromForm(Name = "description")]
+        public string? Description { get; init; }
+    }
+
+    public virtual global::System.Threading.Tasks.Task<...> HandleAsync(
+        Request request,
+        global::System.Threading.CancellationToken cancellationToken)
+        => throw new global::System.NotImplementedException(...);
+}
+```
+
+### Nested object properties
+
+Inline `type: object` properties and `$ref` object properties are each emitted as a sibling form record. ASP.NET Core binds them using dotted form keys automatically — a `[FromForm(Name = "metadata")]` property on `Request` whose record type has `[FromForm(Name = "title")]` binds `metadata.title` from the form body.
+
+**OpenAPI spec with nested object:**
+
+```yaml
+requestBody:
+  required: true
+  content:
+    multipart/form-data:
+      schema:
+        type: object
+        required:
+          - file
+          - metadata
+        properties:
+          file:
+            type: string
+            format: binary
+          metadata:
+            type: object
+            required:
+              - title
+            properties:
+              title:
+                type: string
+              source:
+                type: string
+```
+
+**Generated handler base:**
+
+```csharp
+public class UploadDocumentEndpointBase
+{
+    public sealed record RequestMetadata
+    {
+        [global::Microsoft.AspNetCore.Mvc.FromForm(Name = "title")]
+        public required string Title { get; init; }
+
+        [global::Microsoft.AspNetCore.Mvc.FromForm(Name = "source")]
+        public string? Source { get; init; }
+    }
+
+    public sealed record Request
+    {
+        [global::Microsoft.AspNetCore.Mvc.FromForm(Name = "file")]
+        public required global::Microsoft.AspNetCore.Http.IFormFile File { get; init; }
+
+        [global::Microsoft.AspNetCore.Mvc.FromForm(Name = "metadata")]
+        public required RequestMetadata Metadata { get; init; }
+    }
+
+    // ...
+}
+```
+
+**Expected form keys for the nested example above:**
+
+```text
+file=<binary>
+metadata.title=My Title
+metadata.source=CRM
+```
+
+### Unsupported field shapes
+
+Array-of-object properties (e.g. `tags: array of { name: string }`) and dictionary fields cannot be bound via `multipart/form-data`. The generator emits a **`MOA011` error** for such fields and omits them from the form DTO. Fix the spec or restructure the field to proceed.
+
+**Notes:**
+- Antiforgery is not disabled by the generator. ASP.NET Core form-bound Minimal API endpoints require antiforgery validation by default. Applications that expose browser/cookie-authenticated upload forms should call `AddAntiforgery()` and `UseAntiforgery()` in the app pipeline. Bearer-token, API-key, or internal endpoints can opt out explicitly with `.DisableAntiforgery()` from the endpoint customizer.
+- Request size limits are application responsibility and are not configured by the generator.
+- File validation and storage are application code — the generator only produces the binding plumbing.
 
 ---
 

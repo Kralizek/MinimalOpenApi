@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>MinimalOpenAPI.Samples.MultipartNested</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    In the NuGet scenario a consumer would have:
+      <PackageReference Include="MinimalOpenAPI" />
+    and the build/buildTransitive targets would be imported automatically.
+
+    In this project-reference dev scenario we import the targets explicitly.
+  -->
+  <Import Project="../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
+
+  <ItemGroup>
+    <OpenApi Include="openapi.yaml"
+             DisplayName="Nested Multipart Sample API"
+             DisplayVersion="1.0.0" />
+  </ItemGroup>
+
+</Project>

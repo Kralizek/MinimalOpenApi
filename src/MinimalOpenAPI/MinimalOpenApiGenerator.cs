@@ -558,7 +558,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
             // Generate handler base
             var handlerConflicts = new List<MinimalOpenAPI.Generator.CodeGen.AllOfPropertyConflict>();
-            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, directionality, doc.Schemas, handlerConflicts);
+            var handlerMultipartShapes = new List<MinimalOpenAPI.Generator.CodeGen.MultipartUnsupportedShape>();
+            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, directionality, doc.Schemas, handlerConflicts, handlerMultipartShapes);
             spc.AddSource(OperationHintName(specName, handlerBase), handlerSource);
 
             foreach (var conflict in handlerConflicts.Distinct())
@@ -568,6 +569,15 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     CreateOpenApiLocation(openApiFilePath),
                     conflict.SchemaName,
                     conflict.PropertyName));
+            }
+
+            foreach (var shape in handlerMultipartShapes.Distinct())
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.UnsupportedMultipartFormShape,
+                    CreateOpenApiLocation(openApiFilePath),
+                    shape.PropertyName,
+                    shape.FormRecordTypeName));
             }
 
             // Generate registration customizer base

@@ -12,3 +12,4 @@ MOA007 | MinimalOpenAPI | Warning | Conflicting allOf property definitions
 MOA008 | MinimalOpenAPI | Error | Unresolved parameter reference
 MOA009 | MinimalOpenAPI | Error | Duplicate OpenAPI spec name
 MOA010 | MinimalOpenAPI | Error | Invalid ReadWriteSchemaHandling value
+MOA011 | MinimalOpenAPI | Error | Unsupported multipart/form-data field shape

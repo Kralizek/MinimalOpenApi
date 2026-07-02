@@ -2073,8 +2073,7 @@ internal static class OpenApiFixtures
 
     /// <summary>
     /// A POST endpoint with a <c>multipart/form-data</c> request body.
-    /// The parser should populate <c>ContentType = "multipart/form-data"</c> and preserve the schema,
-    /// but the generator must NOT emit a JSON request DTO or body parameter for it (pending #79).
+    /// Contains a mix of optional/required fields and a binary file field.
     /// </summary>
     public const string UploadFileYaml = """
         openapi: "3.0.0"
@@ -2134,5 +2133,225 @@ internal static class OpenApiFixtures
             }
           }
         }
+        """;
+
+    /// <summary>
+    /// A POST endpoint with a <c>multipart/form-data</c> request body that has a single
+    /// required binary file field and an optional text description field.
+    /// </summary>
+    public const string UploadDocumentYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /documents:
+            post:
+              operationId: uploadDocument
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      type: object
+                      required:
+                        - file
+                      properties:
+                        file:
+                          type: string
+                          format: binary
+                        description:
+                          type: string
+              responses:
+                "204":
+                  description: No Content
+        """;
+
+    /// <summary>
+    /// A POST endpoint with a <c>multipart/form-data</c> request body that has an
+    /// array-of-binary field (multiple file uploads) and a required text field.
+    /// </summary>
+    public const string UploadMultipleFilesYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /batch-upload:
+            post:
+              operationId: batchUpload
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      type: object
+                      required:
+                        - files
+                        - category
+                      properties:
+                        files:
+                          type: array
+                          items:
+                            type: string
+                            format: binary
+                        category:
+                          type: string
+              responses:
+                "204":
+                  description: No Content
+        """;
+
+    /// <summary>
+    /// A POST endpoint with a <c>multipart/form-data</c> request body that has a field
+    /// which is both required and <c>nullable: true</c> — the generated property should
+    /// be nullable even though the field appears in the <c>required</c> array.
+    /// </summary>
+    public const string NullableRequiredFieldYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /nullable-upload:
+            post:
+              operationId: nullableUpload
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      type: object
+                      required:
+                        - file
+                      properties:
+                        file:
+                          type: string
+                          format: binary
+                          nullable: true
+              responses:
+                "204":
+                  description: No Content
+        """;
+
+    /// <summary>
+    /// A POST endpoint with a <c>multipart/form-data</c> request body where one property is an
+    /// inline <c>type: object</c> — the generator should emit a nested <c>RequestMetadata</c>
+    /// form record in addition to the root <c>Request</c> record.
+    /// </summary>
+    public const string NestedInlineObjectMultipartYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /nested-upload:
+            post:
+              operationId: nestedUpload
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      type: object
+                      required:
+                        - file
+                        - metadata
+                      properties:
+                        file:
+                          type: string
+                          format: binary
+                        metadata:
+                          type: object
+                          required:
+                            - title
+                          properties:
+                            title:
+                              type: string
+                            source:
+                              type: string
+              responses:
+                "200":
+                  description: OK
+        """;
+
+    /// <summary>
+    /// A POST endpoint with a <c>multipart/form-data</c> request body where one property is a
+    /// <c>$ref</c> to a component schema — the generator should emit a form-specific nested
+    /// record (e.g. <c>RequestTag</c>) rather than reusing the JSON DTO.
+    /// </summary>
+    public const string RefObjectMultipartYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /tagged-upload:
+            post:
+              operationId: taggedUpload
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      type: object
+                      required:
+                        - file
+                      properties:
+                        file:
+                          type: string
+                          format: binary
+                        tag:
+                          $ref: "#/components/schemas/UploadTag"
+              responses:
+                "200":
+                  description: OK
+        components:
+          schemas:
+            UploadTag:
+              type: object
+              properties:
+                name:
+                  type: string
+                value:
+                  type: string
+        """;
+
+    /// <summary>
+    /// A POST endpoint with a <c>multipart/form-data</c> request body where a property is an
+    /// array of complex objects — this shape is not bindable via form data and should trigger
+    /// a <c>MOA011</c> diagnostic.
+    /// </summary>
+    public const string UnsupportedArrayOfObjectsMultipartYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Test API
+          version: "1.0.0"
+        paths:
+          /multi-tagged-upload:
+            post:
+              operationId: multiTaggedUpload
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      type: object
+                      required:
+                        - file
+                      properties:
+                        file:
+                          type: string
+                          format: binary
+                        tags:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+              responses:
+                "200":
+                  description: OK
         """;
 }

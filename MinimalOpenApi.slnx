@@ -7,6 +7,7 @@
   <Folder Name="/sample/">
     <Project Path="sample/BasicTodo/BasicTodo.csproj" />
     <Project Path="sample/GeneratedFiles/GeneratedFiles.csproj" />
+    <Project Path="sample/MultipartNested/MultipartNested.csproj" />
     <Project Path="sample/Parameters/Parameters.csproj" />
     <Project Path="sample/ResponseResults/ResponseResults.csproj" />
     <Project Path="sample/SchemaPublishing/SchemaPublishing.csproj" />
@@ -21,6 +22,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/MinimalOpenAPI.Generator.Tests/MinimalOpenAPI.Generator.Tests.csproj" />
     <Project Path="tests/MinimalOpenAPI.IntegrationTests/MinimalOpenAPI.IntegrationTests.csproj" />
+    <Project Path="tests/MinimalOpenAPI.MultipartNested.IntegrationTests/MinimalOpenAPI.MultipartNested.IntegrationTests.csproj" />
     <Project Path="tests/MinimalOpenAPI.Runtime.Tests/MinimalOpenAPI.Runtime.Tests.csproj" />
   </Folder>
 </Solution>

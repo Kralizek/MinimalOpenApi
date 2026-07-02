@@ -1,0 +1,91 @@
+openapi: "3.0.0"
+info:
+  title: Nested Multipart Sample API
+  version: "1.0.0"
+paths:
+  /uploads:
+    post:
+      operationId: uploadDocument
+      summary: Upload a document with inline nested metadata
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - metadata
+              properties:
+                file:
+                  type: string
+                  format: binary
+                metadata:
+                  type: object
+                  required:
+                    - title
+                  properties:
+                    title:
+                      type: string
+                    source:
+                      type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+  /uploads/with-tag:
+    post:
+      operationId: uploadWithTag
+      summary: Upload a document with a referenced nested tag object
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                tag:
+                  $ref: '#/components/schemas/UploadTag'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+components:
+  schemas:
+    UploadTag:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+    UploadResponse:
+      type: object
+      required:
+        - fileName
+      properties:
+        fileName:
+          type: string
+        metadataTitle:
+          type: string
+          nullable: true
+        metadataSource:
+          type: string
+          nullable: true
+        tagName:
+          type: string
+          nullable: true
+        tagValue:
+          type: string
+          nullable: true
