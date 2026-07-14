@@ -671,6 +671,32 @@ public class SchemaNameNormalizationTests
             "MOA014 should be emitted when an inline-derived type name collides with an existing component");
     }
 
+    [Test]
+    public void InlinePropertyEnumCollision_Reports_MOA014()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: string.Empty,
+            additionalFiles: [("openapi.yaml", OpenApiFixtures.InlinePropertyEnumCollisionYaml)]);
+
+        Assert.That(
+            result.Diagnostics.Any(d => d.Id == "MOA014"),
+            Is.True,
+            "MOA014 should be emitted when an inline property enum name collides with an existing top-level component");
+    }
+
+    [Test]
+    public void InlineArrayItemEnumCollision_Reports_MOA014()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: string.Empty,
+            additionalFiles: [("openapi.yaml", OpenApiFixtures.InlineArrayItemEnumCollisionYaml)]);
+
+        Assert.That(
+            result.Diagnostics.Any(d => d.Id == "MOA014"),
+            Is.True,
+            "MOA014 should be emitted when an inline array-item enum name collides with an existing top-level component");
+    }
+
     // ── Endpoint mapping uses normalised names ────────────────────────────
 
     [Test]

@@ -161,7 +161,7 @@ internal static class DtoGenerator
             if (propKvp.Value.Enum is not null)
             {
                 var inlineEnumName = name + TypeMapper.ToPascalCase(propKvp.Key);
-                GenerateEnum(sb, inlineEnumName, propKvp.Value, emitted);
+                GenerateEnum(sb, inlineEnumName, propKvp.Value, emitted, topLevelNormalisedNames, generatedSymbolCollisions);
             }
         }
 
@@ -272,7 +272,7 @@ internal static class DtoGenerator
         }
         else if (itemSchema.Enum is not null)
         {
-            GenerateEnum(sb, itemName, itemSchema, emitted);
+            GenerateEnum(sb, itemName, itemSchema, emitted, topLevelNormalisedNames, generatedSymbolCollisions);
         }
         else if (itemSchema.Type?.ToLowerInvariant() == "array" && itemSchema.Items is { } innerItemSchema)
         {
@@ -304,10 +304,20 @@ internal static class DtoGenerator
         StringBuilder sb,
         string name,
         OpenApiSchema schema,
-        HashSet<string> emitted)
+        HashSet<string> emitted,
+        HashSet<string>? topLevelNormalisedNames = null,
+        List<string>? generatedSymbolCollisions = null)
     {
         if (!emitted.Add(name))
-            return; // already emitted
+        {
+            // If this inline enum name collides with an already-emitted top-level component,
+            // report it as a generated-symbol collision rather than silently skipping.
+            if (topLevelNormalisedNames is not null
+                && generatedSymbolCollisions is not null
+                && topLevelNormalisedNames.Contains(name))
+                generatedSymbolCollisions.Add(name);
+            return;
+        }
 
         sb.AppendLine($"/// <summary>Generated enum for schema <c>{name}</c>.</summary>");
         sb.AppendLine($"[global::System.CodeDom.Compiler.GeneratedCode(\"{TypeMapper.GeneratorName}\", \"{TypeMapper.GeneratorVersion}\")]");

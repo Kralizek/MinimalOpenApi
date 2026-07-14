@@ -2948,4 +2948,76 @@ internal static class OpenApiFixtures
                 city:
                   type: string
         """;
+
+    /// <summary>
+    /// YAML spec where an inline property enum would generate a name that collides with an
+    /// existing top-level component. <c>Acme.Customer</c> normalises to <c>AcmeCustomer</c>;
+    /// its inline enum property <c>status</c> would produce <c>AcmeCustomerStatus</c>, but that
+    /// name already exists as a top-level component. This should trigger MOA014.
+    /// </summary>
+    public const string InlinePropertyEnumCollisionYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Inline Property Enum Collision API
+          version: "1.0.0"
+        paths:
+          /customers:
+            get:
+              operationId: getCustomer
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Acme.Customer'
+        components:
+          schemas:
+            Acme.Customer:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [Active, Inactive]
+            AcmeCustomerStatus:
+              type: string
+              enum: [Pending, Approved]
+        """;
+
+    /// <summary>
+    /// YAML spec where an inline array-item enum would generate a name that collides with an
+    /// existing top-level component. <c>Acme.Order</c> normalises to <c>AcmeOrder</c>; its inline
+    /// array property <c>tags</c> would produce item type <c>AcmeOrderTagsItem</c>, but that name
+    /// already exists as a top-level component. This should trigger MOA014.
+    /// </summary>
+    public const string InlineArrayItemEnumCollisionYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Inline Array Item Enum Collision API
+          version: "1.0.0"
+        paths:
+          /orders:
+            get:
+              operationId: getOrder
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Acme.Order'
+        components:
+          schemas:
+            Acme.Order:
+              type: object
+              properties:
+                tags:
+                  type: array
+                  items:
+                    type: string
+                    enum: [Urgent, Normal, Low]
+            AcmeOrderTagsItem:
+              type: string
+              enum: [Alpha, Beta]
+        """;
 }
