@@ -77,7 +77,11 @@ internal static class TypeMapper
     ///   <item>all other scalars → delegated to <see cref="MapSchema"/></item>
     /// </list>
     /// </summary>
-    public static string MapFormFieldSchema(OpenApiSchema schema, bool nullable = false)
+    public static string MapFormFieldSchema(
+        OpenApiSchema schema,
+        bool nullable = false,
+        string? contractsNamespace = null,
+        Func<string, string>? resolveReference = null)
     {
         const string iFormFile = "global::Microsoft.AspNetCore.Http.IFormFile";
         const string iFormFileList = "global::System.Collections.Generic.IReadOnlyList<global::Microsoft.AspNetCore.Http.IFormFile>";
@@ -88,7 +92,7 @@ internal static class TypeMapper
         if (IsFormFileArraySchema(schema))
             return nullable ? $"{iFormFileList}?" : iFormFileList;
 
-        return MapSchema(schema, nullable: nullable);
+        return MapSchema(schema, nullable: nullable, contractsNamespace: contractsNamespace, resolveReference: resolveReference);
     }
 
     /// <summary>
@@ -333,6 +337,75 @@ internal static class TypeMapper
             1 => types[0],
             _ => $"global::Microsoft.AspNetCore.Http.HttpResults.Results<{string.Join(", ", types)}>"
         };
+    }
+
+    /// <summary>
+    /// Normalizes an OpenAPI component schema name to a valid C# type identifier.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every character that is not an ASCII letter or digit is treated as a word separator.
+    /// The first letter of each resulting segment is uppercased (PascalCase); the rest of the
+    /// segment is preserved as-is.  Segments that consist entirely of digits are not
+    /// capitalized (digits have no case).
+    /// </para>
+    /// <para>
+    /// If the concatenated result begins with a digit it is prefixed with <c>"Value"</c>
+    /// to produce a valid C# identifier.
+    /// </para>
+    /// <para>
+    /// Returns <see langword="null"/> when the input is empty or consists entirely of
+    /// separator characters, indicating that no valid identifier can be produced.
+    /// </para>
+    /// <list type="table">
+    ///   <listheader><term>OpenAPI name</term><description>Generated C# type</description></listheader>
+    ///   <item><term><c>Invoice</c></term><description><c>Invoice</c></description></item>
+    ///   <item><term><c>billing.invoice</c></term><description><c>BillingInvoice</c></description></item>
+    ///   <item><term><c>billing-invoice</c></term><description><c>BillingInvoice</c></description></item>
+    ///   <item><term><c>billing_invoice</c></term><description><c>BillingInvoice</c></description></item>
+    ///   <item><term><c>Acme.Platform.ErrorResponse</c></term><description><c>AcmePlatformErrorResponse</c></description></item>
+    ///   <item><term><c>123-invoice</c></term><description><c>Value123Invoice</c></description></item>
+    ///   <item><term><c>class</c></term><description><c>Class</c></description></item>
+    /// </list>
+    /// </remarks>
+    public static string? NormalizeSchemaTypeName(string openApiName)
+    {
+        if (string.IsNullOrEmpty(openApiName)) return null;
+
+        var sb = new System.Text.StringBuilder(openApiName.Length);
+        bool capitalizeNext = true;
+
+        foreach (var c in openApiName)
+        {
+            if (char.IsLetter(c))
+            {
+                sb.Append(capitalizeNext ? char.ToUpperInvariant(c) : c);
+                capitalizeNext = false;
+            }
+            else if (char.IsDigit(c))
+            {
+                sb.Append(c);
+                capitalizeNext = false;
+            }
+            else
+            {
+                // Any non-alphanumeric character (., -, _, whitespace, etc.) is a word separator.
+                // Only trigger capitalization if we have already written content
+                // (so leading separators do not inject spurious boundaries).
+                if (sb.Length > 0)
+                    capitalizeNext = true;
+            }
+        }
+
+        if (sb.Length == 0) return null;
+
+        var result = sb.ToString();
+
+        // C# identifiers cannot start with a digit; prefix with "Value" for readability.
+        if (char.IsDigit(result[0]))
+            result = "Value" + result;
+
+        return result;
     }
 
     /// <summary>Converts an OpenAPI enum value to a valid C# enum member name (PascalCase).</summary>

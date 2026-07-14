@@ -525,15 +525,42 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         if (!TryResolveParameterReferences(spc, doc, openApiFilePath, out var operations))
             return;
 
+        // Build the schema name map once per document and report normalization errors
+        // before any code is emitted.
+        var schemaNameMap = SchemaNameMap.Build(doc.Schemas.Keys);
+
+        foreach (var unnormalisable in schemaNameMap.UnnormalisableNames)
+        {
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.UnnormalisableSchemaName,
+                CreateOpenApiLocation(openApiFilePath),
+                unnormalisable));
+        }
+
+        foreach (var collision in schemaNameMap.Collisions)
+        {
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.SchemaNameCollision,
+                CreateOpenApiLocation(openApiFilePath),
+                string.Join(", ", collision.OriginalNames.Select(n => $"'{n}'")),
+                collision.NormalisedTypeName));
+        }
+
+        // Abort code generation when there are name-level errors: unnormalisable names would
+        // produce invalid C# identifiers and collisions would produce duplicate type declarations.
+        if (schemaNameMap.HasUnnormalisableNames || schemaNameMap.HasCollisions)
+            return;
+
         var directionality = SchemaDirectionalityAnalysis.Create(
             doc.Schemas,
             operations,
-            input.ReadWriteSchemaHandling);
+            input.ReadWriteSchemaHandling,
+            schemaNameMap);
 
         // Generate DTOs
         if (doc.Schemas.Count > 0)
         {
-            var dtoResult = DtoGenerator.Generate(doc.Schemas, rootNamespace, specName, directionality);
+            var dtoResult = DtoGenerator.Generate(doc.Schemas, rootNamespace, specName, directionality, schemaNameMap);
             if (!string.IsNullOrWhiteSpace(dtoResult.Source))
                 spc.AddSource(SchemaHintName(specName), dtoResult.Source);
 
@@ -544,6 +571,14 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     CreateOpenApiLocation(openApiFilePath),
                     conflict.SchemaName,
                     conflict.PropertyName));
+            }
+
+            foreach (var collision in dtoResult.GeneratedSymbolCollisions.Distinct())
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.GeneratedSymbolCollision,
+                    CreateOpenApiLocation(openApiFilePath),
+                    collision));
             }
         }
 

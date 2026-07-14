@@ -166,7 +166,7 @@ internal static class EndpointMappingGenerator
         var parts = new List<string>();
 
         foreach (var p in operation.Parameters.Where(p => p.Location == ParameterLocation.Path))
-            parts.Add($"{TypeMapper.MapSchema(p.Schema)} {TypeMapper.ToCamelCase(p.Name)}");
+            parts.Add($"{TypeMapper.MapSchema(p.Schema, contractsNamespace: contractsNs, resolveReference: referenceName => directionality.ResolveSchemaReference(referenceName, SchemaGenerationScope.Neutral))} {TypeMapper.ToCamelCase(p.Name)}");
 
         if (operation.Parameters.Any(p => p.Location != ParameterLocation.Path))
             parts.Add($"[global::Microsoft.AspNetCore.Http.AsParameters] global::{handlerClass}.Parameters parameters");
