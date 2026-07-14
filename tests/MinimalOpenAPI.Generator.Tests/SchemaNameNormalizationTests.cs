@@ -81,7 +81,7 @@ public class SchemaNameNormalizationTests
     public void NormalizeSchemaTypeName_CSharpKeyword_IsCapitalisedToValidIdentifier(string openApiName)
     {
         // Keywords like "class" → "Class" (first letter uppercased) which is valid C#
-        var expected = char.ToUpperInvariant(openApiName[0]) + openApiName.Substring(1);
+        var expected = char.ToUpperInvariant(openApiName[0]) + openApiName[1..];
         var (source, errorDiagId) = GetNormalisedTypeName(openApiName);
         Assert.That(errorDiagId, Is.Null);
         Assert.That(source, Does.Contain($"public sealed record {expected}"));

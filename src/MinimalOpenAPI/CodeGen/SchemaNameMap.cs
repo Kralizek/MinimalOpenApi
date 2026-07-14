@@ -33,7 +33,7 @@ internal sealed class SchemaNameMap
     public static SchemaNameMap Build(IEnumerable<string> schemaNames)
     {
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
-        var normalizedToOriginals = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        var normalisedToOriginals = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         var unnormalisableNames = new List<string>();
 
         foreach (var name in schemaNames)
@@ -49,16 +49,16 @@ internal sealed class SchemaNameMap
 
             map[name] = normalised;
 
-            if (!normalizedToOriginals.TryGetValue(normalised, out var originals))
+            if (!normalisedToOriginals.TryGetValue(normalised, out var originals))
             {
                 originals = new List<string>();
-                normalizedToOriginals[normalised] = originals;
+                normalisedToOriginals[normalised] = originals;
             }
 
             originals.Add(name);
         }
 
-        var collisions = normalizedToOriginals
+        var collisions = normalisedToOriginals
             .Where(kvp => kvp.Value.Count > 1)
             .Select(kvp => new SchemaNameCollision(kvp.Value.ToArray(), kvp.Key))
             .ToList();
