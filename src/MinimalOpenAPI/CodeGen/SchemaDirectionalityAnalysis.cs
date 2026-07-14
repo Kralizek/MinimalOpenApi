@@ -27,19 +27,22 @@ internal sealed class SchemaDirectionalityAnalysis
     private readonly HashSet<string> _directionalSchemas;
     private readonly HashSet<string> _requestScopedSchemas;
     private readonly HashSet<string> _responseScopedSchemas;
+    private readonly SchemaNameMap _schemaNameMap;
 
     private SchemaDirectionalityAnalysis(
         ReadWriteSchemaHandling handling,
         IReadOnlyDictionary<string, OpenApiSchema> schemas,
         HashSet<string> directionalSchemas,
         HashSet<string> requestScopedSchemas,
-        HashSet<string> responseScopedSchemas)
+        HashSet<string> responseScopedSchemas,
+        SchemaNameMap schemaNameMap)
     {
         _handling = handling;
         _schemas = schemas;
         _directionalSchemas = directionalSchemas;
         _requestScopedSchemas = requestScopedSchemas;
         _responseScopedSchemas = responseScopedSchemas;
+        _schemaNameMap = schemaNameMap;
     }
 
     public ReadWriteSchemaHandling Handling => _handling;
@@ -47,7 +50,8 @@ internal sealed class SchemaDirectionalityAnalysis
     public static SchemaDirectionalityAnalysis Create(
         IReadOnlyDictionary<string, OpenApiSchema> schemas,
         IReadOnlyList<OpenApiOperation> operations,
-        ReadWriteSchemaHandling handling)
+        ReadWriteSchemaHandling handling,
+        SchemaNameMap schemaNameMap)
     {
         var directionalSchemas = handling == ReadWriteSchemaHandling.Ignore
             ? new HashSet<string>(StringComparer.Ordinal)
@@ -98,7 +102,8 @@ internal sealed class SchemaDirectionalityAnalysis
             schemas,
             directionalSchemas,
             requestScopedSchemas,
-            responseScopedSchemas);
+            responseScopedSchemas,
+            schemaNameMap);
     }
 
     public bool ShouldFilterProperties(SchemaGenerationScope scope)
@@ -124,19 +129,27 @@ internal sealed class SchemaDirectionalityAnalysis
         _ => true
     };
 
+    /// <summary>
+    /// Resolves a <c>$ref</c> schema name to the C# type name that will be emitted for
+    /// <paramref name="scope"/>.  The returned name is always a valid normalised C# identifier
+    /// (e.g. <c>BillingInvoiceStatus</c> rather than the raw OpenAPI key
+    /// <c>Billing.InvoiceStatus</c>).
+    /// </summary>
     public string ResolveSchemaReference(string referenceName, SchemaGenerationScope scope)
     {
+        var normalizedBase = _schemaNameMap.GetTypeName(referenceName);
+
         if (scope == SchemaGenerationScope.Request
             && _requestScopedSchemas.Contains(referenceName)
             && IsScopeEligible(referenceName))
-            return ScopedSchemaName(referenceName, SchemaGenerationScope.Request);
+            return normalizedBase + "Request";
 
         if (scope == SchemaGenerationScope.Response
             && _responseScopedSchemas.Contains(referenceName)
             && IsScopeEligible(referenceName))
-            return ScopedSchemaName(referenceName, SchemaGenerationScope.Response);
+            return normalizedBase + "Response";
 
-        return referenceName;
+        return normalizedBase;
     }
 
     private bool IsScopeEligible(string schemaName)

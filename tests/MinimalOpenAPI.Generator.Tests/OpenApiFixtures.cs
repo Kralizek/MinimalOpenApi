@@ -2354,4 +2354,448 @@ internal static class OpenApiFixtures
                 "200":
                   description: OK
         """;
+
+    // ── Schema name normalisation fixtures ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// YAML spec with dotted schema names (issue #75 reproduction).
+    /// Contains Billing.InvoiceStatus (enum), Billing.Invoice (object with $ref), and
+    /// Acme.Platform.ErrorResponse (object with a plain property).
+    /// </summary>
+    public const string DottedSchemaYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Dotted Schemas API
+          version: "1.0.0"
+        paths:
+          /invoices:
+            get:
+              operationId: listInvoices
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Billing.Invoice'
+        components:
+          schemas:
+            Billing.InvoiceStatus:
+              type: string
+              enum: [Draft, Sent, Paid]
+            Billing.Invoice:
+              type: object
+              properties:
+                status:
+                  $ref: '#/components/schemas/Billing.InvoiceStatus'
+            Acme.Platform.ErrorResponse:
+              type: object
+              properties:
+                detail:
+                  type: string
+        """;
+
+    /// <summary>JSON equivalent of <see cref="DottedSchemaYaml"/>.</summary>
+    public const string DottedSchemaJson = """
+        {
+          "openapi": "3.0.0",
+          "info": { "title": "Dotted Schemas API", "version": "1.0.0" },
+          "paths": {
+            "/invoices": {
+              "get": {
+                "operationId": "listInvoices",
+                "responses": {
+                  "200": {
+                    "description": "OK",
+                    "content": {
+                      "application/json": {
+                        "schema": { "$ref": "#/components/schemas/Billing.Invoice" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "Billing.InvoiceStatus": {
+                "type": "string",
+                "enum": ["Draft", "Sent", "Paid"]
+              },
+              "Billing.Invoice": {
+                "type": "object",
+                "properties": {
+                  "status": { "$ref": "#/components/schemas/Billing.InvoiceStatus" }
+                }
+              },
+              "Acme.Platform.ErrorResponse": {
+                "type": "object",
+                "properties": {
+                  "detail": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+        """;
+
+    /// <summary>
+    /// YAML spec with dotted schema names used in request and response bodies,
+    /// arrays, and dictionaries.
+    /// </summary>
+    public const string DottedSchemaRequestResponseYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Dotted Body API
+          version: "1.0.0"
+        paths:
+          /orders:
+            post:
+              operationId: createOrder
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Order.Create'
+              responses:
+                "201":
+                  description: Created
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Order.View'
+        components:
+          schemas:
+            Order.Create:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+            Order.View:
+              type: object
+              required:
+                - id
+              properties:
+                id:
+                  type: integer
+                title:
+                  type: string
+        """;
+
+    /// <summary>
+    /// YAML spec with dotted schema names used in an array property
+    /// and a dictionary value type.
+    /// </summary>
+    public const string DottedSchemaArrayAndDictYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Array and Dict API
+          version: "1.0.0"
+        paths:
+          /catalog:
+            get:
+              operationId: getCatalog
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Catalog.View'
+        components:
+          schemas:
+            Product.Summary:
+              type: object
+              properties:
+                name:
+                  type: string
+            Catalog.View:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Product.Summary'
+                index:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/Product.Summary'
+        """;
+
+    /// <summary>
+    /// YAML spec with an allOf that references a dotted schema.
+    /// </summary>
+    public const string DottedSchemaAllOfYaml = """
+        openapi: "3.0.0"
+        info:
+          title: AllOf Dotted API
+          version: "1.0.0"
+        paths:
+          /items:
+            get:
+              operationId: getItem
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Item.Extended'
+        components:
+          schemas:
+            Item.Base:
+              type: object
+              properties:
+                id:
+                  type: integer
+            Item.Extended:
+              allOf:
+                - $ref: '#/components/schemas/Item.Base'
+                - type: object
+                  properties:
+                    extra:
+                      type: string
+        """;
+
+    /// <summary>
+    /// YAML spec with hyphenated and underscored schema names.
+    /// </summary>
+    public const string HyphenUnderscoreSchemaYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Separator API
+          version: "1.0.0"
+        paths:
+          /items:
+            get:
+              operationId: getItem
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/billing-invoice'
+        components:
+          schemas:
+            billing-invoice:
+              type: object
+              properties:
+                amount:
+                  type: number
+            billing_invoice_item:
+              type: object
+              properties:
+                sku:
+                  type: string
+        """;
+
+    /// <summary>
+    /// YAML spec where two schema names normalise to the same C# identifier.
+    /// </summary>
+    public const string CollisionSchemaYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Collision API
+          version: "1.0.0"
+        paths:
+          /noop:
+            get:
+              operationId: noop
+              responses:
+                "200":
+                  description: OK
+        components:
+          schemas:
+            Billing.Invoice:
+              type: object
+              properties:
+                id:
+                  type: integer
+            BillingInvoice:
+              type: object
+              properties:
+                ref:
+                  type: string
+        """;
+
+    /// <summary>
+    /// YAML spec with a schema name that contains only separator characters.
+    /// </summary>
+    public const string UnnormalisableSchemaYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Unnormalisable API
+          version: "1.0.0"
+        paths:
+          /noop:
+            get:
+              operationId: noop
+              responses:
+                "200":
+                  description: OK
+        components:
+          schemas:
+            "...":
+              type: object
+              properties:
+                id:
+                  type: integer
+        """;
+
+    /// <summary>
+    /// YAML spec with a schema name that starts with a digit.
+    /// </summary>
+    public const string LeadingDigitSchemaYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Leading Digit API
+          version: "1.0.0"
+        paths:
+          /items:
+            get:
+              operationId: getItem
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/123-invoice'
+        components:
+          schemas:
+            123-invoice:
+              type: object
+              properties:
+                amount:
+                  type: number
+        """;
+
+    /// <summary>
+    /// YAML spec with a C# keyword as the schema name.
+    /// </summary>
+    public const string KeywordSchemaYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Keyword API
+          version: "1.0.0"
+        paths:
+          /items:
+            get:
+              operationId: getItem
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/class'
+        components:
+          schemas:
+            class:
+              type: object
+              properties:
+                name:
+                  type: string
+        """;
+
+    /// <summary>
+    /// YAML spec with a dotted schema name and ReadWriteSchemaHandling=Split.
+    /// </summary>
+    public const string DottedSchemaReadWriteSplitYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Split Dotted API
+          version: "1.0.0"
+        paths:
+          /orders:
+            post:
+              operationId: createOrder
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Order.Data'
+              responses:
+                "201":
+                  description: Created
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Order.Data'
+        components:
+          schemas:
+            Order.Data:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  readOnly: true
+                title:
+                  type: string
+                  writeOnly: true
+        """;
+
+    /// <summary>
+    /// YAML spec with a dotted parent schema that has an inline nested object.
+    /// </summary>
+    public const string DottedParentInlineChildYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Inline Child API
+          version: "1.0.0"
+        paths:
+          /items:
+            get:
+              operationId: getItem
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Acme.Customer'
+        components:
+          schemas:
+            Acme.Customer:
+              type: object
+              properties:
+                address:
+                  type: object
+                  properties:
+                    street:
+                      type: string
+        """;
+
+    /// <summary>
+    /// YAML spec with a dotted enum referenced as a query parameter.
+    /// </summary>
+    public const string DottedEnumQueryParamYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Dotted Enum Query API
+          version: "1.0.0"
+        paths:
+          /invoices:
+            get:
+              operationId: listInvoices
+              parameters:
+                - name: status
+                  in: query
+                  schema:
+                    $ref: '#/components/schemas/Billing.InvoiceStatus'
+              responses:
+                "200":
+                  description: OK
+        components:
+          schemas:
+            Billing.InvoiceStatus:
+              type: string
+              enum: [Draft, Sent, Paid]
+        """;
 }

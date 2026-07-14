@@ -132,7 +132,8 @@ internal static class HandlerBaseGenerator
             .ToList();
         if (nonPathParams.Count > 0)
         {
-            AppendParametersRecord(sb, nonPathParams, contractsNs);
+            AppendParametersRecord(sb, nonPathParams, contractsNs,
+                referenceName => directionality.ResolveSchemaReference(referenceName, SchemaGenerationScope.Neutral));
             sb.AppendLine();
         }
 
@@ -510,7 +511,7 @@ internal static class HandlerBaseGenerator
     /// (query, header and cookie) so they can be bound via <c>[AsParameters]</c> without
     /// breaking existing handler implementations when new optional parameters are added.
     /// </summary>
-    private static void AppendParametersRecord(StringBuilder sb, List<OpenApiParameter> parameters, string contractsNamespace)
+    private static void AppendParametersRecord(StringBuilder sb, List<OpenApiParameter> parameters, string contractsNamespace, Func<string, string>? resolveReference = null)
     {
         sb.AppendLine("    /// <summary>Aggregates all query, header and cookie parameters for this operation.</summary>");
         TypeMapper.AppendGeneratedAttributes(sb, "    ");
@@ -519,7 +520,7 @@ internal static class HandlerBaseGenerator
 
         foreach (var p in parameters)
         {
-            var type = TypeMapper.MapSchema(p.Schema, nullable: !p.Required, contractsNamespace: contractsNamespace);
+            var type = TypeMapper.MapSchema(p.Schema, nullable: !p.Required, contractsNamespace: contractsNamespace, resolveReference: resolveReference);
             var propName = TypeMapper.ToPascalCase(p.Name);
             var bindingAttr = GetBindingAttribute(p);
             if (bindingAttr is not null)

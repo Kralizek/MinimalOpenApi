@@ -104,4 +104,24 @@ internal static class DiagnosticDescriptors
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    /// <summary>
+    /// Two or more schema names normalise to the same generated C# type name.
+    /// </summary>
+    public static readonly DiagnosticDescriptor SchemaNameCollision = new(
+        id: "MOA012",
+        title: "Schema name collision",
+        messageFormat: "The schema names {0} all normalise to the generated C# type name '{1}'. Rename one or more of the schemas so each produces a unique type name.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    /// <summary>A schema name cannot be normalised to any valid C# identifier.</summary>
+    public static readonly DiagnosticDescriptor UnnormalisableSchemaName = new(
+        id: "MOA013",
+        title: "Unnormalisable schema name",
+        messageFormat: "The schema name '{0}' cannot be normalised to a valid C# identifier. Rename the schema to use letters and digits with optional separators (., -, _).",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

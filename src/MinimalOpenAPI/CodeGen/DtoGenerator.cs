@@ -13,7 +13,8 @@ internal static class DtoGenerator
         Dictionary<string, OpenApiSchema> schemas,
         string rootNamespace,
         string specName,
-        SchemaDirectionalityAnalysis directionality)
+        SchemaDirectionalityAnalysis directionality,
+        SchemaNameMap schemaNameMap)
     {
         if (schemas.Count == 0) return new DtoGenerationResult(string.Empty, []);
 
@@ -33,7 +34,10 @@ internal static class DtoGenerator
         foreach (var kvp in schemas)
         {
             if (kvp.Value.Enum is not null)
-                GenerateEnum(sb, kvp.Key, kvp.Value, emitted);
+            {
+                var normalizedName = schemaNameMap.GetTypeName(kvp.Key);
+                GenerateEnum(sb, normalizedName, kvp.Value, emitted);
+            }
         }
 
         // Second pass: emit neutral object schemas as records (with recursive inline-object
@@ -49,7 +53,8 @@ internal static class DtoGenerator
             if (TypeMapper.IsDictionarySchema(resolvedSchema))
                 continue; // pure-dictionary schemas map to Dictionary<string, T> at the use site
 
-            EmitRecordTree(sb, name, resolvedSchema, schemas, emitted, allOfConflicts, directionality, SchemaGenerationScope.Neutral);
+            var normalizedName = schemaNameMap.GetTypeName(name);
+            EmitRecordTree(sb, normalizedName, resolvedSchema, schemas, emitted, allOfConflicts, directionality, SchemaGenerationScope.Neutral);
         }
 
         // Third pass: emit scoped request/response variants only when required.
@@ -65,11 +70,13 @@ internal static class DtoGenerator
             if (TypeMapper.IsDictionarySchema(resolvedSchema))
                 continue;
 
+            var normalizedName = schemaNameMap.GetTypeName(name);
+
             if (directionality.ShouldGenerateScope(name, SchemaGenerationScope.Request))
             {
                 EmitRecordTree(
                     sb,
-                    SchemaDirectionalityAnalysis.ScopedSchemaName(name, SchemaGenerationScope.Request),
+                    normalizedName + "Request",
                     resolvedSchema,
                     schemas,
                     emitted,
@@ -82,7 +89,7 @@ internal static class DtoGenerator
             {
                 EmitRecordTree(
                     sb,
-                    SchemaDirectionalityAnalysis.ScopedSchemaName(name, SchemaGenerationScope.Response),
+                    normalizedName + "Response",
                     resolvedSchema,
                     schemas,
                     emitted,

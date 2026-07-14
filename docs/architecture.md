@@ -495,8 +495,19 @@ wraps multiple types in `Results<T1, T2, …>`.
 
 **Naming conventions**:
 
+- `NormalizeSchemaTypeName` — converts an OpenAPI component schema name to a valid C#
+  PascalCase identifier.  All characters that are not ASCII letters or digits are treated
+  as word separators; each segment's first letter is uppercased; names that begin with a
+  digit are prefixed with `Value`; the empty result returns `null` (→ MOA013).
+  Examples: `Billing.InvoiceStatus` → `BillingInvoiceStatus`, `123-invoice` → `Value123Invoice`,
+  `class` → `Class`.
+- `SchemaNameMap` — a pre-computed, document-level mapping from original OpenAPI schema names to
+  normalised C# type names, built once per document before any code emission.  Used by every
+  generator path so that name normalisation is never duplicated.  Also collects collision groups
+  (two different OpenAPI names normalising to the same C# name → MOA012) and unnormalisable
+  names (no identifier characters at all → MOA013).
 - `ToPascalCase` — handles snake_case, kebab-case, camelCase, and PascalCase inputs.
-  Used for handler class names, DTO property names, nested record names, and enum names.
+  Used for handler class names, DTO property names, nested record names, and enum member names.
 - `ToCamelCase` — first letter lowercased.  Used for C# parameter names in
   lambdas and `HandleAsync` signatures.
 - `HandlerClassName(operationId)` → `<PascalCase(operationId)>EndpointBase`
@@ -514,6 +525,13 @@ wraps multiple types in `Results<T1, T2, …>`.
 | **MOA004** | Error | The OpenAPI file could not be parsed (YAML syntax error, etc.). |
 | **MOA005** | Error | The `<OpenApi>` item has a file extension the generator does not recognise (only `.yaml`, `.yml`, and `.json` are supported). |
 | **MOA006** | Warning | The `openapi` version field is absent or contains a value the generator cannot parse as a `System.Version`.  The spec is still processed; generation continues. |
+| **MOA007** | Warning | Two `allOf` branches define incompatible types for the same property.  The property falls back to `JsonElement`. |
+| **MOA008** | Error | A parameter `$ref` in an operation could not be resolved. |
+| **MOA009** | Error | Two or more OpenAPI files resolve to the same spec name. |
+| **MOA010** | Error | The `ReadWriteSchemaHandling` item metadata contains an unsupported value. |
+| **MOA011** | Error | A `multipart/form-data` property has a shape that cannot be bound via ASP.NET Core form binding. |
+| **MOA012** | Error | Two or more schema names normalise to the same generated C# type name.  Rename one of the conflicting schemas in the spec.  Code generation is aborted for this document when a collision is detected. |
+| **MOA013** | Error | A schema name consists entirely of separator characters (e.g. `...`) and cannot be normalised to any valid C# identifier.  Rename the schema. |
 
 ---
 
