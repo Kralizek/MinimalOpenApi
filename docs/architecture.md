@@ -532,6 +532,7 @@ wraps multiple types in `Results<T1, T2, …>`.
 | **MOA011** | Error | A `multipart/form-data` property has a shape that cannot be bound via ASP.NET Core form binding. |
 | **MOA012** | Error | Two or more schema names normalise to the same generated C# type name.  Rename one of the conflicting schemas in the spec.  Code generation is aborted for this document when a collision is detected. |
 | **MOA013** | Error | A schema name consists entirely of separator characters (e.g. `...`) and cannot be normalised to any valid C# identifier.  Rename the schema. |
+| **MOA014** | Error | A generated request/response variant or inline-derived object or enum name conflicts with another generated contract symbol. Rename one of the schemas or properties so every generated C# type name is unique. |
 
 ---
 
