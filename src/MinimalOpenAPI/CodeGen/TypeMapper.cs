@@ -77,7 +77,11 @@ internal static class TypeMapper
     ///   <item>all other scalars → delegated to <see cref="MapSchema"/></item>
     /// </list>
     /// </summary>
-    public static string MapFormFieldSchema(OpenApiSchema schema, bool nullable = false)
+    public static string MapFormFieldSchema(
+        OpenApiSchema schema,
+        bool nullable = false,
+        string? contractsNamespace = null,
+        Func<string, string>? resolveReference = null)
     {
         const string iFormFile = "global::Microsoft.AspNetCore.Http.IFormFile";
         const string iFormFileList = "global::System.Collections.Generic.IReadOnlyList<global::Microsoft.AspNetCore.Http.IFormFile>";
@@ -88,7 +92,7 @@ internal static class TypeMapper
         if (IsFormFileArraySchema(schema))
             return nullable ? $"{iFormFileList}?" : iFormFileList;
 
-        return MapSchema(schema, nullable: nullable);
+        return MapSchema(schema, nullable: nullable, contractsNamespace: contractsNamespace, resolveReference: resolveReference);
     }
 
     /// <summary>

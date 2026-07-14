@@ -510,10 +510,30 @@ public class SchemaNameNormalizationTests
 
     // ── Generated output compiles without errors ──────────────────────────
 
+    /// <summary>
+    /// Asserts that the output compilation produced by the generator has no unexpected
+    /// errors.  CS0246, CS0234, and CS0400 (type/namespace not found) are accepted because
+    /// the test compilation intentionally omits external assembly references (ASP.NET Core,
+    /// System.Text.Json, etc.).  Any other error — especially CS1xxx syntax errors —
+    /// indicates that an unnormalised dotted schema name leaked into the emitted C#.
+    /// </summary>
+    private static void AssertNoUnexpectedCompilationErrors(Compilation outputCompilation)
+    {
+        var unexpected = outputCompilation.GetDiagnostics()
+            .Where(d => d.Severity == DiagnosticSeverity.Error
+                     && d.Id is not ("CS0246" or "CS0234" or "CS0400"))
+            .ToList();
+
+        Assert.That(unexpected, Is.Empty,
+            $"Generated C# has unexpected compilation errors:{System.Environment.NewLine}" +
+            string.Join(System.Environment.NewLine,
+                unexpected.Select(e => $"  {e.Id}: {e.GetMessage()}")));
+    }
+
     [Test]
     public void DottedSchema_GeneratedOutputCompilesWithoutRoslynErrors_Yaml()
     {
-        var (result, _) = GeneratorTestHelper.RunGenerator(
+        var (result, outputCompilation) = GeneratorTestHelper.RunGenerator(
             userSource: string.Empty,
             additionalFiles: [("openapi.yaml", OpenApiFixtures.DottedSchemaYaml)]);
 
@@ -526,12 +546,15 @@ public class SchemaNameNormalizationTests
                                                    && d.Id != "MOA001"), // MOA001 = missing handler (expected in test context)
             Is.Empty,
             "No generator errors should be emitted");
+
+        // Verify the output compilation has no syntax errors from unnormalised names
+        AssertNoUnexpectedCompilationErrors(outputCompilation);
     }
 
     [Test]
     public void DottedSchemaRequestResponse_GeneratedOutputCompilesWithoutRoslynErrors_Yaml()
     {
-        var (result, _) = GeneratorTestHelper.RunGenerator(
+        var (result, outputCompilation) = GeneratorTestHelper.RunGenerator(
             userSource: string.Empty,
             additionalFiles: [("openapi.yaml", OpenApiFixtures.DottedSchemaRequestResponseYaml)]);
 
@@ -541,12 +564,14 @@ public class SchemaNameNormalizationTests
         Assert.That(result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error
                                                    && d.Id != "MOA001"),
             Is.Empty);
+
+        AssertNoUnexpectedCompilationErrors(outputCompilation);
     }
 
     [Test]
     public void DottedSchemaAllOf_GeneratedOutputCompilesWithoutRoslynErrors_Yaml()
     {
-        var (result, _) = GeneratorTestHelper.RunGenerator(
+        var (result, outputCompilation) = GeneratorTestHelper.RunGenerator(
             userSource: string.Empty,
             additionalFiles: [("openapi.yaml", OpenApiFixtures.DottedSchemaAllOfYaml)]);
 
@@ -556,6 +581,94 @@ public class SchemaNameNormalizationTests
         Assert.That(result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error
                                                    && d.Id != "MOA001"),
             Is.Empty);
+
+        AssertNoUnexpectedCompilationErrors(outputCompilation);
+    }
+
+    [Test]
+    public void DottedEnumPathParam_HandlerBase_UsesNormalisedType()
+    {
+        var (result, outputCompilation) = GeneratorTestHelper.RunGenerator(
+            userSource: string.Empty,
+            additionalFiles: [("openapi.yaml", OpenApiFixtures.DottedEnumPathParamYaml)]);
+
+        Assert.That(result.Diagnostics.Where(d => d.Id is "MOA012" or "MOA013"), Is.Empty);
+
+        // Handler base should use the normalised type name
+        var handlerSource = GeneratorTestHelper.GetGeneratedSource(result, "GetInvoicesByStatusEndpointBase.g.cs");
+        Assert.That(handlerSource, Does.Contain("BillingInvoiceStatus"),
+            "Handler base should use normalised BillingInvoiceStatus for the path parameter type");
+        Assert.That(handlerSource, Does.Not.Contain("Billing.InvoiceStatus"),
+            "Handler base must not contain raw dotted name Billing.InvoiceStatus");
+
+        AssertNoUnexpectedCompilationErrors(outputCompilation);
+    }
+
+    [Test]
+    public void DottedEnumPathParam_EndpointMapping_UsesNormalisedType()
+    {
+        var (result, outputCompilation) = GeneratorTestHelper.RunGenerator(
+            userSource: string.Empty,
+            additionalFiles: [("openapi.yaml", OpenApiFixtures.DottedEnumPathParamYaml)]);
+
+        Assert.That(result.Diagnostics.Where(d => d.Id is "MOA012" or "MOA013"), Is.Empty);
+
+        // Endpoint lambda should also use the normalised type name
+        var mappingSource = GeneratorTestHelper.GetGeneratedSource(result, "EndpointMapping.g.cs");
+        Assert.That(mappingSource, Does.Contain("BillingInvoiceStatus"),
+            "Endpoint mapping should use normalised BillingInvoiceStatus for the path parameter type");
+        Assert.That(mappingSource, Does.Not.Contain("Billing.InvoiceStatus"),
+            "Endpoint mapping must not contain raw dotted name Billing.InvoiceStatus");
+
+        AssertNoUnexpectedCompilationErrors(outputCompilation);
+    }
+
+    [Test]
+    public void DottedEnumMultipartField_HandlerBase_UsesNormalisedType()
+    {
+        var (result, outputCompilation) = GeneratorTestHelper.RunGenerator(
+            userSource: string.Empty,
+            additionalFiles: [("openapi.yaml", OpenApiFixtures.DottedEnumMultipartFieldYaml)]);
+
+        Assert.That(result.Diagnostics.Where(d => d.Id is "MOA012" or "MOA013"), Is.Empty);
+
+        // Handler base multipart form record should use the normalised enum type
+        var handlerSource = GeneratorTestHelper.GetGeneratedSource(result, "CreateInvoiceEndpointBase.g.cs");
+        Assert.That(handlerSource, Does.Contain("BillingInvoiceStatus"),
+            "Handler base form record should use normalised BillingInvoiceStatus");
+        Assert.That(handlerSource, Does.Not.Contain("Billing.InvoiceStatus"),
+            "Handler base must not contain raw dotted name Billing.InvoiceStatus");
+
+        AssertNoUnexpectedCompilationErrors(outputCompilation);
+    }
+
+    // ── Generated-symbol collision diagnostics (MOA014) ───────────────────
+
+    [Test]
+    public void ScopedVariantCollision_Reports_MOA014()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: string.Empty,
+            additionalFiles: [("openapi.yaml", OpenApiFixtures.ScopedVariantCollisionYaml)],
+            readWriteSchemaHandling: "Split");
+
+        Assert.That(
+            result.Diagnostics.Any(d => d.Id == "MOA014"),
+            Is.True,
+            "MOA014 should be emitted when a scoped variant name collides with an existing component");
+    }
+
+    [Test]
+    public void InlineDerivedCollision_Reports_MOA014()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: string.Empty,
+            additionalFiles: [("openapi.yaml", OpenApiFixtures.InlineDerivedCollisionYaml)]);
+
+        Assert.That(
+            result.Diagnostics.Any(d => d.Id == "MOA014"),
+            Is.True,
+            "MOA014 should be emitted when an inline-derived type name collides with an existing component");
     }
 
     // ── Endpoint mapping uses normalised names ────────────────────────────

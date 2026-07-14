@@ -106,7 +106,7 @@ internal static class HandlerBaseGenerator
         if (TypeMapper.ShouldGenerateMultipartFormBody(operation.RequestBody))
         {
             var multipartSink = multipartUnsupportedShapes ?? [];
-            AppendMultipartFormRecord(sb, TypeMapper.GetInlineRequestBodyTypeName(), operation.RequestBody!.Schema!, directionality, schemas, multipartSink);
+            AppendMultipartFormRecord(sb, TypeMapper.GetInlineRequestBodyTypeName(), operation.RequestBody!.Schema!, directionality, schemas, multipartSink, contractsNs);
             sb.AppendLine();
         }
 
@@ -174,7 +174,7 @@ internal static class HandlerBaseGenerator
         // Path parameters first
         foreach (var p in operation.Parameters.Where(p => p.Location == ParameterLocation.Path))
         {
-            list.Add($"{TypeMapper.MapSchema(p.Schema)} {TypeMapper.ToCamelCase(p.Name)}");
+            list.Add($"{TypeMapper.MapSchema(p.Schema, contractsNamespace: contractsNs, resolveReference: referenceName => directionality.ResolveSchemaReference(referenceName, SchemaGenerationScope.Neutral))} {TypeMapper.ToCamelCase(p.Name)}");
         }
 
         // Non-path parameters (query, header, cookie) wrapped in Parameters record
@@ -350,7 +350,8 @@ internal static class HandlerBaseGenerator
         OpenApiSchema schema,
         SchemaDirectionalityAnalysis directionality,
         IReadOnlyDictionary<string, OpenApiSchema> allSchemas,
-        List<MultipartUnsupportedShape> unsupportedShapes)
+        List<MultipartUnsupportedShape> unsupportedShapes,
+        string? contractsNamespace = null)
     {
         // Collect all nested form records in dependency order (deepest first).
         // Each entry: (resolved schema, C# type name, original propSchema for lookup).
@@ -369,12 +370,12 @@ internal static class HandlerBaseGenerator
         // Emit nested types first (dependencies already in correct order).
         foreach (var (nestedSchema, nestedTypeName, _) in nestedFormTypes)
         {
-            AppendSingleMultipartFormRecord(sb, nestedTypeName, nestedSchema, directionality, allSchemas, resolveFormType, unsupportedShapes);
+            AppendSingleMultipartFormRecord(sb, nestedTypeName, nestedSchema, directionality, allSchemas, resolveFormType, unsupportedShapes, contractsNamespace);
             sb.AppendLine();
         }
 
         // Emit the root Request record.
-        AppendSingleMultipartFormRecord(sb, typeName, schema, directionality, allSchemas, resolveFormType, unsupportedShapes);
+        AppendSingleMultipartFormRecord(sb, typeName, schema, directionality, allSchemas, resolveFormType, unsupportedShapes, contractsNamespace);
     }
 
     /// <summary>
@@ -428,7 +429,8 @@ internal static class HandlerBaseGenerator
         SchemaDirectionalityAnalysis directionality,
         IReadOnlyDictionary<string, OpenApiSchema> allSchemas,
         FormTypeResolver resolveFormType,
-        List<MultipartUnsupportedShape> unsupportedShapes)
+        List<MultipartUnsupportedShape> unsupportedShapes,
+        string? contractsNamespace = null)
     {
         sb.AppendLine($"    /// <summary>Form data DTO for the <c>{typeName}</c> record of this operation.</summary>");
         TypeMapper.AppendGeneratedAttributes(sb, "    ");
@@ -462,8 +464,12 @@ internal static class HandlerBaseGenerator
             }
             else
             {
-                // Scalar, IFormFile, or IReadOnlyList<IFormFile>.
-                csharpTypeName = TypeMapper.MapFormFieldSchema(propSchema, nullable: nullable);
+                // Scalar, IFormFile, IReadOnlyList<IFormFile>, or referenced scalar/enum.
+                csharpTypeName = TypeMapper.MapFormFieldSchema(
+                    propSchema,
+                    nullable: nullable,
+                    contractsNamespace: contractsNamespace,
+                    resolveReference: referenceName => directionality.ResolveSchemaReference(referenceName, SchemaGenerationScope.Neutral));
             }
 
             sb.AppendLine($"        [global::Microsoft.AspNetCore.Mvc.FromForm(Name = \"{propName}\")]");

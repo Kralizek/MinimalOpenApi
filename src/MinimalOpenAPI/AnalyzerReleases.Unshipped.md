@@ -15,3 +15,4 @@ MOA010 | MinimalOpenAPI | Error | Invalid ReadWriteSchemaHandling value
 MOA011 | MinimalOpenAPI | Error | Unsupported multipart/form-data field shape
 MOA012 | MinimalOpenAPI | Error | Schema name collision
 MOA013 | MinimalOpenAPI | Error | Unnormalisable schema name
+MOA014 | MinimalOpenAPI | Error | Generated symbol collision

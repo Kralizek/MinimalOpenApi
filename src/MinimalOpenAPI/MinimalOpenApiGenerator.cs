@@ -572,6 +572,14 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     conflict.SchemaName,
                     conflict.PropertyName));
             }
+
+            foreach (var collision in dtoResult.GeneratedSymbolCollisions.Distinct())
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.GeneratedSymbolCollision,
+                    CreateOpenApiLocation(openApiFilePath),
+                    collision));
+            }
         }
 
         // Discover handlers and customizers, emit diagnostics

@@ -124,4 +124,16 @@ internal static class DiagnosticDescriptors
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    /// <summary>
+    /// A derived C# type name (scoped variant or inline property type) collides with an
+    /// already-generated type from a different component schema.
+    /// </summary>
+    public static readonly DiagnosticDescriptor GeneratedSymbolCollision = new(
+        id: "MOA014",
+        title: "Generated symbol collision",
+        messageFormat: "The derived C# type name '{0}' conflicts with an already-generated type. This occurs when a schema name variant (e.g. a Request/Response scope suffix or an inline property type) produces the same identifier as an existing component schema. Rename one of the conflicting schemas to avoid duplicate type declarations.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

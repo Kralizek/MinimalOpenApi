@@ -2798,4 +2798,154 @@ internal static class OpenApiFixtures
               type: string
               enum: [Draft, Sent, Paid]
         """;
+
+    /// <summary>
+    /// YAML spec where a path parameter references a dotted enum component schema.
+    /// After normalisation, the generated handler signature and endpoint lambda must use
+    /// <c>BillingInvoiceStatus</c> instead of the raw <c>Billing.InvoiceStatus</c>.
+    /// </summary>
+    public const string DottedEnumPathParamYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Dotted Enum Path API
+          version: "1.0.0"
+        paths:
+          /invoices/{status}:
+            get:
+              operationId: getInvoicesByStatus
+              parameters:
+                - name: status
+                  in: path
+                  required: true
+                  schema:
+                    $ref: '#/components/schemas/Billing.InvoiceStatus'
+              responses:
+                "200":
+                  description: OK
+        components:
+          schemas:
+            Billing.InvoiceStatus:
+              type: string
+              enum: [Draft, Sent, Paid]
+        """;
+
+    /// <summary>
+    /// YAML spec where a multipart/form-data field references a dotted enum schema.
+    /// After normalisation, the generated form record must use <c>Billing.InvoiceStatus</c>
+    /// normalised to <c>BillingInvoiceStatus</c> in the property type.
+    /// </summary>
+    public const string DottedEnumMultipartFieldYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Dotted Enum Multipart API
+          version: "1.0.0"
+        paths:
+          /invoices:
+            post:
+              operationId: createInvoice
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      type: object
+                      properties:
+                        status:
+                          $ref: '#/components/schemas/Billing.InvoiceStatus'
+                        title:
+                          type: string
+              responses:
+                "201":
+                  description: Created
+        components:
+          schemas:
+            Billing.InvoiceStatus:
+              type: string
+              enum: [Draft, Sent, Paid]
+        """;
+
+    /// <summary>
+    /// YAML spec where a scoped Request variant name collides with an existing component.
+    /// <c>Order.Data</c> normalises to <c>OrderData</c>; with split handling the Request
+    /// scope produces <c>OrderDataRequest</c>, which also exists as a top-level component.
+    /// This should trigger MOA014.
+    /// </summary>
+    public const string ScopedVariantCollisionYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Scoped Collision API
+          version: "1.0.0"
+        paths:
+          /orders:
+            post:
+              operationId: createOrder
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Order.Data'
+              responses:
+                "201":
+                  description: Created
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Order.Data'
+        components:
+          schemas:
+            Order.Data:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  readOnly: true
+                title:
+                  type: string
+                  writeOnly: true
+            OrderDataRequest:
+              type: object
+              properties:
+                notes:
+                  type: string
+        """;
+
+    /// <summary>
+    /// YAML spec where an inline-derived type name collides with an existing top-level component.
+    /// <c>Acme.Customer</c> normalises to <c>AcmeCustomer</c>; its inline property <c>address</c>
+    /// would produce <c>AcmeCustomerAddress</c>, but that name already exists as a top-level
+    /// component. This should trigger MOA014.
+    /// </summary>
+    public const string InlineDerivedCollisionYaml = """
+        openapi: "3.0.0"
+        info:
+          title: Inline Derived Collision API
+          version: "1.0.0"
+        paths:
+          /customers:
+            get:
+              operationId: getCustomer
+              responses:
+                "200":
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Acme.Customer'
+        components:
+          schemas:
+            Acme.Customer:
+              type: object
+              properties:
+                address:
+                  type: object
+                  properties:
+                    street:
+                      type: string
+            AcmeCustomerAddress:
+              type: object
+              properties:
+                city:
+                  type: string
+        """;
 }
