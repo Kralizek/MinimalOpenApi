@@ -2,25 +2,36 @@
 
 ## Supported versions
 
-MinimalOpenApi is currently in prerelease. Only the **latest published prerelease** receives security fixes.
+Security fixes are provided for the latest stable minor release and, when relevant, the latest published prerelease.
 
 | Version | Supported |
-|---------|-----------|
-| Latest prerelease | ✅ |
-| Older prereleases | ❌ |
+|---|---|
+| Latest stable minor | ✅ |
+| Latest prerelease | Best effort |
+| Older releases | ❌ |
+
+For the 1.0 line, this means the latest `1.0.x` release receives security fixes until a newer supported minor or major version is published.
 
 ## Reporting a vulnerability
 
-Please **do not** disclose security issues in public GitHub issues or discussions.
+Please **do not** disclose security vulnerabilities in public GitHub issues, pull requests, discussions, or comments.
 
-Report vulnerabilities by opening a **GitHub issue using the [Security Report template](.github/ISSUE_TEMPLATE/security_report.yml)**:
+Use GitHub's private vulnerability reporting form:
 
-1. Go to [Issues → New Issue](../../issues/new/choose).
-2. Select **Security Report**.
-3. Fill in the structured fields — describe the vulnerability without including live credentials, private keys, or other sensitive material that is not necessary to understand the problem.
+https://github.com/Kralizek/MinimalOpenApi/security/advisories/new
 
-Issues created with the Security Report template are visible to repository maintainers. Keep the description focused on the technical details needed to reproduce and assess the issue.
+Include:
+
+- the affected MinimalOpenAPI version;
+- the affected .NET and ASP.NET Core versions;
+- reproduction steps or a minimal reproduction;
+- the expected security impact;
+- any known mitigations.
+
+Do not include live credentials, access tokens, private keys, personal data, or other sensitive material that is not necessary to assess the report.
+
+If the private reporting form is unavailable, contact the maintainer through their GitHub profile without posting vulnerability details publicly.
 
 ## Response expectations
 
-This is a small open-source project maintained in spare time. You can expect an initial acknowledgement within a few business days and a fix or mitigation plan within a reasonable timeframe depending on severity.
+MinimalOpenAPI is maintained in spare time. Reports should receive an initial acknowledgement within a few business days. Remediation timing depends on severity, reproducibility, and the complexity of producing and validating a safe fix.
