@@ -1,25 +1,12 @@
 # Releasing MinimalOpenAPI
 
-This document explains how versioning works and how to cut beta, RC, and stable releases.
-
----
+This document describes versioning, package validation, prerelease publication, and stable releases.
 
 ## Versioning
 
-MinimalOpenAPI uses [MinVer](https://github.com/adamralph/minver) for automatic version calculation from Git tags and follows [Semantic Versioning](https://semver.org).
+MinimalOpenAPI follows [Semantic Versioning](https://semver.org/) and uses [MinVer](https://github.com/adamralph/minver) to derive package versions from Git tags.
 
-### How MinVer computes versions
-
-MinVer derives the package version by inspecting the nearest Git tag that matches the tag prefix:
-
-| Git state | Computed version |
-|-----------|-----------------|
-| Exactly on tag `v1.0.0` | `1.0.0` |
-| Exactly on tag `v1.0.0-beta.1` | `1.0.0-beta.1` |
-| 3 commits after `v1.0.0-beta.1` | `1.0.0-beta.1.3` (height appended) |
-| No tags in history | `0.0.0-preview.0.{height}` |
-
-Configuration in [`Directory.Build.props`](../Directory.Build.props):
+Configuration lives in [`Directory.Build.props`](../Directory.Build.props):
 
 ```xml
 <MinVerTagPrefix>v</MinVerTagPrefix>
@@ -27,199 +14,189 @@ Configuration in [`Directory.Build.props`](../Directory.Build.props):
 <MinVerAutoIncrement>minor</MinVerAutoIncrement>
 ```
 
-- **Tag prefix:** `v` — tags must be `v1.0.0`, `v1.0.0-beta.1`, etc.
-- **Default pre-release identifier:** `preview` — used when no tag exists yet; results in versions like `0.1.0-preview.0.42`.
-- **Auto increment:** `minor` — after a stable tag, un-tagged commits produce a `minor`-bumped pre-release (e.g. after `v1.0.0`, the next un-tagged build produces `1.1.0-preview.0.1`).
+Examples:
 
-### Version scheme summary
+| Git state | Package version |
+|---|---|
+| Exactly on `v1.0.0` | `1.0.0` |
+| Exactly on `v1.0.0-rc.3` | `1.0.0-rc.3` |
+| Commits after a prerelease tag | The prerelease version plus MinVer height metadata |
+| Commits after `v1.0.0` | A `1.1.0-preview...` development version |
 
-```
-1.0.0-alpha     ← early development, no compatibility guarantees
-1.0.0-beta.1    ← public pre-release, APIs may change
-1.0.0-beta.2    ← subsequent betas
-1.0.0-rc.1      ← release candidate, no planned breaking changes
-1.0.0-rc.2      ← subsequent RCs if needed
-1.0.0           ← stable release
-```
+Tags must use the `v` prefix.
 
----
+## Published package
+
+The repository publishes one package: `MinimalOpenAPI`.
+
+It contains:
+
+- `lib/net10.0/MinimalOpenAPI.dll` for ASP.NET Core runtime services;
+- the Roslyn generator and bundled parser assemblies under `analyzers/dotnet/cs/`;
+- `build/` and `buildTransitive/` targets;
+- the NuGet README;
+- a portable-PDB symbol package.
+
+`MinimalOpenAPI.Abstractions`, `MinimalOpenAPI.Parser.Yaml`, and `MinimalOpenAPI.Parser.Json` are implementation projects with `<IsPackable>false</IsPackable>`. Their assemblies are bundled inside the main package and are not published independently.
 
 ## Prerequisites
 
-- .NET 10 SDK (`dotnet --version` should show `10.x.x`)
+- .NET 10 SDK matching [`global.json`](../global.json)
 - Push access to the repository
-- Write access to the GitHub Releases page (for stable releases)
-- A **NuGet Trusted Publisher** configured on nuget.org for each package (replaces the old `NUGET_API_KEY` secret — see [Trusted Publishing setup](#trusted-publishing-setup) below)
+- Permission to create tags and GitHub Releases
+- NuGet.org ownership of the `MinimalOpenAPI` package
+- A NuGet Trusted Publisher configured for `.github/workflows/publish.yml`
 
----
+## NuGet Trusted Publishing
 
-## Trusted Publishing setup
+NuGet.org publication uses GitHub Actions OIDC rather than a long-lived API key.
 
-MinimalOpenAPI uses [NuGet Trusted Publishing](https://learn.microsoft.com/nuget/nuget-org/publish-a-package#trusted-publishing) to push packages to NuGet.org.
-This mechanism uses short-lived OIDC tokens issued by GitHub Actions instead of a long-lived API key secret, eliminating the need to store `NUGET_API_KEY` in repository settings.
+Configure the package once on NuGet.org:
 
-### One-time NuGet.org configuration
+1. Open **Manage package → Trusted Publishers**.
+2. Add a **GitHub Actions** trusted publisher.
+3. Use:
 
-For **each package** published by this repository, a Trusted Publisher must be registered once on nuget.org:
-
-1. Sign in to [nuget.org](https://www.nuget.org) with the package owner account.
-2. Navigate to the package → **Manage package** → **Trusted Publishers**.
-3. Click **Add trusted publisher** and select **GitHub Actions**.
-4. Fill in:
    | Field | Value |
-   |-------|-------|
+   |---|---|
    | Repository owner | `Kralizek` |
    | Repository name | `MinimalOpenApi` |
-   | Workflow file name | `publish.yml` |
-   | Environment | _(leave blank)_ |
-5. Save. NuGet.org will now accept OIDC tokens issued by that specific workflow.
+   | Workflow file | `publish.yml` |
+   | Environment | Leave blank unless the workflow is later moved to a protected environment |
 
-No repository secret is required after this one-time step.
+The publish workflow requires `id-token: write` and uses `nuget/login` to obtain a short-lived token.
 
-### How it works in CI
+## Preparing a release
 
-The [`publish.yml`](../.github/workflows/publish.yml) workflow has `id-token: write` permission, which allows it to request a short-lived GitHub OIDC token.
-The [`nuget/login`](https://github.com/NuGet/login) action exchanges that token with the NuGet.org token service and outputs a short-lived `NUGET_API_KEY` that is passed to `dotnet nuget push`.
-NuGet.org validates the OIDC claims against the registered Trusted Publisher and accepts or rejects the push.
+### 1. Freeze behavior
 
----
+For a stable release, avoid unrelated feature work after the final release candidate. Only release blockers and repository/release corrections should land between the final RC and the stable tag.
 
-## Cutting a release
+### 2. Update release records
 
-### 1. Update the changelog
+Before tagging:
 
-Before tagging, update [`CHANGELOG.md`](../CHANGELOG.md):
+- update [`CHANGELOG.md`](../CHANGELOG.md);
+- move new analyzer diagnostics from `AnalyzerReleases.Unshipped.md` to `AnalyzerReleases.Shipped.md` under the target version;
+- update README and NuGet README examples when the documented stable version changes;
+- update the feature support matrix and known limitations;
+- close or move issues assigned to the release milestone.
 
-1. Move all items from `## Unreleased` into a new versioned section.
-2. Write a short, factual summary of what changed (added, changed, fixed, removed).
-3. Commit the changelog update directly to `master` (or via a PR).
+Keep an empty `## Unreleased` section at the top of the changelog for subsequent work.
 
-Example:
+### 3. Validate locally
 
-```markdown
-## 1.0.0-beta.1
-
-### Added
-- Support for `nullable: true` on query parameters.
-
-### Fixed
-- MOA004 diagnostic now includes the file path in the message.
-```
-
-### 2. Validate package metadata
-
-Before tagging, do a local pack to confirm metadata looks correct:
+Run the same checks expected by CI and publication:
 
 ```shell
 dotnet restore
-dotnet build --configuration Release --warnaserror
-dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj --no-build --configuration Release --output ./artifacts
+dotnet format --verify-no-changes --no-restore
+dotnet build --no-restore --configuration Release --warnaserror
+dotnet test --no-build --configuration Release
+
+dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj \
+  --no-build \
+  --configuration Release \
+  --output ./artifacts
+
+bash scripts/validate-package.sh ./artifacts
+
+dotnet restore sample/SmokeTest/SmokeTest.csproj --force --no-cache
+dotnet build sample/SmokeTest/SmokeTest.csproj \
+  --no-restore \
+  --configuration Release \
+  --warnaserror
+dotnet publish sample/SmokeTest/SmokeTest.csproj \
+  --no-restore \
+  --configuration Release \
+  --output /tmp/minimalopenapi-smoke
 ```
 
-Inspect the generated `.nupkg` file:
+Confirm that the smoke-test publish output contains an authored OpenAPI document below `openapi/schemas/`.
+
+### 4. Inspect package metadata
+
+The validation script checks the package layout, README, repository metadata, MIT license expression, and symbol package.
+
+For manual inspection:
 
 ```shell
 unzip -p ./artifacts/MinimalOpenAPI.*.nupkg '*.nuspec' | less
+unzip -l ./artifacts/MinimalOpenAPI.*.nupkg
+unzip -l ./artifacts/MinimalOpenAPI.*.snupkg
 ```
 
-Check that:
-- `<version>` matches the intended release version
-- `<authors>`, `<licenseExpression>`, `<repositoryUrl>` are correct
-- `<description>` is accurate
-- `<developmentDependency>true</developmentDependency>` is present
-- `lib/net10.0/MinimalOpenAPI.dll` and all expected analyzer DLLs are present
+Confirm that:
 
-### 3. Create and push the version tag
+- the package and nuspec versions match the intended tag;
+- authors, description, license, repository URL, and project URL are correct;
+- runtime, analyzer, parser, targets, and README files are present;
+- no unintended public NuGet dependencies are introduced;
+- the symbol package contains portable PDBs.
 
-Tags drive the version. Create a tag matching the `v` prefix:
+## Publishing workflows
 
-```shell
-# For a beta release
-git tag v1.0.0-beta.1
-git push origin v1.0.0-beta.1
+[`.github/workflows/publish.yml`](../.github/workflows/publish.yml) supports two paths:
 
-# For a release candidate
-git tag v1.0.0-rc.1
-git push origin v1.0.0-rc.1
+| Trigger | Destination |
+|---|---|
+| Manual `workflow_dispatch` | GitHub Packages |
+| Published GitHub Release | GitHub Release assets and NuGet.org |
 
-# For a stable release
-git tag v1.0.0
-git push origin v1.0.0
-```
+Both paths restore, build, test, pack, validate package contents, and consume the produced package through the clean smoke-test project before publishing.
 
-Pushing the tag triggers the [Publish workflow](#publishing-workflow) automatically only for stable releases (GitHub Release published event). For beta and RC releases, you need to publish manually (see below).
+A published GitHub Release can be either a prerelease or a stable release. The workflow validates that:
 
----
+- the release tag is valid Semantic Versioning with a `v` prefix;
+- the checked-out commit is exactly the release tag;
+- tags with a prerelease suffix are marked as GitHub prereleases;
+- stable tags are not marked as prereleases.
 
-## Publishing workflow
+## Cutting a prerelease
 
-The [`publish.yml`](../.github/workflows/publish.yml) workflow handles all publishing.
-Only the `MinimalOpenAPI` package is published; the `MinimalOpenAPI.Abstractions`,
-`MinimalOpenAPI.Parser.Yaml`, and `MinimalOpenAPI.Parser.Json` projects have
-`<IsPackable>false</IsPackable>` and are not published — their DLLs are bundled
-inside the main package.
+1. Ensure the target commit is green.
+2. Create and push a tag such as:
 
-| Trigger | What happens |
-|---------|-------------|
-| **Manual dispatch** (`workflow_dispatch`) | Builds, packs, and pushes packages to GitHub Packages (nightly / pre-release feed). |
-| **GitHub Release published** (`release: published`) | Builds, packs, uploads `.nupkg`/`.snupkg` to the GitHub Release assets, and pushes to NuGet.org. |
+   ```shell
+   git tag v1.1.0-rc.1
+   git push origin v1.1.0-rc.1
+   ```
 
-### Cutting a beta or RC release (manual)
+3. Create a GitHub Release for that tag and mark it as a **prerelease**.
+4. Publish the release.
+5. Verify the workflow and NuGet.org package.
+6. Consume the published package from a clean external project.
 
-1. Push the pre-release tag (e.g. `v1.0.0-beta.1`) as shown above.
-2. Verify the build passes on the tag commit in the [Actions tab](https://github.com/Kralizek/MinimalOpenApi/actions).
-3. Go to **Actions → Publish → Run workflow** to push the packages to GitHub Packages.
-4. Optionally: create a pre-release GitHub Release (`v1.0.0-beta.1`, marked as pre-release) to publish to NuGet.org automatically.
+Use manual workflow dispatch only when a GitHub Packages build is desired without publishing a GitHub Release or NuGet.org package.
 
-### Cutting a stable release
+## Cutting a stable release
 
-1. Ensure the changelog is up to date and all tests pass on `master`.
-2. Push the stable tag:
+1. Confirm the final release candidate has been validated externally.
+2. Merge the final release-record and repository-polish changes.
+3. Confirm all required checks pass on `master`.
+4. Tag the exact validated commit:
+
    ```shell
    git tag v1.0.0
    git push origin v1.0.0
    ```
-3. On GitHub, go to **Releases → Draft a new release**.
-4. Select the tag `v1.0.0`.
-5. Copy the relevant section from `CHANGELOG.md` into the release notes.
-6. Click **Publish release**.
-7. The Publish workflow runs automatically and pushes to NuGet.org.
-8. Verify the packages appear on [nuget.org](https://www.nuget.org/packages/MinimalOpenAPI) within a few minutes.
 
----
-
-## Validating packages locally
-
-To test a local pack before pushing any tag:
-
-```shell
-# Build and pack in Release configuration
-dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj --configuration Release --output /tmp/local-packages
-
-# Add a local NuGet source (one-time)
-dotnet nuget add source /tmp/local-packages --name local-MinimalOpenAPI
-
-# Reference the package in a test project
-dotnet add <TestProject> package MinimalOpenAPI --source local-MinimalOpenAPI --prerelease
-
-# Remove the local source when done
-dotnet nuget remove source local-MinimalOpenAPI
-```
-
-To inspect the contents of a `.nupkg` file directly (it is a ZIP archive):
-
-```shell
-unzip -l /tmp/local-packages/MinimalOpenAPI.1.0.0-beta.1.nupkg
-```
-
----
+5. Draft a GitHub Release from `v1.0.0`.
+6. Use the corresponding changelog section as the release notes, editing it for readability where useful.
+7. Publish the release.
+8. Verify:
+   - `.nupkg` and `.snupkg` assets are attached to the GitHub Release;
+   - the package is available on NuGet.org;
+   - symbols are indexed;
+   - the NuGet README renders correctly;
+   - Source Link resolves repository source;
+   - installation succeeds in a new .NET 10 ASP.NET Core project.
 
 ## Post-release checklist
 
-After a stable release:
-
-- [ ] Confirm packages are live on NuGet.org.
-- [ ] Confirm `.snupkg` symbol packages are indexed (NuGet.org symbol server).
-- [ ] Update `CHANGELOG.md` — add a new `## Unreleased` heading at the top.
-- [ ] Bump any `Version="..."` references in sample or documentation if they pinned the previous version.
-- [ ] Close any GitHub issues or milestones associated with this release.
+- [ ] Confirm the GitHub Release and NuGet.org package show the same version and notes.
+- [ ] Confirm symbol-server and Source Link behavior.
+- [ ] Close the release milestone and completed issues.
+- [ ] Keep `## Unreleased` at the top of the changelog.
+- [ ] Ensure development builds now resolve to the next MinVer preview line.
+- [ ] Announce any known limitations that are especially relevant to existing prerelease users.
