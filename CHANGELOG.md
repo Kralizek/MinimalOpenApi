@@ -24,7 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Spec publishing and serving**: every `<OpenApi ... />` item is copied to build and publish output under a collision-safe internal hashed path (`openapi/schemas/<SchemaId>/<filename>.<ext>`). `MapOpenApiSchemas()` maps only schemas that declare `PublishAs`, using the exact `PublishAs` path, and returns an `OpenApiSchemaMapResult` containing `OpenApiSchemaEndpoint` descriptors for each mapped schema. Descriptor name/version are project-driven via `DisplayName` and `DisplayVersion` metadata (with fallback name = file name without extension, version = `null`), and the descriptor includes `PublicPath`, `FullName`, and `RouteHandlerBuilder` for Swagger UI wiring and endpoint customization.
 
-- **Endpoint customizer pattern**: a generated `<OperationId>EndpointRegistration` base class lets consumers configure individual endpoints (authorization, rate limiting, etc.) without touching generated code.
+- **Endpoint configuration pattern**: a generated `<OperationId>EndpointConfigurationBase` base class lets consumers configure individual endpoints (authorization, rate limiting, etc.) without touching generated code.
+
+- **Pre-GA generated API cleanup**: prerelease `<OperationId>EndpointRegistration` types were renamed to `<OperationId>EndpointConfigurationBase`; `Configure(RouteHandlerBuilder)` is now abstract; and application configuration runs after all contract-derived endpoint metadata. Existing prerelease consumers must update the inherited base type and implement `Configure`.
 
 - **Compile-time diagnostics** (`MOA001`–`MOA014`) for missing or duplicate handler implementations, unparseable specs, unrecognised file extensions, unrecognised OpenAPI versions, incompatible `allOf` property conflicts (with `JsonElement` fallback), schema name collisions (`MOA012`), unnormalisable schema names (`MOA013`), and generated scoped or inline symbol collisions (`MOA014`).
 
