@@ -81,17 +81,43 @@ public class GetEndpointGenerationTests
     }
 
     [Test]
-    public void GeneratesRegistrationCustomizerBaseClass()
+    public void GeneratesEndpointConfigurationBaseClass()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
             userSource: GetClientHandlerImpl,
             additionalFiles: AdditionalFiles);
 
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpointRegistration.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "GetClientEndpointConfigurationBase.g.cs");
 
-        Assert.That(source, Does.Contain("public abstract class GetClientEndpointRegistration"));
-        Assert.That(source, Does.Contain("Configure("));
-        Assert.That(source, Does.Contain("RouteHandlerBuilder builder"));
+        Assert.That(source, Does.Contain("public abstract class GetClientEndpointConfigurationBase"));
+        Assert.That(source, Does.Contain("public abstract void Configure("));
+        Assert.That(source, Does.Contain("RouteHandlerBuilder endpoint"));
+        Assert.That(source, Does.Not.Contain("EndpointRegistration"));
+    }
+
+    [Test]
+    public void AppliesEndpointConfigurationAfterContractMetadata()
+    {
+        const string endpointConfiguration = """
+            public sealed class GetClientEndpointConfiguration : GetClientEndpointConfigurationBase
+            {
+                public override void Configure(
+                    global::Microsoft.AspNetCore.Builder.RouteHandlerBuilder endpoint)
+                {
+                }
+            }
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: GetClientHandlerImpl + System.Environment.NewLine + endpointConfiguration,
+            additionalFiles: AdditionalFiles);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "EndpointMapping.g.cs");
+        var contractMetadataIndex = source.IndexOf(".Produces", System.StringComparison.Ordinal);
+        var applicationConfigurationIndex = source.IndexOf("Configuration?.Configure(", System.StringComparison.Ordinal);
+
+        Assert.That(contractMetadataIndex, Is.GreaterThanOrEqualTo(0));
+        Assert.That(applicationConfigurationIndex, Is.GreaterThan(contractMetadataIndex));
     }
 
     [Test]

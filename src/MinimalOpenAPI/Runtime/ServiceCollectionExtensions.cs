@@ -20,7 +20,7 @@ public static class ServiceCollectionExtensions
 
     /// <summary>
     /// Called by the source-generated <c>[ModuleInitializer]</c> to wire up the
-    /// generated handler and customizer registrations before the app starts.
+    /// generated handler and configuration registrations before the app starts.
     /// Each OpenAPI spec file registered in the project contributes one registration
     /// callback; multiple specs are supported by calling this method once per spec.
     /// </summary>

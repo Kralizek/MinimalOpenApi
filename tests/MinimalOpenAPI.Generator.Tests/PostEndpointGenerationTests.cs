@@ -82,23 +82,36 @@ public class PostEndpointGenerationTests
     }
 
     [Test]
-    public void GeneratesRegistrationCustomizerBase()
+    public void GeneratesEndpointConfigurationBase()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
             userSource: CreateClientHandlerImpl,
             additionalFiles: AdditionalFiles);
 
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateClientEndpointRegistration.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateClientEndpointConfigurationBase.g.cs");
 
-        Assert.That(source, Does.Contain("public abstract class CreateClientEndpointRegistration"));
+        Assert.That(source, Does.Contain("public abstract class CreateClientEndpointConfigurationBase"));
     }
 
     [Test]
-    public void ReportsDuplicateRegistrationCustomizerDiagnostic()
+    public void ReportsDuplicateEndpointConfigurationDiagnostic()
     {
         var userSource = CreateClientHandlerImpl + """
-            public class RegA : CreateClientEndpointRegistration { }
-            public class RegB : CreateClientEndpointRegistration { }
+            public sealed class ConfigurationA : CreateClientEndpointConfigurationBase
+            {
+                public override void Configure(
+                    global::Microsoft.AspNetCore.Builder.RouteHandlerBuilder endpoint)
+                {
+                }
+            }
+
+            public sealed class ConfigurationB : CreateClientEndpointConfigurationBase
+            {
+                public override void Configure(
+                    global::Microsoft.AspNetCore.Builder.RouteHandlerBuilder endpoint)
+                {
+                }
+            }
             """;
 
         var (result, _) = GeneratorTestHelper.RunGenerator(
@@ -109,11 +122,24 @@ public class PostEndpointGenerationTests
     }
 
     [Test]
-    public void DuplicateRegistrationCustomizerDiagnosticHasOpenApiFileLocation()
+    public void DuplicateEndpointConfigurationDiagnosticHasOpenApiFileLocation()
     {
         var userSource = CreateClientHandlerImpl + """
-            public class RegA : CreateClientEndpointRegistration { }
-            public class RegB : CreateClientEndpointRegistration { }
+            public sealed class ConfigurationA : CreateClientEndpointConfigurationBase
+            {
+                public override void Configure(
+                    global::Microsoft.AspNetCore.Builder.RouteHandlerBuilder endpoint)
+                {
+                }
+            }
+
+            public sealed class ConfigurationB : CreateClientEndpointConfigurationBase
+            {
+                public override void Configure(
+                    global::Microsoft.AspNetCore.Builder.RouteHandlerBuilder endpoint)
+                {
+                }
+            }
             """;
 
         var (result, _) = GeneratorTestHelper.RunGenerator(

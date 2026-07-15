@@ -274,7 +274,7 @@ name is application-specific.  Options:
    present (coarse-grained).
 2. Emit `.RequireAuthorization(schemeName)` and let the consumer configure a
    matching policy (fine-grained but fragile without spec conventions).
-3. Expose a customisation hook via `EndpointRegistration` (preferred — keeps
+3. Expose a customisation hook via `EndpointConfigurationBase` (preferred — keeps
    the library policy-agnostic).
 
 **Recommendation**: do not auto-generate security attributes; instead, document

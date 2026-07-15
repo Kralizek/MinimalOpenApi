@@ -11,7 +11,7 @@ internal static class EndpointMappingGenerator
 {
     public static string Generate(
         List<OpenApiOperation> operations,
-        List<DiscoveredImplementation> customizers,
+        List<DiscoveredImplementation> configurations,
         string rootNamespace,
         string specName,
         SchemaDirectionalityAnalysis directionality)
@@ -38,7 +38,7 @@ internal static class EndpointMappingGenerator
 
         foreach (var op in operations)
         {
-            GenerateEndpointMapping(sb, op, customizers, rootNamespace, specName, directionality);
+            GenerateEndpointMapping(sb, op, configurations, rootNamespace, specName, directionality);
             sb.AppendLine();
         }
 
@@ -50,7 +50,7 @@ internal static class EndpointMappingGenerator
     private static void GenerateEndpointMapping(
         StringBuilder sb,
         OpenApiOperation operation,
-        List<DiscoveredImplementation> customizers,
+        List<DiscoveredImplementation> configurations,
         string rootNamespace,
         string specName,
         SchemaDirectionalityAnalysis directionality)
@@ -59,7 +59,7 @@ internal static class EndpointMappingGenerator
         // Fully-qualified name of the handler base class (e.g. "global::NS.Spec.Endpoints.CreateOrderEndpointBase").
         var handlerFqn = $"global::{rootNamespace}.{specName}.Endpoints.{TypeMapper.HandlerClassName(operation.OperationId)}";
         var handlerClass = $"{rootNamespace}.{specName}.Endpoints.{TypeMapper.HandlerClassName(operation.OperationId)}";
-        var customizerClass = $"{rootNamespace}.{specName}.Endpoints.{TypeMapper.RegistrationClassName(operation.OperationId)}";
+        var configurationClass = $"{rootNamespace}.{specName}.Endpoints.{TypeMapper.EndpointConfigurationBaseClassName(operation.OperationId)}";
         var constrainedRoute = TypeMapper.BuildConstrainedRoute(operation.Route, operation.Parameters);
 
         // Resolver: inline schema → FULLY-QUALIFIED nested type name for use outside the class.
@@ -93,14 +93,6 @@ internal static class EndpointMappingGenerator
         sb.AppendLine($"                => handler.HandleAsync({handlerInvocation}));");
         sb.AppendLine();
 
-        // Apply optional customizer
-        var customizerImpl = customizers.FirstOrDefault(c => c.BaseName == TypeMapper.RegistrationClassName(operation.OperationId));
-        if (customizerImpl is not null)
-        {
-            sb.AppendLine($"        var {varName}Customizer = services.GetService<{customizerClass}>();");
-            sb.AppendLine($"        {varName}Customizer?.Configure({varName});");
-            sb.AppendLine();
-        }
 
         // Apply contract metadata
         sb.Append($"        {varName}");
@@ -153,6 +145,15 @@ internal static class EndpointMappingGenerator
         if (responses.Count == 0)
         {
             sb.AppendLine("            ;");
+        }
+
+        // Apply optional application configuration after all contract-derived metadata.
+        var configurationImpl = configurations.FirstOrDefault(c => c.BaseName == TypeMapper.EndpointConfigurationBaseClassName(operation.OperationId));
+        if (configurationImpl is not null)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"        var {varName}Configuration = services.GetService<{configurationClass}>();");
+            sb.AppendLine($"        {varName}Configuration?.Configure({varName});");
         }
     }
 

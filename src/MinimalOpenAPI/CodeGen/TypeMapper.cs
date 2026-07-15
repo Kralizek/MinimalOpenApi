@@ -483,9 +483,9 @@ internal static class TypeMapper
     public static string HandlerClassName(string operationId) =>
         ToPascalCase(operationId) + "EndpointBase";
 
-    /// <summary>Returns the registration customizer class name for an operation.</summary>
-    public static string RegistrationClassName(string operationId) =>
-        ToPascalCase(operationId) + "EndpointRegistration";
+    /// <summary>Returns the endpoint configuration base class name for an operation.</summary>
+    public static string EndpointConfigurationBaseClassName(string operationId) =>
+        ToPascalCase(operationId) + "EndpointConfigurationBase";
 
     /// <summary>
     /// Emits the standard generated-code attribute lines that must appear on every

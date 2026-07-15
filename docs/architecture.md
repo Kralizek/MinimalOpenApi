@@ -82,11 +82,11 @@ MinimalOpenAPI.Generator  (IIncrementalGenerator, runs inside Roslyn)
     ├─ Peeks openapi version field; selects parser via OpenApiParserRequest(Format, Version?)
     ├─ Calls IOpenApiParser.ParseAsync → OpenApiDocument
     ├─ Scans user-project class declarations (SyntaxProvider)
-    │   to discover concrete handler and customizer implementations
+    │   to discover concrete handler and configuration implementations
     │
     ├─ Emits per-operation source files (prefixed with spec name):
     │   MinimalOpenApi.<SpecName>.<OperationId>Endpoint.g.cs          (handler base)
-    │   MinimalOpenApi.<SpecName>.<OperationId>EndpointRegistration.g.cs (customizer base)
+    │   MinimalOpenApi.<SpecName>.<OperationId>EndpointConfigurationBase.g.cs (configuration base)
     │
     ├─ Emits shared source files (one set per spec):
     │   MinimalOpenApi.<SpecName>.Dtos.g.cs                 (DTO records + enums)
@@ -343,11 +343,11 @@ For each operation it looks for:
 
 - A class whose base-type chain includes `<OperationId>Endpoint` → the handler
   implementation.
-- A class whose base-type chain includes `<OperationId>EndpointRegistration` →
-  the optional customizer implementation.
+- A class whose base-type chain includes `<OperationId>EndpointConfigurationBase` →
+  the optional configuration implementation.
 
 Exactly one handler must exist (zero → **MOA001** warning; two or more →
-**MOA002** error).  Zero or one customizer is allowed (two or more → **MOA003**
+**MOA002** error).  Zero or one configuration is allowed (two or more → **MOA003**
 error).
 
 ### 6.4 Generated files
@@ -359,14 +359,14 @@ For a spec with `n` operations the generator emits `2n + 3` source files:
 | File | Purpose |
 |------|---------|
 | `MinimalOpenApi.<Id>Endpoint.g.cs` | Abstract handler base class with a `virtual HandleAsync(…)` method typed to the operation's parameters and `Results<T…>` return type. |
-| `MinimalOpenApi.<Id>EndpointRegistration.g.cs` | Abstract customizer base class with a `virtual Configure(RouteHandlerBuilder)` method. |
+| `MinimalOpenApi.<Id>EndpointConfigurationBase.g.cs` | Abstract configuration base class with an abstract `Configure(RouteHandlerBuilder)` method. |
 
 **Shared (one per document):**
 
 | File | Purpose |
 |------|---------|
 | `MinimalOpenApi.Dtos.g.cs` | One `sealed record` per `components/schemas` object. Properties are typed using `TypeMapper.MapSchema`. Required properties get non-nullable types with default values; optional properties get nullable types. |
-| `MinimalOpenApi.DependencyInjection.g.cs` | `AddGeneratedEndpoints(IServiceCollection)` extension method that registers each handler (as `services.AddScoped<Base, Impl>()`) and each customizer (as `services.AddSingleton<Base, Impl>()`). Also contains `MinimalOpenApiModuleInitializer` which uses `[ModuleInitializer]` to call both `ServiceCollectionExtensions.RegisterGeneratedServices` AND `ServiceCollectionExtensions.RegisterEndpointMapping` the moment the assembly is loaded. |
+| `MinimalOpenApi.DependencyInjection.g.cs` | `AddGeneratedEndpoints(IServiceCollection)` extension method that registers each handler (as `services.AddScoped<Base, Impl>()`) and each configuration (as `services.AddSingleton<Base, Impl>()`). Also contains `MinimalOpenApiModuleInitializer` which uses `[ModuleInitializer]` to call both `ServiceCollectionExtensions.RegisterGeneratedServices` AND `ServiceCollectionExtensions.RegisterEndpointMapping` the moment the assembly is loaded. |
 | `MinimalOpenApi.EndpointMapping.g.cs` | **Internal** `MinimalOpenApiGeneratedEndpointRouteBuilderExtensions` class with an `internal static MapEndpoints(IEndpointRouteBuilder, string?)` method. Each route is mapped using `group.MapGet/Post/Put/…` with a static lambda that resolves the handler from DI, calls `handler.HandleAsync(…)`, and applies `.WithName`, `.WithSummary`, `.WithDescription`, `.WithTags`, and `.Produces<T>` metadata from the OpenAPI spec. The public entry point is the runtime's `MapMinimalOpenApiEndpoints`; this class is an internal implementation detail registered via the callback in §4.2. |
 
 All generated types carry `[ExcludeFromCodeCoverage]` and `[GeneratedCode]`
@@ -400,28 +400,29 @@ The handler is a plain class registered with `AddScoped`.  ASP.NET Core's
 minimal-API parameter binding injects it directly into the lambda, so no
 middleware or action filter machinery is involved.
 
-### 6.6 Registration customizer pattern (optional)
+### 6.6 Endpoint configuration pattern (optional)
 
-For every operation, the generator also emits a customizer base:
+For every operation, the generator also emits a configuration base:
 
 ```csharp
 // generated
-public abstract class GetTodoEndpointRegistration
+public abstract class GetTodoEndpointConfigurationBase
 {
-    public virtual void Configure(RouteHandlerBuilder builder) { }
+    public abstract void Configure(RouteHandlerBuilder endpoint);
 }
 
 // optional user-written
-public sealed class GetTodoRegistration : GetTodoEndpointRegistration
+public sealed class GetTodoEndpointConfiguration : GetTodoEndpointConfigurationBase
 {
-    public override void Configure(RouteHandlerBuilder builder)
-        => builder.RequireAuthorization();
+    public override void Configure(RouteHandlerBuilder endpoint)
+        => endpoint.RequireAuthorization();
 }
 ```
 
-If a concrete customizer is found, it is registered as a singleton and called
-during `MapMinimalOpenApiEndpoints` to apply additional endpoint metadata.
-If none exists, the customizer lookup is simply skipped.
+If a concrete configuration is found, it is registered as a singleton and called
+during `MapMinimalOpenApiEndpoints` after all contract-derived metadata has been
+applied. This makes application configuration the final endpoint configuration layer.
+If none exists, the configuration lookup is simply skipped.
 
 ---
 
@@ -511,7 +512,7 @@ wraps multiple types in `Results<T1, T2, …>`.
 - `ToCamelCase` — first letter lowercased.  Used for C# parameter names in
   lambdas and `HandleAsync` signatures.
 - `HandlerClassName(operationId)` → `<PascalCase(operationId)>EndpointBase`
-- `RegistrationClassName(operationId)` → `<PascalCase(operationId)>EndpointRegistration`
+- `EndpointConfigurationBaseClassName(operationId)` → `<PascalCase(operationId)>EndpointConfigurationBase`
 
 ---
 
@@ -521,7 +522,7 @@ wraps multiple types in `Results<T1, T2, …>`.
 |------|----------|---------|
 | **MOA001** | Warning | No concrete class inheriting from a generated handler base was found in the project.  The app will compile but `HandleAsync` will throw `NotImplementedException` at runtime. |
 | **MOA002** | Error | Two or more classes inherit from the same generated handler base.  Exactly one implementation is required. |
-| **MOA003** | Error | Two or more classes inherit from the same generated customizer base.  At most one is allowed. |
+| **MOA003** | Error | Two or more classes inherit from the same generated configuration base.  At most one is allowed. |
 | **MOA004** | Error | The OpenAPI file could not be parsed (YAML syntax error, etc.). |
 | **MOA005** | Error | The `<OpenApi>` item has a file extension the generator does not recognise (only `.yaml`, `.yml`, and `.json` are supported). |
 | **MOA006** | Warning | The `openapi` version field is absent or contains a value the generator cannot parse as a `System.Version`.  The spec is still processed; generation continues. |
@@ -642,8 +643,8 @@ The module initializer + callback pattern keeps the public API surface to two
 calls — `AddMinimalOpenApi()` and `MapMinimalOpenApiEndpoints()` — both in the
 `MinimalOpenAPI` namespace, with no `using {RootNamespace}.Generated;` required.
 
-**Customizer as singleton, handler as scoped**: Handlers may hold scoped
-dependencies (e.g. `DbContext`).  Customizers configure route metadata at
+**Configuration as singleton, handler as scoped**: Handlers may hold scoped
+dependencies (e.g. `DbContext`).  Configurations configure route metadata at
 startup and are stateless, so singleton lifetime is appropriate.
 
 **Schema-first DTO emission with scoped variants when needed**: `components/schemas`

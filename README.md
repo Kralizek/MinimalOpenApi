@@ -250,7 +250,7 @@ public override Task<Results<Created<Todo>, BadRequestProblem>> HandleAsync(Requ
 | `multipart/form-data` request bodies | Generates a form-bound nested `Request` record with `[FromForm]` attributes; `string/binary` → `IFormFile`, array-of-binary → `IReadOnlyList<IFormFile>` |
 | Spec publishing | Every `<OpenApi />` item is copied to build and publish output under `openapi/schemas/<SchemaId>/<filename>` |
 | HTTP schema serving | `MapOpenApiSchemas()` serves only schemas with `PublishAs="..."` at that exact path |
-| Endpoint customizers | Optional `<OperationId>EndpointRegistration` base for per-route metadata |
+| Endpoint configurations | Optional `<OperationId>EndpointConfigurationBase` base for per-route metadata |
 
 See the focused [sample projects](sample/) for end-to-end examples. Start with [BasicTodo](sample/BasicTodo/README.md) for the simplest contract-first workflow.
 
@@ -500,7 +500,7 @@ metadata.source=CRM
 Array-of-object properties (e.g. `tags: array of { name: string }`) and dictionary fields cannot be bound via `multipart/form-data`. The generator emits a **`MOA011` error** for such fields and omits them from the form DTO. Fix the spec or restructure the field to proceed.
 
 **Notes:**
-- Antiforgery is not disabled by the generator. ASP.NET Core form-bound Minimal API endpoints require antiforgery validation by default. Applications that expose browser/cookie-authenticated upload forms should call `AddAntiforgery()` and `UseAntiforgery()` in the app pipeline. Bearer-token, API-key, or internal endpoints can opt out explicitly with `.DisableAntiforgery()` from the endpoint customizer.
+- Antiforgery is not disabled by the generator. ASP.NET Core form-bound Minimal API endpoints require antiforgery validation by default. Applications that expose browser/cookie-authenticated upload forms should call `AddAntiforgery()` and `UseAntiforgery()` in the app pipeline. Bearer-token, API-key, or internal endpoints can opt out explicitly with `.DisableAntiforgery()` from an endpoint configuration.
 - Request size limits are application responsibility and are not configured by the generator.
 - File validation and storage are application code — the generator only produces the binding plumbing.
 
@@ -535,9 +535,9 @@ public sealed class GetItemEndpoint : GetItemEndpointBase
 
 Only one class may inherit from a given base. Remove or consolidate the duplicate.
 
-**Build error MOA003 — multiple customizer implementations**
+**Build error MOA003 — multiple endpoint configuration implementations**
 
-At most one class may inherit from a given `<OperationId>EndpointRegistration` base. Remove or consolidate the duplicate.
+At most one class may inherit from a given `<OperationId>EndpointConfigurationBase` base. Remove or consolidate the duplicate.
 
 **Build error MOA004 — OpenAPI file could not be parsed**
 

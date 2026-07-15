@@ -24,10 +24,10 @@ internal static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
-    /// <summary>More than one concrete implementation found for a generated registration customizer base class.</summary>
-    public static readonly DiagnosticDescriptor DuplicateRegistrationCustomizerImplementation = new(
+    /// <summary>More than one concrete implementation found for a generated endpoint configuration base class.</summary>
+    public static readonly DiagnosticDescriptor DuplicateEndpointConfigurationImplementation = new(
         id: "MOA003",
-        title: "Duplicate registration customizer implementations",
+        title: "Duplicate endpoint configuration implementations",
         messageFormat: "Multiple implementations of '{0}' were found: {1}. At most one implementation is allowed.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,

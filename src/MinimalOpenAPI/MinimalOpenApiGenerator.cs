@@ -17,7 +17,7 @@ namespace MinimalOpenAPI.Generator;
 
 /// <summary>
 /// Roslyn incremental source generator that reads OpenAPI specification files and emits
-/// strongly-typed DTOs, abstract handler base classes, registration customizer bases,
+/// strongly-typed DTOs, abstract handler base classes, endpoint configuration bases,
 /// DI registration extensions and endpoint mapping extensions for use with ASP.NET Core
 /// Minimal APIs.
 /// </summary>
@@ -582,14 +582,14 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             }
         }
 
-        // Discover handlers and customizers, emit diagnostics
+        // Discover handlers and configurations, emit diagnostics
         var handlers = new List<DiscoveredImplementation>();
-        var customizers = new List<DiscoveredImplementation>();
+        var configurations = new List<DiscoveredImplementation>();
 
         foreach (var op in operations)
         {
             var handlerBase = TypeMapper.HandlerClassName(op.OperationId);
-            var customizerBase = TypeMapper.RegistrationClassName(op.OperationId);
+            var configurationBase = TypeMapper.EndpointConfigurationBaseClassName(op.OperationId);
 
             // Generate handler base
             var handlerConflicts = new List<MinimalOpenAPI.Generator.CodeGen.AllOfPropertyConflict>();
@@ -615,9 +615,9 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     shape.FormRecordTypeName));
             }
 
-            // Generate registration customizer base
-            var customizerSource = RegistrationCustomizerGenerator.Generate(op, rootNamespace, specName);
-            spc.AddSource(OperationHintName(specName, customizerBase), customizerSource);
+            // Generate endpoint configuration base
+            var configurationSource = EndpointConfigurationGenerator.Generate(op, rootNamespace, specName);
+            spc.AddSource(OperationHintName(specName, configurationBase), configurationSource);
 
             // Discover handler implementations
             var handlerImpls = allClasses
@@ -648,28 +648,28 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     break;
             }
 
-            // Discover customizer implementations
-            var customizerImpls = allClasses
-                .Where(c => c.BaseTypeNames.Contains(customizerBase))
+            // Discover configuration implementations
+            var configurationImpls = allClasses
+                .Where(c => c.BaseTypeNames.Contains(configurationBase))
                 .ToList();
 
-            switch (customizerImpls.Count)
+            switch (configurationImpls.Count)
             {
                 case 0:
                     break; // Optional, none is fine
                 case 1:
-                    customizers.Add(new DiscoveredImplementation
+                    configurations.Add(new DiscoveredImplementation
                     {
-                        BaseName = customizerBase,
-                        FullName = customizerImpls[0].FullName
+                        BaseName = configurationBase,
+                        FullName = configurationImpls[0].FullName
                     });
                     break;
                 default:
                     spc.ReportDiagnostic(Diagnostic.Create(
-                        DiagnosticDescriptors.DuplicateRegistrationCustomizerImplementation,
+                        DiagnosticDescriptors.DuplicateEndpointConfigurationImplementation,
                         CreateOpenApiLocation(openApiFilePath),
-                        customizerBase,
-                        string.Join(", ", customizerImpls.Select(c => c.FullName))));
+                        configurationBase,
+                        string.Join(", ", configurationImpls.Select(c => c.FullName))));
                     break;
             }
         }
@@ -678,7 +678,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         var diSource = DependencyInjectionRegistrationGenerator.Generate(
             operations,
             handlers,
-            customizers,
+            configurations,
             rootNamespace,
             specName,
             schemaId,
@@ -689,7 +689,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         spc.AddSource(InfrastructureHintName(specName, "DependencyInjection"), diSource);
 
         // Generate endpoint mapping
-        var mappingSource = EndpointMappingGenerator.Generate(operations, customizers, rootNamespace, specName, directionality);
+        var mappingSource = EndpointMappingGenerator.Generate(operations, configurations, rootNamespace, specName, directionality);
         spc.AddSource(InfrastructureHintName(specName, "EndpointMapping"), mappingSource);
     }
 
