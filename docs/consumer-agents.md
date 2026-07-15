@@ -1,85 +1,54 @@
 # Consumer Agent Guide — MinimalOpenAPI
 
-This guide is for coding agents (e.g. GitHub Copilot) integrating `MinimalOpenAPI` into a consumer project.
+This guide is for coding agents integrating `MinimalOpenAPI` into an ASP.NET Core application.
 
----
+## Purpose
 
-## 1. Purpose
+MinimalOpenAPI is a **contract-first** framework for ASP.NET Core Minimal APIs.
 
-`MinimalOpenAPI` is a **contract-first** OpenAPI framework for ASP.NET Core Minimal APIs.
+- The OpenAPI document is the source of truth.
+- A Roslyn incremental generator reads the document at build time.
+- The generator emits contracts, handler base classes, DI registration, endpoint mapping, and endpoint metadata.
+- Consumer code implements the generated handler base classes.
 
-- You author an OpenAPI YAML or JSON specification.
-- A Roslyn source generator reads the spec at **build time** and emits DTO records, abstract handler base classes, DI registration, and endpoint mapping.
-- The OpenAPI file is the **single source of truth**. The generated C# is a by-product.
-- You only write business logic by extending the generated abstractions.
+Do not treat the generated C# as the primary contract and do not edit generated files.
 
----
+## Package selection
 
-## 2. Package selection guide
+Reference only the `MinimalOpenAPI` package:
 
-| Package | When to reference it |
-|---------|----------------------|
-| `MinimalOpenAPI` | **Always.** This is the main entry point. It bundles the Roslyn source generator and pulls in `MinimalOpenAPI.Runtime`, `MinimalOpenAPI.Parser.Yaml`, and `MinimalOpenAPI.Parser.Json` as transitive dependencies. |
-| `MinimalOpenAPI.Runtime` | Only if you need to reference runtime types (e.g. `IEndpointHandler`) in a project that does not reference the main package. Normally pulled in automatically. |
-| `MinimalOpenAPI.Parser.Yaml` | Pulled in automatically. Reference directly only when writing or testing a custom generator host. |
-| `MinimalOpenAPI.Parser.Json` | Pulled in automatically. Reference directly only when writing or testing a custom generator host. |
-| `MinimalOpenAPI.Abstractions` | Only when writing a custom `IOpenApiParser` implementation in a separate project. |
-
-**Rule:** reference only `MinimalOpenAPI` in your consumer project. Do not add the sub-packages separately unless there is a specific, justified reason.
-
----
-
-## 3. Minimal setup (step-by-step)
-
-**Step 1 — Install the package:**
-
-```shell
-dotnet add package MinimalOpenAPI
+```xml
+<PackageReference Include="MinimalOpenAPI" Version="1.0.0" />
 ```
 
-**Step 2 — Add your OpenAPI spec to the project directory:**
+The package contains both the source generator and the required ASP.NET Core runtime services. `MinimalOpenAPI.Abstractions`, `MinimalOpenAPI.Parser.Yaml`, and `MinimalOpenAPI.Parser.Json` are bundled implementation assemblies, not separately published consumer packages.
 
-```
-MyApi/
-  openapi.yaml      ← your contract
-  MyApi.csproj
-  Program.cs
-```
+## Requirements
 
-**Step 3 — Register the spec file in the `.csproj`:**
+- .NET 10
+- ASP.NET Core
+- OpenAPI 3.0 or 3.1 in YAML or JSON
+
+## Minimal integration
+
+### 1. Add the package and document
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="MinimalOpenAPI" Version="1.0.0-alpha" />
+  <PackageReference Include="MinimalOpenAPI" Version="1.0.0" />
   <OpenApi Include="openapi.yaml" />
 </ItemGroup>
 ```
 
-**Step 4 — Build to generate the code:**
+### 2. Build before writing handlers
 
 ```shell
 dotnet build
 ```
 
-The generator emits code into the Roslyn compilation. The generated types are immediately available.
+The generated types become available to the compilation after the first successful build.
 
-**Step 5 — Implement the generated handler base class for each operation:**
-
-```csharp
-// GetItemEndpoint.cs
-public sealed class GetItemEndpoint(IItemRepository repo) : GetItemEndpointBase
-{
-    public override async Task<Results<Ok<Item>, NotFound>> HandleAsync(
-        Guid id,
-        CancellationToken cancellationToken)
-    {
-        var item = await repo.FindAsync(id, cancellationToken);
-        return item is null ? TypedResults.NotFound() : TypedResults.Ok(item);
-    }
-}
-```
-
-**Step 6 — Register services and map endpoints in `Program.cs`:**
+### 3. Register services and endpoints
 
 ```csharp
 using MinimalOpenAPI;
@@ -92,220 +61,240 @@ app.MapMinimalOpenApiEndpoints();
 app.Run();
 ```
 
-**Step 7 — Run the application:**
+Call `AddMinimalOpenApi()` and `MapMinimalOpenApiEndpoints()` once per application.
 
-```shell
-dotnet run
-```
+### 4. Implement each generated handler
 
----
-
-## 4. Example workflow
-
-Given this OpenAPI spec fragment:
+Given:
 
 ```yaml
 paths:
-  /todos:
+  /todos/{id}:
     get:
-      operationId: listTodos
+      operationId: getTodo
       parameters:
-        - name: isComplete
-          in: query
-          required: false
+        - name: id
+          in: path
+          required: true
           schema:
-            type: boolean
+            type: string
+            format: uuid
       responses:
         "200":
-          description: OK
+          description: Found
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Todo'
-    post:
-      operationId: createTodo
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [title, isComplete]
-              properties:
-                title:
-                  type: string
-                isComplete:
-                  type: boolean
-      responses:
-        "201":
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Todo'
-        "400":
-          description: Bad Request
-components:
-  schemas:
-    Todo:
-      type: object
-      required: [id, title, isComplete]
-      properties:
-        id:
-          type: string
-          format: uuid
-        title:
-          type: string
-        isComplete:
-          type: boolean
+                $ref: "#/components/schemas/Todo"
+        "404":
+          description: Not found
 ```
 
-The generator produces:
-
-- `Todo` — a DTO record mirroring `components/schemas/Todo`.
-- `ListTodosEndpointBase` — abstract base with a `Parameters` record wrapping query parameters.
-- `CreateTodoEndpointBase` — abstract base with a nested `Request` record wrapping the request body.
-
-**Consumer implementation for `listTodos`:**
+Implement the generated base class:
 
 ```csharp
-public sealed class ListTodosEndpoint(ITodoStore store) : ListTodosEndpointBase
+public sealed class GetTodoEndpoint(ITodoStore store)
+    : GetTodoEndpointBase
 {
-    public override Task<Ok<Todo[]>> HandleAsync(
-        ListTodosEndpointBase.Parameters parameters,
+    public override async Task<Results<Ok<Todo>, NotFound>> HandleAsync(
+        Guid id,
         CancellationToken cancellationToken)
     {
-        var items = store.List(parameters.IsComplete)
-                         .Select(t => new Todo { Id = t.Id, Title = t.Title, IsComplete = t.IsComplete })
-                         .ToArray();
-        return Task.FromResult(TypedResults.Ok(items));
+        var todo = await store.FindAsync(id, cancellationToken);
+        return todo is null
+            ? TypedResults.NotFound()
+            : TypedResults.Ok(todo);
     }
 }
 ```
 
-**Consumer implementation for `createTodo`:**
+Do not call `base.HandleAsync(...)`; the base implementation throws `NotImplementedException` by design.
 
-```csharp
-public sealed class CreateTodoEndpoint(ITodoStore store) : CreateTodoEndpointBase
-{
-    public override Task<Results<Created<Todo>, BadRequest>> HandleAsync(
-        Request request,
-        CancellationToken cancellationToken)
-    {
-        var id = store.Add(request.Title);
-        var todo = new Todo { Id = id, Title = request.Title, IsComplete = request.IsComplete };
-        return Task.FromResult<Results<Created<Todo>, BadRequest>>(
-            TypedResults.Created($"/todos/{id}", todo));
-    }
-}
+## Generated namespaces
+
+Each OpenAPI document gets a namespace segment derived from the file name:
+
+```text
+{RootNamespace}.{SpecName}.Contracts
+{RootNamespace}.{SpecName}.Endpoints
 ```
 
-Non-path parameters (query, header, cookie) are grouped into a nested `Parameters` record decorated with `[AsParameters]`. Path parameters are passed directly as method arguments. Request body schemas become a nested `Request` record. Inline response schemas become nested records named after the status code (e.g. `OkResponse`).
-
----
-
-## 4.1. Publishing the OpenAPI spec as a static HTTP endpoint
-
-MinimalOpenAPI always copies OpenAPI files into build/publish output and can expose selected schemas via explicit HTTP paths.
-
-**Step 1 — Declare explicit schema publishing metadata in the `.csproj`:**
+When multiple files would derive the same spec name, set explicit `Namespace` metadata:
 
 ```xml
 <ItemGroup>
-  <OpenApi Include="openapi.yaml"
-           PublishAs="/openapi/schema.yaml"
-           DisplayName="Todo API"
-           DisplayVersion="1.0.0" />
+  <OpenApi Include="apis/orders/openapi.yaml" Namespace="Orders" />
+  <OpenApi Include="apis/payments/openapi.yaml" Namespace="Payments" />
 </ItemGroup>
 ```
 
-This triggers two MSBuild targets:
-- `CopyMinimalOpenApiFilesToOutput` — copies every OpenAPI file to `openapi/schemas/<SchemaId>/<filename>.<ext>` next to the output binary.
-- `AddMinimalOpenApiFilesToPublishOutput` — includes every OpenAPI file at the same hashed relative path in `dotnet publish` output.
+Duplicate resolved spec names produce `MOA009`.
 
-**Step 2 — Call `MapOpenApiSchemas()` in `Program.cs`:**
+## Generated shapes
+
+Agents should inspect the generated signatures rather than guessing them.
+
+General rules:
+
+- component object schemas produce records;
+- string enums produce C# enums;
+- inline request bodies produce nested `Request` records;
+- non-path parameters are grouped into a nested `Parameters` record;
+- path parameters are direct handler arguments;
+- multiple response statuses produce `Results<T1, T2, ...>`;
+- inline response objects produce status-specific nested records;
+- `application/problem+json` produces status-specific typed wrappers;
+- `additionalProperties` maps to `Dictionary<string, T>`;
+- inline object array items produce generated item records rather than `object[]`;
+- `allOf` object branches are flattened into one contract shape.
+
+When exact generated source is needed, enable Roslyn generated-file emission as documented in the repository README.
+
+## `readOnly` and `writeOnly`
+
+The default mode is `Auto`:
+
+```xml
+<OpenApi Include="openapi.yaml"
+         ReadWriteSchemaHandling="Auto" />
+```
+
+- `Ignore` keeps neutral contracts.
+- `Auto` generates request/response variants only when reachable directional properties require different shapes.
+- `Split` always generates request and response graphs from operation body roots.
+
+Do not assume a component type such as `Account` is always used directly in an operation. Build and use the generated `AccountRequest` or `AccountResponse` type when the handler signature requires it.
+
+## Schema-name normalization
+
+OpenAPI component keys are normalized deterministically into valid C# type names.
+
+Examples:
+
+```text
+Billing.InvoiceStatus -> BillingInvoiceStatus
+123-invoice           -> Value123Invoice
+order_item             -> OrderItem
+```
+
+Always keep `$ref` values pointed at the original OpenAPI key. The generator resolves the original key and applies the shared name map internally.
+
+Do not recreate the normalization algorithm in consumer code. Name collisions are reported through `MOA012`–`MOA014` and must be fixed in the contract.
+
+## Multipart request bodies
+
+A `multipart/form-data` request generates a form-bound nested `Request` record.
+
+- `type: string`, `format: binary` maps to `IFormFile`;
+- an array of binary strings maps to `IReadOnlyList<IFormFile>`;
+- scalar fields use normal primitive mappings;
+- nested objects bind through dotted keys such as `metadata.title`.
+
+Use the generated request type exactly as emitted. Do not replace it with a manually authored form model.
+
+Array-of-object and dictionary form fields produce `MOA011`. Restructure the contract rather than bypassing the diagnostic unless the endpoint is intentionally implemented outside MinimalOpenAPI.
+
+Antiforgery, request-size limits, file validation, and storage remain application concerns. Configure them through ASP.NET Core and a concrete class inheriting from the generated `<OperationId>EndpointConfigurationBase` type.
+
+## Endpoint configuration
+
+For operation-specific policies, inherit from the generated abstract `<OperationId>EndpointConfigurationBase` type and override `Configure(RouteHandlerBuilder endpoint)`.
+
+MinimalOpenAPI applies contract-derived endpoint metadata before invoking this method, so the application configuration is the final configuration layer. Configure authorization, rate limiting, request limits, antiforgery, OpenAPI metadata, and other endpoint conventions here rather than editing generated mapping code.
+
+Only one concrete configuration may exist per operation; duplicates produce `MOA003`.
+
+## Publishing the authored document
+
+Configure an explicit public path:
+
+```xml
+<OpenApi Include="openapi.yaml"
+         PublishAs="/openapi/schema.yaml"
+         DisplayName="Todo API"
+         DisplayVersion="1.0.0" />
+```
+
+Map published documents:
 
 ```csharp
-using MinimalOpenAPI;
-
-var app = builder.Build();
 app.MapMinimalOpenApiEndpoints();
-app.MapOpenApiSchemas();
-app.Run();
-```
-
-At startup `MapOpenApiSchemas` maps only entries that have `PublishAs`, and each endpoint path is exactly that value. Descriptor metadata comes from project metadata (`DisplayName`, `DisplayVersion`) with fallbacks.
-
-The method returns schema descriptors that can be used directly by Swagger UI:
-
-```csharp
 var schemas = app.MapOpenApiSchemas();
-foreach (var schema in schemas.Schemas)
-{
-    options.SwaggerEndpoint(schema.PublicPath, schema.Name);
-}
 ```
 
----
+Every document is copied to build and publish output. Only documents with `PublishAs` are exposed over HTTP.
 
-## 5. Key invariants
+`MapOpenApiSchemas()` returns descriptors containing `PublicPath`, `Name`, `Version`, `FullName`, and `Endpoint`. These can be passed to Swagger UI, Scalar, or another viewer.
 
-Agents **must not** violate these rules:
+Do not add runtime OpenAPI generation unless the application intentionally needs a separate code-first document.
 
-- **The OpenAPI spec is the source of truth.** All types and signatures originate from the spec. If the contract needs to change, update the spec, rebuild, and then update the implementation.
-- **Do not manually edit generated files.** Generated code lives in the Roslyn compilation and is re-created on every build. Edits to generated output will be lost.
-- **Extend generated abstractions.** Consumer logic goes into a concrete class that inherits from the generated `<OperationId>EndpointBase`. Do not implement `IEndpointHandler` directly or write manual `app.Map*` calls unless generated code is deliberately bypassed for a justified reason.
-- **Do not bypass generation with manual endpoint wiring** unless the generator does not support a specific OpenAPI feature and there is no alternative.
-- **One concrete handler per operation.** The generator enforces this: multiple implementations of the same base class cause build diagnostic `MOA002`.
-- **Do not call `base.HandleAsync(…)`.** The base implementation throws `NotImplementedException` by design.
+## Key invariants
 
----
+Agents must preserve these rules:
 
-## 6. Non-goals and limitations
+1. Change the OpenAPI document before changing generated contract behavior.
+2. Rebuild after every contract change.
+3. Never edit files under `obj/` or files marked `// <auto-generated/>`.
+4. Implement generated handler base classes instead of duplicating generated routes.
+5. Keep exactly one concrete handler per generated operation.
+6. Keep exactly one concrete endpoint configuration per generated operation.
+7. Do not add manual `app.Map*` routes for operations already generated.
+8. Do not reference bundled parser or abstraction assemblies directly from consumer projects.
+9. Use generated request, response, parameter, and result types exactly as required by the handler signature.
+10. Fix generator diagnostics in the contract or implementation rather than suppressing them without analysis.
 
-- **OpenAPI 3.0.x only.** OpenAPI 3.1.x and Swagger 2.0 are not supported.
-- **No Swashbuckle/Scalar integration.** The framework does not integrate with Swashbuckle or Scalar. To serve original spec files as static HTTP endpoints, set `PublishAs` on `<OpenApi ... />` items and call `MapOpenApiSchemas()` (see §4.1 below).
-- **No schema composition.** `allOf`, `oneOf`, and `anyOf` are not supported. Use `$ref` or inline object schemas.
-- **Single spec file per project.** Multiple `<OpenApi>` items may conflict when operation IDs or schema names clash.
-- **No runtime request validation.** Model binding uses ASP.NET Core defaults. OpenAPI-level constraints (pattern, min/max) are not enforced at runtime.
-- **No code-first path.** If you need to generate an OpenAPI document from C# code, use Swashbuckle, NSwag, or `Microsoft.AspNetCore.OpenApi` instead.
-- **Requires .NET 10** at runtime.
+## Supported surface to consider before designing workarounds
 
----
+MinimalOpenAPI 1.0 supports:
 
-## 7. Troubleshooting
+- OpenAPI 3.0 and 3.1;
+- YAML and JSON;
+- multiple documents;
+- nested inline objects and inline array item objects;
+- enums, dictionaries, validation metadata, and `allOf`;
+- `readOnly` and `writeOnly` splitting;
+- reusable and path-level parameters;
+- parameter defaults;
+- typed problem responses;
+- multipart files and nested form objects;
+- schema publishing and viewer integration;
+- deterministic component-name normalization.
 
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| Generated types not found after adding the spec | `<OpenApi>` item missing or path is wrong | Add `<OpenApi Include="openapi.yaml" />` to the `.csproj` and rebuild. |
-| `MOA001` build warning | No concrete handler found for a generated base class | Create a class that inherits from `<OperationId>EndpointBase` and overrides `HandleAsync`. |
-| `MOA002` build error | More than one class inherits from the same base | Remove or consolidate duplicate handler classes. |
-| `MOA004` build error | Spec file could not be parsed | Check for YAML/JSON syntax errors. Validate with [Swagger Editor](https://editor.swagger.io). |
-| `MOA005` build error | Unrecognised file extension | Use `.yaml`, `.yml`, or `.json`. |
-| `MapMinimalOpenApiEndpoints` registers no routes | Generator did not run (missing `<OpenApi>` item or wrong path) | Verify the item group and rebuild. |
-| `NotImplementedException` at runtime | Handler does not override `HandleAsync` or calls `base.HandleAsync(…)` | Override the method and remove the `base` call. |
-| Spec and implementation out of sync | Spec was updated but code was not regenerated | Rebuild the project; the generator always re-runs on build. |
+Before adding manual models or endpoints, check the repository README, samples, and feature support matrix.
 
----
+## Current limitations
 
-## 8. Integrating into an existing project
+- `oneOf` and `anyOf` are not supported.
+- Runtime `DataAnnotations` validation is not automatically executed by ASP.NET Core Minimal APIs.
+- Cookie parameters require application-specific binding or `HttpContext` access.
+- Multipart arrays of objects and dictionaries are not supported.
+- Non-JSON text and binary response families are not yet generated.
+- OpenAPI 2.0 is not supported.
 
-When adding `MinimalOpenAPI` to an existing ASP.NET Core Minimal API project:
+## Troubleshooting
 
-1. **Inspect the existing project structure** before making changes. Understand which endpoints exist, how they are registered, and whether a parallel framework (e.g. controllers, other code-gen tools) is already in use.
-2. **Prefer adding an OpenAPI contract** rather than rewriting existing endpoints. Define the spec for new endpoints; migrate existing endpoints to the contract-first model only if explicitly requested.
-3. **Follow existing patterns.** If the project already has handler classes in a specific folder, place new handlers there.
-4. **Do not introduce conflicting frameworks.** Do not register the same route with both `app.MapGet(…)` and `MapMinimalOpenApiEndpoints()`. This causes ambiguous routing.
-5. **Register services exactly once.** Call `AddMinimalOpenApi()` and `MapMinimalOpenApiEndpoints()` only once in `Program.cs`.
+| Symptom | Likely cause | Action |
+|---|---|---|
+| Generated types are missing | Missing or invalid `<OpenApi>` item | Verify the path and rebuild. |
+| `MOA001` | No concrete handler implementation | Inherit from the generated endpoint base and override `HandleAsync`. |
+| `MOA002` | Duplicate handlers | Keep one concrete handler for the operation. |
+| `MOA003` | Duplicate endpoint configuration implementations | Keep one concrete configuration. |
+| `MOA004` | YAML/JSON parse failure | Validate and minimize the document. |
+| `MOA008` | Unresolved parameter `$ref` | Correct the reference to `components/parameters`. |
+| `MOA009` | Duplicate resolved document namespace | Add unique `Namespace` metadata. |
+| `MOA010` | Invalid read/write mode | Use `Ignore`, `Auto`, or `Split`. |
+| `MOA011` | Unsupported multipart field shape | Restructure arrays of objects or dictionaries. |
+| `MOA012`–`MOA014` | Generated-name collision | Rename the conflicting schema or property in OpenAPI. |
+| `NotImplementedException` at runtime | Missing override or call to base implementation | Override `HandleAsync` and remove the base call. |
+| Duplicate route at startup | Manual and generated mapping both register the operation | Remove the manual mapping. |
 
----
+## Existing projects
 
-## 9. Do not do this
+When integrating into an established application:
 
-- **Do not edit files under `obj/` or any file marked `// <auto-generated>`** — changes will be overwritten on the next build.
-- **Do not duplicate logic already generated.** The framework produces DI registration and endpoint mapping automatically; writing it by hand creates conflicts.
-- **Do not ignore the OpenAPI contract.** Adding properties to DTO records or changing method signatures manually breaks the contract-first model and will be overwritten on rebuild.
-- **Do not add `app.Map*` calls for operations already covered by the generator.** This registers duplicate routes.
-- **Do not reference `MinimalOpenAPI.Runtime`, `MinimalOpenAPI.Parser.Yaml`, or `MinimalOpenAPI.Parser.Json` directly** unless you have a specific reason — they are already pulled in as transitive dependencies of `MinimalOpenAPI`.
+1. Inspect existing route registration, DI, authorization, validation, and error-handling conventions.
+2. Add new contract-first endpoints without rewriting unrelated endpoints.
+3. Avoid registering the same route through multiple frameworks.
+4. Place handler and endpoint configuration classes according to the project's existing structure.
+5. Add focused build or integration tests for each generated operation.
+6. Preserve the authored OpenAPI document in source control and review it as an API contract.

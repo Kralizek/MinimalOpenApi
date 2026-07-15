@@ -2,22 +2,18 @@
 
 MinimalOpenAPI is a **contract-first OpenAPI framework for ASP.NET Core Minimal APIs**.
 
-You author the OpenAPI document first. MinimalOpenAPI reads it at build time and generates the C# scaffolding needed to implement the API.
+You author an OpenAPI 3.0 or 3.1 document in YAML or JSON. At build time, MinimalOpenAPI generates the C# contracts, handler base classes, dependency-injection registration, and endpoint mapping required to implement the API.
 
-## What the package includes
+## Requirements
 
-| What you get | Notes |
-|---|---|
-| Roslyn source generator | Generates DTOs, handler base classes, endpoint mapping, and DI registration at build time. |
-| Runtime services | Provides `AddMinimalOpenApi()`, `MapMinimalOpenApiEndpoints()`, and `MapOpenApiSchemas()`. |
-| YAML and JSON parser support | Use `<OpenApi Include="openapi.yaml" />` or `<OpenApi Include="openapi.json" />`. |
-| Spec publishing support | Copies authored OpenAPI files to build/publish output and can serve selected specs over HTTP. |
+- .NET 10
+- ASP.NET Core
 
 ## Minimal setup
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="MinimalOpenAPI" Version="1.0.0-beta.1" />
+  <PackageReference Include="MinimalOpenAPI" Version="1.0.0" />
   <OpenApi Include="openapi.yaml" />
 </ItemGroup>
 ```
@@ -33,36 +29,48 @@ app.MapMinimalOpenApiEndpoints();
 app.Run();
 ```
 
-Implement the generated abstract handler base class for each operation in your OpenAPI spec. The generator takes care of route mapping, handler registration, DTO generation, and endpoint metadata.
+Implement the generated `<OperationId>EndpointBase` class for each operation. No manual route or handler registration is required.
 
-## Generated contracts
+## What the package includes
 
-MinimalOpenAPI generates DTO records from `components/schemas`.
+- Roslyn incremental source generator
+- ASP.NET Core runtime services
+- YAML and JSON OpenAPI parsers
+- contract records and enums
+- typed handler signatures and results
+- abstract endpoint configuration base classes applied after contract metadata
+- authored-schema publishing support
 
-By default, OpenAPI `readOnly` and `writeOnly` properties are respected through `ReadWriteSchemaHandling="Auto"`:
+`MinimalOpenAPI` is the only package consumers need. Parser and abstraction assemblies are bundled as implementation details.
+
+## Selected features
+
+- OpenAPI 3.0 and 3.1
+- YAML and JSON documents
+- multiple documents per project
+- component and inline object schemas
+- inline objects used as array items
+- enums, dictionaries, validation metadata, and `allOf` flattening
+- `readOnly` and `writeOnly` request/response contract splitting
+- path, query, header, reusable, and path-level parameters
+- parameter default values
+- typed results and `application/problem+json` wrappers
+- `multipart/form-data`, `IFormFile`, multiple files, and nested form objects
+- deterministic schema-name normalization with compile-time collision diagnostics
+- explicit schema publication through `PublishAs` and `MapOpenApiSchemas()`
+
+## Directional contracts
 
 ```xml
 <OpenApi Include="openapi.yaml"
          ReadWriteSchemaHandling="Auto" />
 ```
 
-Supported values:
+- `Ignore` keeps neutral contracts.
+- `Auto` creates request/response variants only when reachable `readOnly` or `writeOnly` properties require different shapes.
+- `Split` always generates request and response graphs from operation body roots.
 
-- `Ignore`: parse `readOnly` / `writeOnly`, but keep neutral DTO shapes.
-- `Auto`: default. Generate request/response DTO variants only when direct or reachable `readOnly` / `writeOnly` properties require different shapes.
-- `Split`: generate request/response DTO graphs from operation body roots even when the current shapes are identical, preserving contract type names if directional properties are added later.
-
-For example, with `Account.id: readOnly` and `Account.password: writeOnly`, generated operation signatures use `AccountRequest` and `AccountResponse`.
-
-## Publishing and serving specs
-
-Every `<OpenApi />` item is copied to build and publish output under an internal collision-safe path:
-
-```text
-openapi/schemas/<SchemaId>/<filename>
-```
-
-To expose a spec over HTTP, configure `PublishAs`:
+## Publishing authored schemas
 
 ```xml
 <OpenApi Include="openapi.yaml"
@@ -71,24 +79,15 @@ To expose a spec over HTTP, configure `PublishAs`:
          DisplayVersion="1.0.0" />
 ```
 
-Then map schema endpoints:
-
 ```csharp
 app.MapMinimalOpenApiEndpoints();
 var schemas = app.MapOpenApiSchemas();
 ```
 
-Rules:
-
-- `PublishAs` must start with `/`.
-- `PublishAs` values must be unique across all `<OpenApi />` items.
-- OpenAPI files without `PublishAs` are copied to output/publish, but are not served over HTTP.
-- `DisplayName` and `DisplayVersion` are optional descriptor metadata.
-
-`MapOpenApiSchemas()` returns descriptors with `PublicPath`, `Name`, `Version`, `FullName`, and `Endpoint`, which can be used to configure Swagger UI, Scalar, or another OpenAPI UI package.
+The returned descriptors can be used to configure Swagger UI, Scalar, or another OpenAPI viewer. MinimalOpenAPI serves the authored document; it does not generate a second document from C# at runtime.
 
 ## More documentation
 
-For full documentation, samples, architecture notes, and release guidance, visit the repository:
+Full documentation, samples, limitations, architecture notes, and release guidance are available in the repository:
 
 https://github.com/Kralizek/MinimalOpenApi
