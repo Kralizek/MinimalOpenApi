@@ -5,14 +5,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a bug. Please fill in as much detail as you can.
+        Thanks for taking the time to report a bug. Please include enough information to reproduce the behavior from a clean project.
 
   - type: input
     id: package
     attributes:
       label: Package
       description: Which NuGet package is affected?
-      placeholder: e.g. MinimalOpenAPI, MinimalOpenAPI.Runtime
+      placeholder: MinimalOpenAPI
     validations:
       required: true
 
@@ -20,7 +20,7 @@ body:
     id: version
     attributes:
       label: Package version
-      placeholder: e.g. 1.0.0-beta.1
+      placeholder: e.g. 1.0.0
     validations:
       required: true
 
@@ -28,7 +28,7 @@ body:
     id: runtime
     attributes:
       label: .NET SDK / runtime version
-      placeholder: e.g. .NET 9.0.4
+      placeholder: e.g. .NET SDK 10.0.200
     validations:
       required: true
 
@@ -36,7 +36,24 @@ body:
     id: aspnetcore
     attributes:
       label: ASP.NET Core version
-      placeholder: e.g. ASP.NET Core 9.0.4
+      placeholder: e.g. ASP.NET Core 10.0.4
+    validations:
+      required: true
+
+  - type: textarea
+    id: openapi
+    attributes:
+      label: Minimal OpenAPI document
+      description: Include the smallest YAML or JSON document that reproduces the problem. Remove credentials and private data.
+      render: yaml
+    validations:
+      required: true
+
+  - type: textarea
+    id: project
+    attributes:
+      label: Project configuration and generated-code context
+      description: Include the relevant PackageReference, OpenApi item metadata, handler implementation, diagnostics, or generated source snippets.
     validations:
       required: true
 
@@ -44,7 +61,7 @@ body:
     id: reproduction
     attributes:
       label: Steps to reproduce
-      description: Provide a minimal reproduction — ideally a code snippet or a link to a repo.
+      description: Provide exact build or runtime steps, or link to a minimal reproduction repository.
     validations:
       required: true
 
@@ -66,4 +83,4 @@ body:
     id: context
     attributes:
       label: Additional context
-      description: Logs, screenshots, related issues, etc.
+      description: Logs, diagnostic IDs, screenshots, related issues, or other useful context.

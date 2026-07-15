@@ -1,12 +1,7 @@
 name: Smoke Test (package consumption)
 
 # Validates that the packed NuGet artifacts can be consumed by a clean downstream
-# project that uses <PackageReference> instead of project references.
-#
-# Steps:
-#   1. Build the solution, then pack src/MinimalOpenAPI/MinimalOpenAPI.csproj into artifacts/
-#   2. Restore the smoke-test consumer (uses artifacts/ as its NuGet source)
-#   3. Build the smoke-test consumer — exercises the source generator and runtime
+# project using PackageReference rather than project references.
 
 on:
   push:
@@ -24,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # MinVer needs the full tag history to compute the version
+          fetch-depth: 0  # MinVer needs the full tag history to calculate the package version.
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -35,27 +30,36 @@ jobs:
         run: dotnet restore
 
       - name: Build solution
-        run: dotnet build --no-restore --configuration Release
+        run: dotnet build --no-restore --configuration Release --warnaserror
 
-      - name: Pack packages into artifacts/
-        run: >
-          dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj
-          --no-build --configuration Release --output artifacts
+      - name: Pack package into artifacts
+        run: |
+          dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj \
+            --no-build \
+            --configuration Release \
+            --output artifacts
+
+      - name: Validate package contents
+        run: bash scripts/validate-package.sh artifacts
 
       - name: Restore smoke-test consumer
-        run: dotnet restore sample/SmokeTest/SmokeTest.csproj
+        run: dotnet restore sample/SmokeTest/SmokeTest.csproj --force --no-cache
 
       - name: Build smoke-test consumer
-        run: >
-          dotnet build sample/SmokeTest/SmokeTest.csproj
-          --no-restore --configuration Release --warnaserror
+        run: |
+          dotnet build sample/SmokeTest/SmokeTest.csproj \
+            --no-restore \
+            --configuration Release \
+            --warnaserror
 
       - name: Publish smoke-test consumer
-        run: >
-          dotnet publish sample/SmokeTest/SmokeTest.csproj
-          --no-restore --configuration Release --output /tmp/smoketest-publish
+        run: |
+          dotnet publish sample/SmokeTest/SmokeTest.csproj \
+            --no-restore \
+            --configuration Release \
+            --output /tmp/smoketest-publish
 
       - name: Verify OpenAPI spec is in publish output
-        run: >
-          find /tmp/smoketest-publish/openapi/schemas -name "openapi.yaml"
-          | grep -q . && echo "OpenAPI spec published OK"
+        run: |
+          find /tmp/smoketest-publish/openapi/schemas -name 'openapi.yaml' \
+            | grep -q .

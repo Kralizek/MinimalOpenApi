@@ -3,10 +3,9 @@
   <PropertyGroup>
     <!--
       Multi-targeted intentionally:
-        netstandard2.0  — builds the Roslyn analyzer DLL (required by the Roslyn host)
-        net10.0         — only used so NuGet pack adds MinimalOpenAPI.Runtime as a
-                          nuspec <dependency> for net10.0 consumers; no output is packed
-                          from this TFM (IncludeBuildOutput=false covers both TFMs).
+        netstandard2.0  — builds the Roslyn generator and its bundled parser assemblies
+                          for the compiler host; this TFM is packed under analyzers/dotnet/cs.
+        net10.0         — builds the ASP.NET Core runtime services packed under lib/net10.0.
     -->
     <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
@@ -42,7 +41,7 @@
     <PackageReference Include="PolySharp" PrivateAssets="all" />
     <!--
       YamlDotNet: PrivateAssets="all" so it is not emitted as a NuGet dependency
-      (it is bundled inside analyzers/dotnet/cs/).  GeneratePathProperty is kept
+      (it is bundled inside analyzers/dotnet/cs/). GeneratePathProperty is kept
       so $(PkgYamlDotNet) is available for the CopyYamlDotNetToOutput target below.
     -->
     <PackageReference Include="YamlDotNet" GeneratePathProperty="true" PrivateAssets="all" />
@@ -51,7 +50,7 @@
   <ItemGroup>
     <!--
       PrivateAssets="all": these DLLs are bundled under analyzers/dotnet/cs/ and loaded
-      by Roslyn in its isolated AssemblyLoadContext.  They are not needed by consumers
+      by Roslyn in its isolated AssemblyLoadContext. They are not needed by consumers
       as compile or runtime references, so we suppress them as NuGet dependencies.
     -->
     <ProjectReference Include="../MinimalOpenAPI.Abstractions/MinimalOpenAPI.Abstractions.csproj" PrivateAssets="all" />
@@ -66,7 +65,7 @@
 
   <!--
     RS1035 (banned File/Directory I/O in analyzers) is enforced by EnforceExtendedAnalyzerRules
-    across all TFMs.  The runtime code in lib/net10.0/ is not an analyzer, so the restriction
+    across all TFMs. The runtime code in lib/net10.0/ is not an analyzer, so the restriction
     does not apply there.
   -->
   <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
@@ -78,7 +77,7 @@
     The analyzer must be netstandard2.0 to run inside Roslyn's isolated ALC.
     Paths are explicit (not using $(OutputPath)) because in a multi-targeted project
     the outer pack pass has $(TargetFramework)="" and $(OutputPath) points to the
-    TFM-less base directory.  $(BaseOutputPath) is the standard SDK "bin\" property.
+    TFM-less base directory. $(BaseOutputPath) is the standard SDK "bin\" property.
   -->
   <ItemGroup>
     <None Include="$(BaseOutputPath)$(Configuration)\netstandard2.0\$(AssemblyName).dll"
@@ -114,7 +113,7 @@
   </ItemGroup>
 
   <!-- Copy YamlDotNet alongside the generator so the .targets file's
-       <Analyzer> item can find it in the project-reference dev scenario.
+       <Analyzer> item can find it in the project-reference development scenario.
        Only needed for netstandard2.0 (the TFM used by the analyzer). -->
   <Target Name="CopyYamlDotNetToOutput" AfterTargets="Build"
           Condition="'$(TargetFramework)' == 'netstandard2.0'">

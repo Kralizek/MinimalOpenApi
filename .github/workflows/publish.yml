@@ -5,39 +5,102 @@ on:
   release:
     types: [published]
 
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish:
-    name: Pack and publish
+    name: Validate, pack, and publish
     runs-on: ubuntu-latest
     permissions:
-      packages: write   # push to GitHub Packages (nightly builds)
-      contents: write   # upload assets to a GitHub Release
-      id-token: write   # obtain a short-lived OIDC token for NuGet trusted publishing
+      packages: write
+      contents: write
+      id-token: write
 
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # Nerdbank.GitVersioning needs full git history to compute the version
+          fetch-depth: 0  # MinVer requires full tag history to calculate the package version.
 
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
-          # Configure GitHub Packages as an authenticated NuGet source so nightly packages
-          # can be pushed without a separate `dotnet nuget add source` step.
           source-url: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
         env:
           NUGET_AUTH_TOKEN: ${{ github.token }}
 
+      - name: Validate release metadata
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_IS_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release tag is not a supported Semantic Versioning tag: $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+          release_commit="$(git rev-parse "$RELEASE_TAG^{commit}")"
+          head_commit="$(git rev-parse HEAD)"
+          if [[ "$release_commit" != "$head_commit" ]]; then
+            echo "Release tag $RELEASE_TAG does not point to the checked-out commit." >&2
+            exit 1
+          fi
+
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            if [[ "$RELEASE_IS_PRERELEASE" != "true" ]]; then
+              echo "Prerelease tag $RELEASE_TAG must be published as a GitHub prerelease." >&2
+              exit 1
+            fi
+          elif [[ "$RELEASE_IS_PRERELEASE" != "false" ]]; then
+            echo "Stable tag $RELEASE_TAG must not be published as a GitHub prerelease." >&2
+            exit 1
+          fi
+
       - name: Restore
         run: dotnet restore
+
+      - name: Verify formatting
+        run: dotnet format --verify-no-changes --no-restore
 
       - name: Build
         run: dotnet build --no-restore --configuration Release --warnaserror
 
+      - name: Test
+        run: dotnet test --no-build --configuration Release
+
       - name: Pack
         run: |
           dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj \
-            --no-build --configuration Release --output ./artifacts
+            --no-build \
+            --configuration Release \
+            --output ./artifacts
+
+      - name: Validate package contents
+        run: bash scripts/validate-package.sh ./artifacts
+
+      - name: Restore package-consumption smoke test
+        run: dotnet restore sample/SmokeTest/SmokeTest.csproj --force --no-cache
+
+      - name: Build package-consumption smoke test
+        run: |
+          dotnet build sample/SmokeTest/SmokeTest.csproj \
+            --no-restore \
+            --configuration Release \
+            --warnaserror
+
+      - name: Publish package-consumption smoke test
+        run: |
+          dotnet publish sample/SmokeTest/SmokeTest.csproj \
+            --no-restore \
+            --configuration Release \
+            --output /tmp/minimalopenapi-smoke
+
+      - name: Verify authored schema in publish output
+        run: |
+          find /tmp/minimalopenapi-smoke/openapi/schemas -name 'openapi.yaml' \
+            | grep -q .
 
       - name: Upload packages as workflow artifact
         uses: actions/upload-artifact@v7
@@ -48,7 +111,6 @@ jobs:
             ./artifacts/*.snupkg
           if-no-files-found: error
 
-      # ── Manual execution ────────────────────────────────────────────────────────
       - name: Push to GitHub Packages
         if: github.event_name == 'workflow_dispatch'
         run: |
@@ -57,7 +119,6 @@ jobs:
             --api-key "${{ github.token }}" \
             --skip-duplicate
 
-      # ── Stable release (published GitHub Release with a vX.Y.Z tag) ────────────
       - name: Upload packages to GitHub Release
         if: github.event_name == 'release'
         env:
@@ -68,7 +129,7 @@ jobs:
             ./artifacts/*.snupkg \
             --repo "${{ github.repository }}"
 
-      - name: NuGet Login
+      - name: NuGet login
         if: github.event_name == 'release'
         id: nuget-login
         uses: nuget/login@v1
