@@ -12,7 +12,7 @@ internal static class DependencyInjectionRegistrationGenerator
     public static string Generate(
         List<OpenApiOperation> operations,
         List<DiscoveredImplementation> handlers,
-        List<DiscoveredImplementation> customizers,
+        List<DiscoveredImplementation> configurations,
         string rootNamespace,
         string specName,
         string schemaId,
@@ -33,7 +33,7 @@ internal static class DependencyInjectionRegistrationGenerator
         TypeMapper.AppendGeneratedAttributes(sb);
         sb.AppendLine("public static class MinimalOpenApiGeneratedServiceCollectionExtensions");
         sb.AppendLine("{");
-        sb.AppendLine("    /// <summary>Registers all generated endpoint handlers and registration customizers.</summary>");
+        sb.AppendLine("    /// <summary>Registers all generated endpoint handlers and endpoint configurations.</summary>");
         sb.AppendLine("    public static global::Microsoft.Extensions.DependencyInjection.IServiceCollection AddGeneratedEndpoints(");
         sb.AppendLine("        this global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)");
         sb.AppendLine("    {");
@@ -54,11 +54,11 @@ internal static class DependencyInjectionRegistrationGenerator
                 sb.AppendLine($"        services.AddScoped<{rootNamespace}.{specName}.Endpoints.{handlerBase}>();");
             }
 
-            var customizerBase = TypeMapper.RegistrationClassName(op.OperationId);
-            var customizerImpl = customizers.FirstOrDefault(c => c.BaseName == customizerBase);
-            if (customizerImpl is not null)
+            var configurationBase = TypeMapper.EndpointConfigurationBaseClassName(op.OperationId);
+            var configurationImpl = configurations.FirstOrDefault(c => c.BaseName == configurationBase);
+            if (configurationImpl is not null)
             {
-                sb.AppendLine($"        services.AddSingleton<{rootNamespace}.{specName}.Endpoints.{customizerBase}, {customizerImpl.FullName}>();");
+                sb.AppendLine($"        services.AddSingleton<{rootNamespace}.{specName}.Endpoints.{configurationBase}, {configurationImpl.FullName}>();");
             }
         }
 
