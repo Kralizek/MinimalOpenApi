@@ -17,7 +17,7 @@ public partial class Program
 
         var app = builder.Build();
 
-        app.MapMinimalOpenApiEndpoints().DisableAntiforgery();
+        app.MapMinimalOpenApiEndpoints();
 
         await app.RunAsync();
     }

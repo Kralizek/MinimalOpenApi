@@ -28,7 +28,7 @@ public class GeneratedHintNameTests
 
         Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Clients/Schemas/Clients.Dtos.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
         Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Clients/Operations/Clients.GetClientEndpointBase.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
-        Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Clients/Operations/Clients.GetClientEndpointRegistration.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
+        Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Clients/Operations/Clients.GetClientEndpointConfigurationBase.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
         Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Clients/Infrastructure/Clients.DependencyInjection.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
         Assert.That(generatedPaths.Any(p => p.EndsWith("MinimalOpenApi/Clients/Infrastructure/Clients.EndpointMapping.g.cs", StringComparison.OrdinalIgnoreCase)), Is.True);
     }
