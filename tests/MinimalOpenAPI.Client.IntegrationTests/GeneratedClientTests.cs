@@ -5,6 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 using MinimalOpenAPI.Client.IntegrationTests.Generated;
 
+using NUnit.Framework;
+
 namespace MinimalOpenAPI.Client.IntegrationTests;
 
 [TestFixture]
@@ -14,17 +16,17 @@ public sealed class GeneratedClientTests
     public async Task Get_serializes_path_query_and_header_and_deserializes_response()
     {
         var id = Guid.NewGuid();
-        var handler = new StubHandler(async (request, cancellationToken) =>
+        var handler = new StubHandler((request, _) =>
         {
             Assert.That(request.Method, Is.EqualTo(HttpMethod.Get));
             Assert.That(request.RequestUri!.PathAndQuery,
                 Is.EqualTo($"/todos/{id}?includeDetails=true&labels=one&labels=two"));
             Assert.That(request.Headers.GetValues("x-trace").Single(), Is.EqualTo("trace-123"));
 
-            return new HttpResponseMessage(HttpStatusCode.OK)
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = JsonContent.Create(new { id, title = "Generated", completed = true })
-            };
+            });
         });
 
         var client = CreateClient(handler);
