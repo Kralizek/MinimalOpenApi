@@ -7,7 +7,7 @@ using MinimalOpenAPI.Abstractions.Models;
 using MinimalOpenAPI.Parser.Json;
 using MinimalOpenAPI.Parser.Yaml;
 
-namespace MinimalOpenAPI.Client.Generator;
+namespace MinimalOpenAPIClient.Generator;
 
 [Generator]
 public sealed class MinimalOpenApiClientGenerator : IIncrementalGenerator
@@ -20,7 +20,7 @@ public sealed class MinimalOpenApiClientGenerator : IIncrementalGenerator
         id: "MOAC001",
         title: "Unable to parse OpenAPI document",
         messageFormat: "Unable to parse OpenAPI document '{0}': {1}",
-        category: "MinimalOpenAPI.Client",
+        category: "MinimalOpenAPIClient",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
@@ -28,7 +28,7 @@ public sealed class MinimalOpenApiClientGenerator : IIncrementalGenerator
         id: "MOAC002",
         title: "Unsupported OpenAPI document format",
         messageFormat: "OpenAPI client generation supports .json, .yaml and .yml files; '{0}' is not supported",
-        category: "MinimalOpenAPI.Client",
+        category: "MinimalOpenAPIClient",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
@@ -38,7 +38,7 @@ public sealed class MinimalOpenApiClientGenerator : IIncrementalGenerator
             .Select((provider, _) =>
             {
                 provider.GlobalOptions.TryGetValue(RootNamespaceKey, out var value);
-                return string.IsNullOrWhiteSpace(value) ? "MinimalOpenAPI.Client.Generated" : value!;
+                return string.IsNullOrWhiteSpace(value) ? "MinimalOpenAPIClient.Generated" : value!;
             });
 
         var files = context.AdditionalTextsProvider
@@ -63,7 +63,7 @@ public sealed class MinimalOpenApiClientGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(files, static (productionContext, input) =>
         {
             var file = input.Left;
-            var defaultNamespace = input.Right;
+            var rootNamespace = input.Right;
 
             try
             {
@@ -82,7 +82,7 @@ public sealed class MinimalOpenApiClientGenerator : IIncrementalGenerator
                     .GetResult();
 
                 var specName = ClientCodeGenerator.ToPascalIdentifier(Path.GetFileNameWithoutExtension(file.Path));
-                var targetNamespace = file.Namespace ?? $"{defaultNamespace}.{specName}";
+                var targetNamespace = file.Namespace ?? $"{rootNamespace}.Clients.{specName}";
                 var source = ClientCodeGenerator.Generate(document, specName, targetNamespace);
 
                 productionContext.AddSource($"{specName}.Client.g.cs", SourceText.From(source, System.Text.Encoding.UTF8));
