@@ -1,13 +1,12 @@
-# MinimalOpenAPI.Client
+# MinimalOpenAPIClient
 
-`MinimalOpenAPI.Client` generates strongly typed .NET HTTP clients directly from OpenAPI 3.x JSON or YAML contracts.
+`MinimalOpenAPIClient` generates strongly typed .NET HTTP clients directly from OpenAPI 3.x JSON or YAML contracts.
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="MinimalOpenAPI.Client" Version="..." />
+  <PackageReference Include="MinimalOpenAPIClient" Version="..." />
 
-  <OpenApiClient Include="openapi.yaml"
-                 Namespace="MyApp.Backend" />
+  <OpenApiClient Include="openapi.yaml" />
 </ItemGroup>
 ```
 
@@ -15,10 +14,27 @@ A normal build generates client-side DTOs, a concrete `HttpClient`-based client,
 
 For `openapi.yaml`, the generated client is named `OpenapiClient` by default. Operation method names come from `operationId` and are suffixed with `Async`.
 
-```csharp
-services.AddOpenapiClient(new Uri("https://api.example.com"));
+By default, generated client code is placed under `{RootNamespace}.Clients.{SpecName}`. This keeps outbound API clients distinct from MinimalOpenAPI server-side contracts and endpoints when the same service both exposes an API and consumes another one.
 
-public sealed class MyService(OpenapiClient client)
+For example, with a project root namespace of `MyApp` and `backend.yaml`, generated code lives in:
+
+```text
+MyApp.Clients.Backend
+```
+
+You can override the generated namespace explicitly when needed:
+
+```xml
+<OpenApiClient Include="backend.yaml"
+               Namespace="MyApp.External.Backend" />
+```
+
+```csharp
+using MyApp.Clients.Backend;
+
+services.AddBackendClient(new Uri("https://api.example.com"));
+
+public sealed class MyService(BackendClient client)
 {
     public Task<GetTodoResponse> GetAsync(Guid id, CancellationToken cancellationToken)
         => client.GetTodoAsync(id, cancellationToken);
