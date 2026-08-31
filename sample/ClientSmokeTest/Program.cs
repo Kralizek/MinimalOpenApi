@@ -1,4 +1,4 @@
-using ClientSmokeTest.Generated;
+using ClientSmokeTest.Clients.Backend;
 
 using Microsoft.Extensions.DependencyInjection;
 
