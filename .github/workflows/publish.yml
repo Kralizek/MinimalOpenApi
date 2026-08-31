@@ -76,21 +76,27 @@ jobs:
             --no-build \
             --configuration Release \
             --output ./artifacts
+          dotnet pack src/MinimalOpenAPI.Client/MinimalOpenAPI.Client.csproj \
+            --no-build \
+            --configuration Release \
+            --output ./artifacts
 
       - name: Validate package contents
-        run: bash scripts/validate-package.sh ./artifacts
+        run: |
+          bash scripts/validate-package.sh ./artifacts
+          bash scripts/validate-client-package.sh ./artifacts
 
-      - name: Restore package-consumption smoke test
+      - name: Restore server package-consumption smoke test
         run: dotnet restore sample/SmokeTest/SmokeTest.csproj --force --no-cache
 
-      - name: Build package-consumption smoke test
+      - name: Build server package-consumption smoke test
         run: |
           dotnet build sample/SmokeTest/SmokeTest.csproj \
             --no-restore \
             --configuration Release \
             --warnaserror
 
-      - name: Publish package-consumption smoke test
+      - name: Publish server package-consumption smoke test
         run: |
           dotnet publish sample/SmokeTest/SmokeTest.csproj \
             --no-restore \
@@ -101,6 +107,16 @@ jobs:
         run: |
           find /tmp/minimalopenapi-smoke/openapi/schemas -name 'openapi.yaml' \
             | grep -q .
+
+      - name: Restore client package-consumption smoke test
+        run: dotnet restore sample/ClientSmokeTest/ClientSmokeTest.csproj --force --no-cache
+
+      - name: Build client package-consumption smoke test
+        run: |
+          dotnet build sample/ClientSmokeTest/ClientSmokeTest.csproj \
+            --no-restore \
+            --configuration Release \
+            --warnaserror
 
       - name: Upload packages as workflow artifact
         uses: actions/upload-artifact@v7
