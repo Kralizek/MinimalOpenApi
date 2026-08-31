@@ -15,8 +15,6 @@
     <Description>Generates strongly typed HttpClient clients and DTOs from OpenAPI contracts.</Description>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
-    <IncludeSymbols>true</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>
