@@ -1,0 +1,42 @@
+<Project>
+  <ItemGroup>
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiClientFile" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiClientNamespace" />
+    <CompilerVisibleProperty Include="RootNamespace" />
+  </ItemGroup>
+
+  <Target Name="AddMinimalOpenApiClientFilesToAdditionalFiles"
+          BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile">
+    <ItemGroup>
+      <AdditionalFiles Include="@(OpenApiClient)"
+                       MinimalOpenApiClientFile="true"
+                       MinimalOpenApiClientNamespace="%(OpenApiClient.Namespace)" />
+    </ItemGroup>
+  </Target>
+
+  <PropertyGroup>
+    <_MinimalOpenApiClientProj>$(MSBuildThisFileDirectory)..\MinimalOpenAPI.Client.csproj</_MinimalOpenApiClientProj>
+    <_MinimalOpenApiClientGenDir>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\netstandard2.0\</_MinimalOpenApiClientGenDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(_MinimalOpenApiClientProj)"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      Condition="Exists('$(_MinimalOpenApiClientProj)')" />
+  </ItemGroup>
+
+  <Target Name="AddMinimalOpenApiClientGeneratorDependencyAnalyzers"
+          BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Analyzer Include="$(_MinimalOpenApiClientGenDir)MinimalOpenAPI.Abstractions.dll"
+                Condition="Exists('$(_MinimalOpenApiClientGenDir)MinimalOpenAPI.Abstractions.dll')" />
+      <Analyzer Include="$(_MinimalOpenApiClientGenDir)MinimalOpenAPI.Parser.Yaml.dll"
+                Condition="Exists('$(_MinimalOpenApiClientGenDir)MinimalOpenAPI.Parser.Yaml.dll')" />
+      <Analyzer Include="$(_MinimalOpenApiClientGenDir)MinimalOpenAPI.Parser.Json.dll"
+                Condition="Exists('$(_MinimalOpenApiClientGenDir)MinimalOpenAPI.Parser.Json.dll')" />
+      <Analyzer Include="$(_MinimalOpenApiClientGenDir)YamlDotNet.dll"
+                Condition="Exists('$(_MinimalOpenApiClientGenDir)YamlDotNet.dll')" />
+    </ItemGroup>
+  </Target>
+</Project>

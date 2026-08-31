@@ -1,0 +1,126 @@
+openapi: 3.0.3
+info:
+  title: Client test API
+  version: 1.0.0
+paths:
+  /todos/{id}:
+    get:
+      operationId: getTodo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: includeDetails
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: labels
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: x-trace
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '404':
+          description: Missing
+    delete:
+      operationId: deleteTodo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+  /todos:
+    post:
+      operationId: createTodo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, details]
+              properties:
+                title:
+                  type: string
+                details:
+                  type: object
+                  required: [priority]
+                  properties:
+                    priority:
+                      type: integer
+                    note:
+                      type: string
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+  /preview:
+    post:
+      operationId: previewTodo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [details]
+              properties:
+                details:
+                  type: object
+                  required: [source]
+                  properties:
+                    source:
+                      type: string
+      responses:
+        '200':
+          description: Preview
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [details]
+                properties:
+                  details:
+                    type: object
+                    required: [score]
+                    properties:
+                      score:
+                        type: number
+components:
+  schemas:
+    Todo:
+      type: object
+      required: [id, title]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        completed:
+          type: boolean

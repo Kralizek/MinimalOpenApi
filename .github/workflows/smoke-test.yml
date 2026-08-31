@@ -1,7 +1,7 @@
 name: Smoke Test (package consumption)
 
-# Validates that the packed NuGet artifacts can be consumed by a clean downstream
-# project using PackageReference rather than project references.
+# Validates that the packed NuGet artifacts can be consumed by clean downstream
+# projects using PackageReference rather than project references.
 
 on:
   push:
@@ -32,27 +32,33 @@ jobs:
       - name: Build solution
         run: dotnet build --no-restore --configuration Release --warnaserror
 
-      - name: Pack package into artifacts
+      - name: Pack packages into artifacts
         run: |
           dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj \
             --no-build \
             --configuration Release \
             --output artifacts
+          dotnet pack src/MinimalOpenAPI.Client/MinimalOpenAPI.Client.csproj \
+            --no-build \
+            --configuration Release \
+            --output artifacts
 
       - name: Validate package contents
-        run: bash scripts/validate-package.sh artifacts
+        run: |
+          bash scripts/validate-package.sh artifacts
+          bash scripts/validate-client-package.sh artifacts
 
-      - name: Restore smoke-test consumer
+      - name: Restore server smoke-test consumer
         run: dotnet restore sample/SmokeTest/SmokeTest.csproj --force --no-cache
 
-      - name: Build smoke-test consumer
+      - name: Build server smoke-test consumer
         run: |
           dotnet build sample/SmokeTest/SmokeTest.csproj \
             --no-restore \
             --configuration Release \
             --warnaserror
 
-      - name: Publish smoke-test consumer
+      - name: Publish server smoke-test consumer
         run: |
           dotnet publish sample/SmokeTest/SmokeTest.csproj \
             --no-restore \
@@ -63,3 +69,13 @@ jobs:
         run: |
           find /tmp/smoketest-publish/openapi/schemas -name 'openapi.yaml' \
             | grep -q .
+
+      - name: Restore client smoke-test consumer
+        run: dotnet restore sample/ClientSmokeTest/ClientSmokeTest.csproj --force --no-cache
+
+      - name: Build client smoke-test consumer
+        run: |
+          dotnet build sample/ClientSmokeTest/ClientSmokeTest.csproj \
+            --no-restore \
+            --configuration Release \
+            --warnaserror
