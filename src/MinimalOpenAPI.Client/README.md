@@ -41,6 +41,8 @@ public sealed class MyService(BackendClient client)
 }
 ```
 
+The client package is intentionally named `MinimalOpenAPIClient`, rather than `MinimalOpenAPI.Client`: it is the client-side counterpart to MinimalOpenAPI, not a runtime submodule of the server package.
+
 ## Type generation
 
 Client types represent the OpenAPI wire contract and intentionally do not attempt to reuse server CLR types. Component schemas retain their schema names. Inline request and response schemas are named from the operation (`CreateTodoRequest`, `CreateTodoResponse`), and nested inline schemas are qualified by their owning generated type. Name collisions are resolved deterministically.
