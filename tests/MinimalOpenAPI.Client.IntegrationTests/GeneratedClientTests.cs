@@ -3,11 +3,11 @@ using System.Net.Http.Json;
 
 using Microsoft.Extensions.DependencyInjection;
 
-using MinimalOpenAPI.Client.IntegrationTests.Generated;
+using MinimalOpenAPIClient.IntegrationTests.Clients.ClientTest;
 
 using NUnit.Framework;
 
-namespace MinimalOpenAPI.Client.IntegrationTests;
+namespace MinimalOpenAPIClient.IntegrationTests;
 
 [TestFixture]
 public sealed class GeneratedClientTests
