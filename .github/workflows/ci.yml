@@ -36,4 +36,17 @@ jobs:
         run: dotnet test --no-build --configuration Release
 
       - name: Pack
-        run: dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj --no-build --configuration Release
+        run: |
+          dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj \
+            --no-build \
+            --configuration Release \
+            --output artifacts
+          dotnet pack src/MinimalOpenAPI.Client/MinimalOpenAPI.Client.csproj \
+            --no-build \
+            --configuration Release \
+            --output artifacts
+
+      - name: Validate packages
+        run: |
+          bash scripts/validate-package.sh artifacts
+          bash scripts/validate-client-package.sh artifacts
