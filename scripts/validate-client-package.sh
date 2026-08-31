@@ -11,13 +11,12 @@ if [[ ${#packages[@]} -ne 1 ]]; then
   exit 1
 fi
 
-if [[ ${#symbol_packages[@]} -ne 1 ]]; then
-  echo "Expected exactly one MinimalOpenAPI.Client .snupkg, found ${#symbol_packages[@]}." >&2
+if [[ ${#symbol_packages[@]} -ne 0 ]]; then
+  echo "Expected no MinimalOpenAPI.Client .snupkg for the analyzer-only package." >&2
   exit 1
 fi
 
 package="${packages[0]}"
-symbol_package="${symbol_packages[0]}"
 nuspec="$(mktemp)"
 trap 'rm -f "$nuspec"' EXIT
 
@@ -60,9 +59,4 @@ for entry in "${required_entries[@]}"; do
   require_entry "$entry"
 done
 
-if ! unzip -Z1 "$symbol_package" | grep -Eq '\.pdb$'; then
-  echo "Client symbol package does not contain any PDB files." >&2
-  exit 1
-fi
-
-echo "Validated $(basename "$package") and $(basename "$symbol_package")."
+echo "Validated $(basename "$package")."
