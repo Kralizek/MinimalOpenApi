@@ -3,16 +3,16 @@ set -euo pipefail
 
 artifacts_dir="${1:-artifacts}"
 
-mapfile -t packages < <(find "$artifacts_dir" -maxdepth 1 -type f -name 'MinimalOpenAPI.Client.*.nupkg' -print | sort)
-mapfile -t symbol_packages < <(find "$artifacts_dir" -maxdepth 1 -type f -name 'MinimalOpenAPI.Client.*.snupkg' -print | sort)
+mapfile -t packages < <(find "$artifacts_dir" -maxdepth 1 -type f -name 'MinimalOpenAPIClient.*.nupkg' -print | sort)
+mapfile -t symbol_packages < <(find "$artifacts_dir" -maxdepth 1 -type f -name 'MinimalOpenAPIClient.*.snupkg' -print | sort)
 
 if [[ ${#packages[@]} -ne 1 ]]; then
-  echo "Expected exactly one MinimalOpenAPI.Client .nupkg, found ${#packages[@]}." >&2
+  echo "Expected exactly one MinimalOpenAPIClient .nupkg, found ${#packages[@]}." >&2
   exit 1
 fi
 
 if [[ ${#symbol_packages[@]} -ne 0 ]]; then
-  echo "Expected no MinimalOpenAPI.Client .snupkg for the analyzer-only package." >&2
+  echo "Expected no MinimalOpenAPIClient .snupkg for the analyzer-only package." >&2
   exit 1
 fi
 
@@ -38,7 +38,7 @@ require_entry() {
   fi
 }
 
-require_nuspec_text '<id>MinimalOpenAPI.Client</id>'
+require_nuspec_text '<id>MinimalOpenAPIClient</id>'
 require_nuspec_text '<authors>Renato Golia</authors>'
 require_nuspec_text '<license type="expression">MIT</license>'
 require_nuspec_text 'https://github.com/Kralizek/MinimalOpenApi'
@@ -46,13 +46,13 @@ require_nuspec_text 'Microsoft.Extensions.Http'
 
 required_entries=(
   'README.md'
-  'analyzers/dotnet/cs/MinimalOpenAPI.Client.dll'
+  'analyzers/dotnet/cs/MinimalOpenAPIClient.dll'
   'analyzers/dotnet/cs/MinimalOpenAPI.Abstractions.dll'
   'analyzers/dotnet/cs/MinimalOpenAPI.Parser.Yaml.dll'
   'analyzers/dotnet/cs/MinimalOpenAPI.Parser.Json.dll'
   'analyzers/dotnet/cs/YamlDotNet.dll'
-  'build/MinimalOpenAPI.Client.targets'
-  'buildTransitive/MinimalOpenAPI.Client.targets'
+  'build/MinimalOpenAPIClient.targets'
+  'buildTransitive/MinimalOpenAPIClient.targets'
 )
 
 for entry in "${required_entries[@]}"; do
