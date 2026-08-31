@@ -8,8 +8,8 @@ if [[ ! -d "$artifacts_dir" ]]; then
   exit 1
 fi
 
-mapfile -t packages < <(find "$artifacts_dir" -maxdepth 1 -type f -name 'MinimalOpenAPI.*.nupkg' -print | sort)
-mapfile -t symbol_packages < <(find "$artifacts_dir" -maxdepth 1 -type f -name 'MinimalOpenAPI.*.snupkg' -print | sort)
+mapfile -t packages < <(find "$artifacts_dir" -maxdepth 1 -type f -name 'MinimalOpenAPI.*.nupkg' ! -name 'MinimalOpenAPI.Client.*.nupkg' -print | sort)
+mapfile -t symbol_packages < <(find "$artifacts_dir" -maxdepth 1 -type f -name 'MinimalOpenAPI.*.snupkg' ! -name 'MinimalOpenAPI.Client.*.snupkg' -print | sort)
 
 if [[ ${#packages[@]} -ne 1 ]]; then
   echo "Expected exactly one MinimalOpenAPI .nupkg, found ${#packages[@]}." >&2
