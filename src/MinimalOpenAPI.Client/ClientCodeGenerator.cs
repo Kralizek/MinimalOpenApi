@@ -110,7 +110,7 @@ internal static class ClientCodeGenerator
 
     private static OpenApiParameter ResolveParameter(OpenApiDocument document, OpenApiParameter parameter)
     {
-        var reference = parameter.Reference;
+        var reference = parameter.Reference ?? string.Empty;
         if (string.IsNullOrWhiteSpace(reference))
             return parameter;
 
@@ -482,7 +482,7 @@ internal static class ClientCodeGenerator
 
         private string GetNonNullableTypeName(OpenApiSchema schema, string preferredName, string qualifiedName)
         {
-            var reference = schema.Reference;
+            var reference = schema.Reference ?? string.Empty;
             if (!string.IsNullOrWhiteSpace(reference))
             {
                 if (_document.Schemas.TryGetValue(reference, out var referenced))
@@ -576,7 +576,7 @@ internal static class ClientCodeGenerator
             Dictionary<string, OpenApiSchema> target,
             HashSet<string> visitedReferences)
         {
-            var reference = schema.Reference;
+            var reference = schema.Reference ?? string.Empty;
             if (!string.IsNullOrWhiteSpace(reference) &&
                 visitedReferences.Add(reference) &&
                 _document.Schemas.TryGetValue(reference, out var referenced))
@@ -593,7 +593,7 @@ internal static class ClientCodeGenerator
 
         private void AddRequired(OpenApiSchema schema, HashSet<string> target, HashSet<string> visitedReferences)
         {
-            var reference = schema.Reference;
+            var reference = schema.Reference ?? string.Empty;
             if (!string.IsNullOrWhiteSpace(reference) &&
                 visitedReferences.Add(reference) &&
                 _document.Schemas.TryGetValue(reference, out var referenced))
