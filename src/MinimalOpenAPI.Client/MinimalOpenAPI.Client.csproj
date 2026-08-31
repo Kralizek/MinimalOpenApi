@@ -4,7 +4,9 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <PackageId>MinimalOpenAPI.Client</PackageId>
+    <PackageId>MinimalOpenAPIClient</PackageId>
+    <AssemblyName>MinimalOpenAPIClient</AssemblyName>
+    <RootNamespace>MinimalOpenAPIClient</RootNamespace>
     <Title>MinimalOpenAPI Client Generator</Title>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -41,8 +43,8 @@
     <None Include="$(OutputPath)MinimalOpenAPI.Parser.Yaml.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="$(OutputPath)MinimalOpenAPI.Parser.Json.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="$(OutputPath)YamlDotNet.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-    <None Include="buildTransitive/MinimalOpenAPI.Client.targets" Pack="true" PackagePath="buildTransitive" />
-    <None Include="buildTransitive/MinimalOpenAPI.Client.targets" Pack="true" PackagePath="build" />
+    <None Include="buildTransitive/MinimalOpenAPI.Client.targets" Pack="true" PackagePath="buildTransitive/MinimalOpenAPIClient.targets" />
+    <None Include="buildTransitive/MinimalOpenAPI.Client.targets" Pack="true" PackagePath="build/MinimalOpenAPIClient.targets" />
   </ItemGroup>
 
   <Target Name="CopyYamlDotNetToOutput" AfterTargets="Build">
