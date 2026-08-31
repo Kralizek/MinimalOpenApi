@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
+    <RootNamespace>MinimalOpenAPIClient.IntegrationTests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <OpenApiClient Include="client-test.yaml" Namespace="MinimalOpenAPI.Client.IntegrationTests.Generated" />
+    <OpenApiClient Include="client-test.yaml" />
   </ItemGroup>
 
   <Import Project="../../src/MinimalOpenAPI.Client/buildTransitive/MinimalOpenAPI.Client.targets" />
