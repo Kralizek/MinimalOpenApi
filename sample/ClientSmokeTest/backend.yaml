@@ -1,0 +1,33 @@
+openapi: 3.0.3
+info:
+  title: Client smoke API
+  version: 1.0.0
+paths:
+  /todos/{id}:
+    get:
+      operationId: getTodo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+components:
+  schemas:
+    Todo:
+      type: object
+      required: [id, title]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
