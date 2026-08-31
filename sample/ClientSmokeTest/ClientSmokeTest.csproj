@@ -9,12 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MinimalOpenAPI.Client" Version="*-*" />
+    <PackageReference Include="MinimalOpenAPIClient" Version="*-*" />
   </ItemGroup>
 
   <ItemGroup>
-    <OpenApiClient Include="backend.yaml"
-                   Namespace="ClientSmokeTest.Generated" />
+    <OpenApiClient Include="backend.yaml" />
   </ItemGroup>
 
 </Project>
