@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.Text;
 
 using MinimalOpenAPI.Abstractions;
 using MinimalOpenAPI.Abstractions.Models;
+using MinimalOpenAPI.Client.Generator;
 using MinimalOpenAPI.Parser.Json;
 using MinimalOpenAPI.Parser.Yaml;
 
