@@ -1,5 +1,7 @@
 # MinimalOpenAPI
 
+[![CI](https://github.com/Kralizek/MinimalOpenApi/actions/workflows/ci.yml/badge.svg)](https://github.com/Kralizek/MinimalOpenApi/actions/workflows/ci.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/Kralizek/MinimalOpenApi)](https://github.com/Kralizek/MinimalOpenApi/releases/latest)
 [![NuGet](https://img.shields.io/nuget/v/MinimalOpenAPI)](https://www.nuget.org/packages/MinimalOpenAPI)
 
 MinimalOpenAPI is a **contract-first OpenAPI framework for ASP.NET Core Minimal APIs**.
