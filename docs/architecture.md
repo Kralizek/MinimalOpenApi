@@ -107,6 +107,22 @@ Runtime startup
 
 ## 4. Package responsibilities
 
+### Client generation
+
+`src/MinimalOpenAPI.Client/` builds the separate analyzer-only `MinimalOpenAPIClient` package. Its `<OpenApiClient>` MSBuild items feed `MinimalOpenApiClientGenerator`, which uses the shared parsers and document model, then emits DTOs, an HTTP client, a status/body exception, and DI registration through `ClientCodeGenerator`. Client and server items do not activate each other's pipelines.
+
+The client registry normalizes and allocates names, resolves local references, and propagates request/response direction through component, inline, array, and dictionary schemas. Requiredness and effective reference nullability are retained. Client diagnostics `MOAC001`-`MOAC004` cover parsing, file format, unsupported contracts/configuration, and duplicate namespaces. Generator-driver tests live in `ClientGeneratorTests`; executable transport tests are in `MinimalOpenAPI.Client.IntegrationTests`. The independent `sample/ClientSmokeTest` consumes the packed artifact with C# 11 and exercises it without a live network dependency.
+
+The following server-package sections describe `MinimalOpenAPI`, not the client package. See the [client package guide](../src/MinimalOpenAPI.Client/README.md) for the client support matrix.
+
+#### Shared reference normalization
+
+Both parsers normalize only schema references beginning with `#/components/schemas/`, removing that prefix and decoding JSON Pointer tokens (`~1` then `~0`). Other references are retained verbatim. Previously, taking the final slash-delimited segment could silently bind `other.yaml#/components/schemas/Item` to a local `Item`. Preserving the external reference prevents that substitution in both client and server generation; it does not implement external reference resolution.
+
+This is a shared behavioral correction, separate from the additive model metadata that the server currently ignores. Ordinary local references retain their behavior, while escaped local keys now resolve correctly. Server contracts relying on accidental external-to-local substitution can stop compiling: the current server type mapper can carry unresolved reference text into generated C# without a dedicated external-schema diagnostic. The client instead rejects unresolved references during generation. Consumers should bundle external schemas into local components and rewrite their references, or explicitly reference the intended local schema.
+
+`SharedSchemaReferenceTests` covers YAML and JSON parsing and server handler generation with a same-named local component, including local-reference controls. The client integration test `Same_component_used_in_request_and_response_keeps_directional_shapes_separate` uses the same component graph in both directions and checks wire behavior, member filtering, and recursive request/response type isolation.
+
 ### 4.1 `MinimalOpenAPI`
 
 The single published NuGet package.  The project lives in `src/MinimalOpenAPI/`
