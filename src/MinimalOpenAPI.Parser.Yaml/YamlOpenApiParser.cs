@@ -281,6 +281,9 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             Name = GetString(paramNode, "name") ?? string.Empty,
             Location = location,
             Required = GetBool(paramNode, "required"),
+            Style = GetString(paramNode, "style"),
+            Explode = paramNode.Children.ContainsKey(new YamlScalarNode("explode")) ? GetBool(paramNode, "explode") : null,
+            AllowReserved = GetBool(paramNode, "allowReserved"),
             Schema = schemaNode is not null ? ExtractSchema(schemaNode) : new OpenApiSchema()
         };
     }
@@ -339,6 +342,7 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             if (!int.TryParse(Scalar(entry.Key), out var statusCode)) continue;
 
             var responseNode = (YamlMappingNode)entry.Value;
+            var contentNode = GetMapping(responseNode, "content");
             var schemaNode = TryGetSupportedResponseContent(responseNode, out var contentType, out var mediaTypeNode)
                 ? GetMapping(mediaTypeNode!, "schema")
                 : null;
@@ -347,6 +351,9 @@ public sealed class YamlOpenApiParser : IOpenApiParser
                 StatusCode = statusCode,
                 Description = GetString(responseNode, "description") ?? string.Empty,
                 ContentType = contentType,
+                HasContent = contentNode is not null,
+                HasContentRepresentations = contentNode is { Children.Count: > 0 },
+                Reference = GetString(responseNode, "$ref"),
                 Schema = schemaNode is not null ? ExtractSchema(schemaNode) : null
             });
         }
@@ -483,7 +490,9 @@ public sealed class YamlOpenApiParser : IOpenApiParser
     private static string ResolveRef(string refValue)
     {
         // '#/components/schemas/Client' → 'Client'
-        var lastSlash = refValue.LastIndexOf('/');
-        return lastSlash >= 0 ? refValue.Substring(lastSlash + 1) : refValue;
+        const string prefix = "#/components/schemas/";
+        return refValue.StartsWith(prefix, StringComparison.Ordinal)
+            ? refValue.Substring(prefix.Length).Replace("~1", "/").Replace("~0", "~")
+            : refValue;
     }
 }

@@ -16,10 +16,12 @@
   <Folder Name="/src/">
     <Project Path="src/MinimalOpenAPI.Abstractions/MinimalOpenAPI.Abstractions.csproj" />
     <Project Path="src/MinimalOpenAPI/MinimalOpenAPI.csproj" />
+    <Project Path="src/MinimalOpenAPI.Client/MinimalOpenAPI.Client.csproj" />
     <Project Path="src/MinimalOpenAPI.Parser.Yaml/MinimalOpenAPI.Parser.Yaml.csproj" />
     <Project Path="src/MinimalOpenAPI.Parser.Json/MinimalOpenAPI.Parser.Json.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/MinimalOpenAPI.Client.IntegrationTests/MinimalOpenAPI.Client.IntegrationTests.csproj" />
     <Project Path="tests/MinimalOpenAPI.Generator.Tests/MinimalOpenAPI.Generator.Tests.csproj" />
     <Project Path="tests/MinimalOpenAPI.IntegrationTests/MinimalOpenAPI.IntegrationTests.csproj" />
     <Project Path="tests/MinimalOpenAPI.MultipartNested.IntegrationTests/MinimalOpenAPI.MultipartNested.IntegrationTests.csproj" />

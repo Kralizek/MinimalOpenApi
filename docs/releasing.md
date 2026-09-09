@@ -27,15 +27,17 @@ Tags must use the `v` prefix.
 
 ## Published package
 
-The repository publishes one package: `MinimalOpenAPI`.
+The repository publishes `MinimalOpenAPI` and the analyzer-only `MinimalOpenAPIClient` package. Both use the repository's MinVer version and are validated and published by the release workflow.
 
-It contains:
+`MinimalOpenAPI` contains:
 
 - `lib/net10.0/MinimalOpenAPI.dll` for ASP.NET Core runtime services;
 - the Roslyn generator and bundled parser assemblies under `analyzers/dotnet/cs/`;
 - `build/` and `buildTransitive/` targets;
 - the NuGet README;
 - a portable-PDB symbol package.
+
+`MinimalOpenAPIClient` bundles its generator, parsers, abstractions, build targets, and README. It declares `Microsoft.Extensions.Http` as a consumer dependency and does not produce a symbol package. Validate it with `bash scripts/validate-client-package.sh ./artifacts`, then restore, build, and run `sample/ClientSmokeTest/ClientSmokeTest.csproj` against those artifacts.
 
 `MinimalOpenAPI.Abstractions`, `MinimalOpenAPI.Parser.Yaml`, and `MinimalOpenAPI.Parser.Json` are implementation projects with `<IsPackable>false</IsPackable>`. Their assemblies are bundled inside the main package and are not published independently.
 
@@ -44,14 +46,14 @@ It contains:
 - .NET 10 SDK matching [`global.json`](../global.json)
 - Push access to the repository
 - Permission to create tags and GitHub Releases
-- NuGet.org ownership of the `MinimalOpenAPI` package
+- NuGet.org ownership of both published packages
 - A NuGet Trusted Publisher configured for `.github/workflows/publish.yml`
 
 ## NuGet Trusted Publishing
 
 NuGet.org publication uses GitHub Actions OIDC rather than a long-lived API key.
 
-Configure the package once on NuGet.org:
+Configure each package once on NuGet.org:
 
 1. Open **Manage package → Trusted Publishers**.
 2. Add a **GitHub Actions** trusted publisher.
