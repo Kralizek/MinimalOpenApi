@@ -12,6 +12,9 @@ internal static class SchemaReferenceValidator
         foreach (var schema in document.Schemas.Values)
             Visit(schema, document.Schemas, unresolved, visited);
 
+        foreach (var parameter in document.ComponentParameters.Values)
+            Visit(parameter.Schema, document.Schemas, unresolved, visited);
+
         foreach (var operation in document.Operations)
         {
             foreach (var parameter in operation.Parameters)
