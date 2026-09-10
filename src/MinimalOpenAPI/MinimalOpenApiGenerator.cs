@@ -190,7 +190,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         SourceProductionContext spc,
         OpenApiGenerationInput input)
     {
-
         // Warn when the OpenAPI version is absent or not yet explicitly supported.
         if (!IsKnownVersion(input.Document.OpenApiVersion))
         {
@@ -300,7 +299,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     /// <summary>
     /// Returns <see langword="true"/> when <paramref name="version"/> matches the major/minor of any
     /// entry in <see cref="KnownOpenApiVersions"/>, accepting any patch/build suffix (e.g. 3.0.3 is
-    /// considered a known 3.0 version).  Returns <see langword="false"/> for <see langword="null"/> or
+    /// considered a known 3.0 version). Returns <see langword="false"/> for <see langword="null"/> or
     /// any version whose major.minor is not explicitly listed.
     /// </summary>
     private static bool IsKnownVersion(Version? version) =>
@@ -309,9 +308,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
     /// <summary>
     /// The ordered list of parsers consulted by <see cref="SelectParser"/>.
-    /// The first parser whose <see cref="IOpenApiParser.CanParse"/> returns <see langword="true"/>
-    /// is used.  To support a new version with breaking structural changes, prepend a
-    /// version-targeted parser here; existing parsers are unmodified.
     /// </summary>
     private static readonly IOpenApiParser[] _parsers =
     [
@@ -319,12 +315,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         new JsonOpenApiParser(),
     ];
 
-    /// <summary>
-    /// Detects the serialisation format from the file extension and does a lightweight content
-    /// peek for the <c>openapi</c> version field, then returns the first registered parser whose
-    /// <see cref="IOpenApiParser.CanParse"/> accepts the resulting <see cref="OpenApiParserRequest"/>.
-    /// Returns <see langword="null"/> if no parser accepts the file (caller emits <b>MOA005</b>).
-    /// </summary>
     private static IOpenApiParser? SelectParser(string path, string content)
     {
         var format = DetectFormat(path);
@@ -344,12 +334,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         };
     }
 
-    // Lightweight regexes that extract the raw version string from the openapi field
-    // without a full parse.  These run before parser selection and must work on both
-    // well-formed and partially malformed documents.
-    // RegexOptions.Compiled is intentionally omitted: this generator targets netstandard2.0
-    // and runs inside the Roslyn analyzer host, where runtime code-gen (Compiled) can fail.
-    // Each pattern is matched at most once per file so uncompiled performance is acceptable.
     private static readonly Regex _yamlVersionPattern =
         new(@"^\s*openapi\s*:\s*[""']?(\d[\d.]*)(?=[""'\s]|$)", RegexOptions.Multiline);
 
@@ -363,25 +347,12 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         return match.Success && Version.TryParse(match.Groups[1].Value, out var v) ? v : null;
     }
 
-    /// <summary>
-    /// Creates a <see cref="Location"/> that points to the start of the given OpenAPI
-    /// spec file.  Using a real file location (rather than <see cref="Location.None"/>)
-    /// ensures that diagnostics are visible in IDE Error Lists, shown with the correct
-    /// filename, and survive the Roslyn incremental-generator analysis cache.
-    /// </summary>
     private static Location CreateOpenApiLocation(string filePath)
         => Location.Create(
             filePath,
             textSpan: TextSpan.FromBounds(0, 0),
             lineSpan: new LinePositionSpan(new LinePosition(0, 0), new LinePosition(0, 0)));
 
-    /// <summary>
-    /// Derives the spec name used as a namespace segment from the file path or an explicit override.
-    /// When <paramref name="explicitNamespace"/> is non-empty it is returned as-is (callers supply
-    /// a valid identifier via the <c>Namespace</c> MSBuild item metadata attribute).
-    /// Otherwise the file name (without extension) is converted to PascalCase: hyphens, underscores
-    /// and dots are treated as word separators, e.g. <c>payment-api.yaml</c> → <c>PaymentApi</c>.
-    /// </summary>
     internal static string DeriveSpecName(string filePath, string? explicitNamespace)
     {
         if (!string.IsNullOrWhiteSpace(explicitNamespace))
@@ -396,14 +367,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
     private const string ComponentParametersPrefix = "#/components/parameters/";
 
-    /// <summary>
-    /// Resolves all <c>$ref</c> entries in operation parameter lists against
-    /// <see cref="OpenApiDocument.ComponentParameters"/> and returns a new list of operations
-    /// with all parameters fully resolved.  The parsed <see cref="OpenApiDocument"/> is never
-    /// mutated.  Inline parameters are copied as-is.  If any reference cannot be resolved,
-    /// MOA008 is reported for each failure, <paramref name="operations"/> is set to an empty
-    /// list, and the method returns <see langword="false"/>.
-    /// </summary>
     private static bool TryResolveParameterReferences(
         SourceProductionContext spc,
         OpenApiDocument doc,
@@ -421,14 +384,11 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             {
                 if (param.Reference is null)
                 {
-                    // Inline parameter — copy as-is.
                     resolvedParameters.Add(param);
                     continue;
                 }
 
                 var refValue = param.Reference;
-
-                // Only local #/components/parameters/{name} refs are supported.
                 if (!refValue.StartsWith(ComponentParametersPrefix, StringComparison.Ordinal))
                 {
                     spc.ReportDiagnostic(Diagnostic.Create(
@@ -520,13 +480,23 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         var displayName = input.DisplayName;
         var displayVersion = input.DisplayVersion;
 
-        // Resolve $ref parameter references before code generation; work with the returned
-        // normalized operation list so the parsed OpenApiDocument is never mutated.
+        var unresolvedSchemaReferences = SchemaReferenceValidator.FindUnresolvedReferences(doc);
+        if (unresolvedSchemaReferences.Count > 0)
+        {
+            foreach (var reference in unresolvedSchemaReferences)
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.UnresolvedSchemaReference,
+                    CreateOpenApiLocation(openApiFilePath),
+                    reference,
+                    openApiFilePath));
+            }
+            return;
+        }
+
         if (!TryResolveParameterReferences(spc, doc, openApiFilePath, out var operations))
             return;
 
-        // Build the schema name map once per document and report normalization errors
-        // before any code is emitted.
         var schemaNameMap = SchemaNameMap.Build(doc.Schemas.Keys);
 
         foreach (var unnormalisable in schemaNameMap.UnnormalisableNames)
@@ -546,8 +516,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 collision.NormalisedTypeName));
         }
 
-        // Abort code generation when there are name-level errors: unnormalisable names would
-        // produce invalid C# identifiers and collisions would produce duplicate type declarations.
         if (schemaNameMap.HasUnnormalisableNames || schemaNameMap.HasCollisions)
             return;
 
@@ -557,7 +525,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             input.ReadWriteSchemaHandling,
             schemaNameMap);
 
-        // Generate DTOs
         if (doc.Schemas.Count > 0)
         {
             var dtoResult = DtoGenerator.Generate(doc.Schemas, rootNamespace, specName, directionality, schemaNameMap);
@@ -582,7 +549,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             }
         }
 
-        // Discover handlers and configurations, emit diagnostics
         var handlers = new List<DiscoveredImplementation>();
         var configurations = new List<DiscoveredImplementation>();
 
@@ -591,7 +557,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             var handlerBase = TypeMapper.HandlerClassName(op.OperationId);
             var configurationBase = TypeMapper.EndpointConfigurationBaseClassName(op.OperationId);
 
-            // Generate handler base
             var handlerConflicts = new List<MinimalOpenAPI.Generator.CodeGen.AllOfPropertyConflict>();
             var handlerMultipartShapes = new List<MinimalOpenAPI.Generator.CodeGen.MultipartUnsupportedShape>();
             var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, directionality, doc.Schemas, handlerConflicts, handlerMultipartShapes);
@@ -615,11 +580,9 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     shape.FormRecordTypeName));
             }
 
-            // Generate endpoint configuration base
             var configurationSource = EndpointConfigurationGenerator.Generate(op, rootNamespace, specName);
             spc.AddSource(OperationHintName(specName, configurationBase), configurationSource);
 
-            // Discover handler implementations
             var handlerImpls = allClasses
                 .Where(c => c.BaseTypeNames.Contains(handlerBase))
                 .ToList();
@@ -648,7 +611,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     break;
             }
 
-            // Discover configuration implementations
             var configurationImpls = allClasses
                 .Where(c => c.BaseTypeNames.Contains(configurationBase))
                 .ToList();
@@ -656,7 +618,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             switch (configurationImpls.Count)
             {
                 case 0:
-                    break; // Optional, none is fine
+                    break;
                 case 1:
                     configurations.Add(new DiscoveredImplementation
                     {
@@ -674,7 +636,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             }
         }
 
-        // Generate DI registration
         var diSource = DependencyInjectionRegistrationGenerator.Generate(
             operations,
             handlers,
@@ -688,7 +649,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             displayVersion);
         spc.AddSource(InfrastructureHintName(specName, "DependencyInjection"), diSource);
 
-        // Generate endpoint mapping
         var mappingSource = EndpointMappingGenerator.Generate(operations, configurations, rootNamespace, specName, directionality);
         spc.AddSource(InfrastructureHintName(specName, "EndpointMapping"), mappingSource);
     }
@@ -723,13 +683,11 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         return false;
     }
 
-    /// <summary>Information about a class discovered via syntax analysis.</summary>
     private sealed record ClassInfo(
         string FullName,
         string Name,
         List<string> BaseTypeNames);
 
-    /// <summary>OpenAPI file metadata collected from additional files and item metadata.</summary>
     private sealed record OpenApiFileInput(
         string Content,
         string Path,
@@ -740,7 +698,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         string? DisplayVersion,
         string? ReadWriteSchemaHandling);
 
-    /// <summary>Parsed file state, including parser/extension failures used for diagnostics.</summary>
     private sealed record ParsedOpenApiFile(
         OpenApiDocument? Document,
         string Path,
@@ -772,7 +729,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 readWriteSchemaHandling);
     }
 
-    /// <summary>Generation-ready non-null OpenAPI input.</summary>
     private sealed record OpenApiGenerationInput(
         OpenApiDocument Document,
         string Path,
@@ -784,7 +740,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         string? DisplayVersion,
         ReadWriteSchemaHandling ReadWriteSchemaHandling);
 
-    /// <summary>Combined generator pipeline state consumed by source output registration.</summary>
     private sealed record GeneratorPipelineInput(
         ParsedOpenApiFile ParsedFile,
         IReadOnlyList<ClassInfo> Classes,
