@@ -37,6 +37,28 @@ public sealed class SchemaReferenceTests
         => AssertReferenceDiagnostic(JsonTemplate.Replace("REFERENCE", reference), "openapi.json", reference);
 
     [Test]
+    public void Component_parameter_schema_reference_is_validated()
+    {
+        const string reference = "other.yaml#/components/schemas/Filter";
+        const string content = """
+            {
+              "openapi": "3.0.3",
+              "paths": {"/items": {"get": {
+                "parameters": [{"$ref": "#/components/parameters/Filter"}],
+                "responses": {"204": {"description": "OK"}}
+              }}},
+              "components": {"parameters": {"Filter": {
+                "name": "filter",
+                "in": "query",
+                "schema": {"$ref": "other.yaml#/components/schemas/Filter"}
+              }}}
+            }
+            """;
+
+        AssertReferenceDiagnostic(content, "openapi.json", reference);
+    }
+
+    [Test]
     public void Missing_local_component_schema_reports_MOA015()
         => AssertReferenceDiagnostic(
             JsonTemplate.Replace("REFERENCE", "#/components/schemas/Missing"),
