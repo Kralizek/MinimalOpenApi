@@ -482,8 +482,9 @@ public sealed class YamlOpenApiParser : IOpenApiParser
 
     private static string ResolveRef(string refValue)
     {
-        // '#/components/schemas/Client' → 'Client'
-        var lastSlash = refValue.LastIndexOf('/');
-        return lastSlash >= 0 ? refValue.Substring(lastSlash + 1) : refValue;
+        const string prefix = "#/components/schemas/";
+        return refValue.StartsWith(prefix, StringComparison.Ordinal)
+            ? refValue.Substring(prefix.Length).Replace("~1", "/").Replace("~0", "~")
+            : refValue;
     }
 }
