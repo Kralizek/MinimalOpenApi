@@ -25,15 +25,6 @@ public sealed class OpenApiParameter
     /// <summary>Whether the parameter must be present in the request.</summary>
     public bool Required { get; init; }
 
-    /// <summary>The explicit OpenAPI serialization style, or null for the location default.</summary>
-    public string? Style { get; init; }
-
-    /// <summary>The explicit explode setting, or null for the style default.</summary>
-    public bool? Explode { get; init; }
-
-    /// <summary>Whether reserved URI characters may appear unescaped in query values.</summary>
-    public bool AllowReserved { get; init; }
-
     /// <summary>The schema that describes the parameter's type and format.</summary>
     public OpenApiSchema Schema { get; init; } = new OpenApiSchema();
 

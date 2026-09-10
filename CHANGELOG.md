@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Added: HTTP Clients
-
-- **Generated HTTP clients** through the separate `MinimalOpenAPIClient` package and `<OpenApiClient>` items: typed JSON request/response contracts, directional DTO graphs, scalar parameters and exploded query arrays, cancellation, typed HTTP exceptions, and `HttpClient` factory registration. Generated names preserve wire names while avoiding C# collisions; unsupported serialization and incompatible success-response shapes produce compile-time diagnostics. Response metadata distinguishes an omitted content map, a declared empty map, and a non-empty map with representations.
-
 ## 1.0.0
 
 ### Added

@@ -37,31 +37,6 @@ Or add the package and OpenAPI document directly to the project file:
 
 For a focused walkthrough from installation to the first generated endpoint, see [Getting started](docs/getting-started.md).
 
-### Outbound HTTP clients
-
-Use the separate `MinimalOpenAPIClient` package to generate clients for APIs your application consumes:
-
-```xml
-<ItemGroup>
-  <PackageReference Include="MinimalOpenAPIClient" Version="..." />
-  <OpenApiClient Include="backend.yaml" />
-</ItemGroup>
-```
-
-This generates DTOs, a concrete `BackendClient`, typed HTTP exceptions, and `AddBackendClient` registration helpers under `{RootNamespace}.Clients.Backend`. Client generation requires .NET 10 and C# 11 or newer, but not ASP.NET Core. Server `<OpenApi>` items and client `<OpenApiClient>` items are independent.
-
-See the [client package guide](src/MinimalOpenAPI.Client/README.md) for registration, naming, directional contracts, supported serialization, and diagnostics.
-
-### Shared parser compatibility
-
-The client package uses the same YAML/JSON parsers as the server package. The new optional parameter and response metadata does not change server type generation, but the schema `$ref` normalization correction affects **both** packages:
-
-- Ordinary local references such as `#/components/schemas/Item` resolve as before. Local JSON Pointer escapes are decoded (`~1` to `/`, `~0` to `~`).
-- External references such as `other.yaml#/components/schemas/Item` are preserved, not reduced to `Item`. They no longer accidentally select a same-named local component.
-- External schema resolution is still unsupported. The client reports a generation diagnostic; the server can emit unresolved type text that fails C# compilation rather than a dedicated external-reference diagnostic. Existing server contracts that depended on the previous accidental binding can therefore stop compiling.
-
-To migrate, bundle the intended external schemas into local components and update their references, or use `#/components/schemas/Item` when the local component was intended. This correction does not add external document loading.
-
 ## Quick start
 
 ### 1. Define the contract

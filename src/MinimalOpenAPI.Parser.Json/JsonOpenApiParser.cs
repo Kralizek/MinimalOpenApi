@@ -291,9 +291,6 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             Name = GetString(paramNode, "name") ?? string.Empty,
             Location = location,
             Required = GetBool(paramNode, "required"),
-            Style = GetString(paramNode, "style"),
-            Explode = paramNode.ContainsKey("explode") ? GetBool(paramNode, "explode") : null,
-            AllowReserved = GetBool(paramNode, "allowReserved"),
             Schema = schemaNode is not null ? ExtractSchema(schemaNode) : new OpenApiSchema()
         };
     }
@@ -352,7 +349,6 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             if (!int.TryParse(entry.Key, out var statusCode)) continue;
             if (entry.Value?.AsObject() is not { } responseNode) continue;
 
-            var contentNode = GetObject(responseNode, "content");
             var schemaNode = TryGetSupportedResponseContent(responseNode, out var contentType, out var mediaTypeNode)
                 ? GetObject(mediaTypeNode!, "schema")
                 : null;
@@ -361,9 +357,6 @@ public sealed class JsonOpenApiParser : IOpenApiParser
                 StatusCode = statusCode,
                 Description = GetString(responseNode, "description") ?? string.Empty,
                 ContentType = contentType,
-                HasContent = contentNode is not null,
-                HasContentRepresentations = contentNode is { Count: > 0 },
-                Reference = GetString(responseNode, "$ref"),
                 Schema = schemaNode is not null ? ExtractSchema(schemaNode) : null
             });
         }
@@ -511,9 +504,7 @@ public sealed class JsonOpenApiParser : IOpenApiParser
     private static string ResolveRef(string refValue)
     {
         // '#/components/schemas/Client' → 'Client'
-        const string prefix = "#/components/schemas/";
-        return refValue.StartsWith(prefix, StringComparison.Ordinal)
-            ? refValue.Substring(prefix.Length).Replace("~1", "/").Replace("~0", "~")
-            : refValue;
+        var lastSlash = refValue.LastIndexOf('/');
+        return lastSlash >= 0 ? refValue.Substring(lastSlash + 1) : refValue;
     }
 }
