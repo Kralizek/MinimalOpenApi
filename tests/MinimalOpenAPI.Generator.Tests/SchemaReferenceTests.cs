@@ -1,0 +1,147 @@
+using MinimalOpenAPI.Parser.Json;
+using MinimalOpenAPI.Parser.Yaml;
+
+namespace MinimalOpenAPI.Generator.Tests;
+
+[TestFixture]
+public sealed class SchemaReferenceTests
+{
+    private const string LocalType = "global::TestProject.Openapi.Contracts.Item";
+
+    [Test]
+    public async Task Json_external_schema_reference_is_preserved_and_does_not_bind_to_local_schema()
+    {
+        const string reference = "other.yaml#/components/schemas/Item";
+        var content = JsonTemplate.Replace("REFERENCE", reference);
+        var document = await new JsonOpenApiParser().ParseAsync(content);
+
+        Assert.That(document.Operations.Single().Responses.Single().Schema!.Reference, Is.EqualTo(reference));
+        Assert.That(GenerateHandler(content, "openapi.json"), Does.Not.Contain(LocalType));
+    }
+
+    [Test]
+    public async Task Yaml_external_schema_reference_is_preserved_and_does_not_bind_to_local_schema()
+    {
+        const string reference = "other.yaml#/components/schemas/Item";
+        var content = YamlTemplate.Replace("REFERENCE", reference);
+        var document = await new YamlOpenApiParser().ParseAsync(content);
+
+        Assert.That(document.Operations.Single().Responses.Single().Schema!.Reference, Is.EqualTo(reference));
+        Assert.That(GenerateHandler(content, "openapi.yaml"), Does.Not.Contain(LocalType));
+    }
+
+    [Test]
+    public async Task Json_local_schema_reference_resolves_to_component_name()
+    {
+        var content = JsonTemplate.Replace("REFERENCE", "#/components/schemas/Item");
+        var document = await new JsonOpenApiParser().ParseAsync(content);
+
+        Assert.That(document.Operations.Single().Responses.Single().Schema!.Reference, Is.EqualTo("Item"));
+        Assert.That(GenerateHandler(content, "openapi.json"), Does.Contain(LocalType));
+    }
+
+    [Test]
+    public async Task Yaml_local_schema_reference_resolves_to_component_name()
+    {
+        var content = YamlTemplate.Replace("REFERENCE", "#/components/schemas/Item");
+        var document = await new YamlOpenApiParser().ParseAsync(content);
+
+        Assert.That(document.Operations.Single().Responses.Single().Schema!.Reference, Is.EqualTo("Item"));
+        Assert.That(GenerateHandler(content, "openapi.yaml"), Does.Contain(LocalType));
+    }
+
+    [Test]
+    public async Task Json_local_schema_reference_decodes_json_pointer_tokens()
+    {
+        const string content = """
+            {
+              "openapi": "3.0.3",
+              "paths": {"/items": {"get": {"responses": {"200": {
+                "description": "OK",
+                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Foo~1Bar~0Baz"}}}
+              }}}}},
+              "components": {"schemas": {"Foo/Bar~Baz": {"type": "string"}}}
+            }
+            """;
+
+        var document = await new JsonOpenApiParser().ParseAsync(content);
+        Assert.That(document.Operations.Single().Responses.Single().Schema!.Reference, Is.EqualTo("Foo/Bar~Baz"));
+    }
+
+    [Test]
+    public async Task Yaml_local_schema_reference_decodes_json_pointer_tokens()
+    {
+        const string content = """
+            openapi: 3.0.3
+            paths:
+              /items:
+                get:
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Foo~1Bar~0Baz'
+            components:
+              schemas:
+                'Foo/Bar~Baz':
+                  type: string
+            """;
+
+        var document = await new YamlOpenApiParser().ParseAsync(content);
+        Assert.That(document.Operations.Single().Responses.Single().Schema!.Reference, Is.EqualTo("Foo/Bar~Baz"));
+    }
+
+    private static string GenerateHandler(string content, string path)
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(string.Empty, [(path, content)]);
+        Assert.That(result.Results.Single().Exception, Is.Null);
+        var dtoSource = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+        Assert.That(dtoSource, Does.Contain("public sealed record Item"));
+        return GeneratorTestHelper.GetGeneratedSource(result, "GetItemEndpointBase.g.cs");
+    }
+
+    private const string JsonTemplate = """
+        {
+          "openapi": "3.0.3",
+          "info": {"title": "Reference regression", "version": "1.0.0"},
+          "paths": {"/items": {"get": {
+            "operationId": "getItem",
+            "responses": {"200": {
+              "description": "OK",
+              "content": {"application/json": {"schema": {"$ref": "REFERENCE"}}}
+            }}
+          }}},
+          "components": {"schemas": {"Item": {
+            "type": "object",
+            "properties": {"localOnly": {"type": "string"}}
+          }}}
+        }
+        """;
+
+    private const string YamlTemplate = """
+        openapi: 3.0.3
+        info:
+          title: Reference regression
+          version: 1.0.0
+        paths:
+          /items:
+            get:
+              operationId: getItem
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: 'REFERENCE'
+        components:
+          schemas:
+            Item:
+              type: object
+              properties:
+                localOnly:
+                  type: string
+        """;
+}
