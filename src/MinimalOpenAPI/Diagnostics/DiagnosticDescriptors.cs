@@ -105,9 +105,7 @@ internal static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
-    /// <summary>
-    /// Two or more schema names normalise to the same generated C# type name.
-    /// </summary>
+    /// <summary>Two or more schema names normalise to the same generated C# type name.</summary>
     public static readonly DiagnosticDescriptor SchemaNameCollision = new(
         id: "MOA012",
         title: "Schema name collision",
@@ -125,14 +123,20 @@ internal static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
-    /// <summary>
-    /// A derived C# type name (scoped variant or inline property type) collides with an
-    /// already-generated type from a different component schema.
-    /// </summary>
+    /// <summary>A derived generated type name conflicts with an existing generated type.</summary>
     public static readonly DiagnosticDescriptor GeneratedSymbolCollision = new(
         id: "MOA014",
         title: "Generated symbol collision",
         messageFormat: "The derived C# type name '{0}' conflicts with an already-generated type. This occurs when a schema name variant (e.g. a Request/Response scope suffix or an inline property type) produces the same identifier as an existing component schema. Rename one of the conflicting schemas to avoid duplicate type declarations.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    /// <summary>A schema reference does not resolve to a local component schema.</summary>
+    public static readonly DiagnosticDescriptor UnresolvedSchemaReference = new(
+        id: "MOA015",
+        title: "Unresolved or unsupported schema reference",
+        messageFormat: "Schema reference '{0}' in '{1}' could not be resolved. MinimalOpenAPI supports only references to schemas declared in the same document under components/schemas; external and remote schema references are not supported.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
