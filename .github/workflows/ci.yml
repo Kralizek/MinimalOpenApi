@@ -14,26 +14,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Build and test
+        uses: Kralizek/github-actions/actions/dotnet-build@v0.3
         with:
-          fetch-depth: 0  # MinVer needs the full tag history to calculate the package version.
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Restore
-        run: dotnet restore
-
-      - name: Verify formatting
-        run: dotnet format --verify-no-changes --no-restore
-
-      - name: Build
-        run: dotnet build --no-restore --configuration Release --warnaserror
-
-      - name: Test
-        run: dotnet test --no-build --configuration Release
+          global_json_file: ''
+          dotnet_version: '10.0.x'
+          fetch_depth: 0
+          test_arguments: ''
 
       - name: Pack
         run: dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj --no-build --configuration Release
