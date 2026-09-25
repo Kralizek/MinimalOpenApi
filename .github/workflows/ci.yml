@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Build and test
-        uses: Kralizek/github-actions/actions/dotnet-build@v0.3
+        uses: Kralizek/github-actions/actions/dotnet-build@v0.4
         with:
           global_json_file: ''
           dotnet_version: '10.0.x'
