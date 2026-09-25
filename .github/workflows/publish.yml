@@ -89,8 +89,7 @@ jobs:
           dotnet restore sample/SmokeTest/SmokeTest.csproj
           --force
           --no-cache
-          --source ./artifacts
-          --source https://api.nuget.org/v3/index.json
+          --configfile sample/SmokeTest/nuget.config
 
       - name: Build package-consumption smoke test
         run: |
