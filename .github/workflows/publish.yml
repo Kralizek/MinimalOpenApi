@@ -62,21 +62,15 @@ jobs:
           channel: ${{ inputs.release_channel != 'stable' && inputs.release_channel || '' }}
           minimum-version: 1.0.0
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: '10.0.x'
-          source-url: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
-        env:
-          NUGET_AUTH_TOKEN: ${{ github.token }}
-
       - name: Build and test
         uses: Kralizek/github-actions/actions/dotnet-build@v0.4
         env:
           MinVerVersionOverride: ${{ steps.version.outputs.version }}
         with:
           checkout: false
-          setup_dotnet: false
+          global_json_file: ''
+          dotnet_version: '10.0.x'
+          test_arguments: ''
 
       - name: Pack
         env:
@@ -150,11 +144,21 @@ jobs:
           fi
           gh release create "${args[@]}"
 
+      - name: Configure GitHub Packages source
+        if: ${{ !inputs.dry_run }}
+        run: >-
+          dotnet nuget add source
+          "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          --name github
+          --username "${{ github.actor }}"
+          --password "${{ github.token }}"
+          --store-password-in-clear-text
+
       - name: Push to GitHub Packages
         if: ${{ !inputs.dry_run }}
         run: |
           dotnet nuget push "./artifacts/*.nupkg" \
-            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --source github \
             --api-key "${{ github.token }}" \
             --skip-duplicate
 
