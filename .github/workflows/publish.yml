@@ -85,7 +85,12 @@ jobs:
         run: bash scripts/validate-package.sh ./artifacts
 
       - name: Restore package-consumption smoke test
-        run: dotnet restore sample/SmokeTest/SmokeTest.csproj --force --no-cache
+        run: >-
+          dotnet restore sample/SmokeTest/SmokeTest.csproj
+          --force
+          --no-cache
+          --source ./artifacts
+          --source https://api.nuget.org/v3/index.json
 
       - name: Build package-consumption smoke test
         run: |
