@@ -1,29 +1,16 @@
 # Releasing MinimalOpenAPI
 
-This document describes versioning, package validation, prerelease publication, and stable releases.
+MinimalOpenAPI uses a workflow-driven release process. Maintainers start a release from GitHub Actions; the workflow calculates the version, validates the package as a downstream consumer would see it, creates the tag and GitHub Release, and publishes the package.
 
 ## Versioning
 
-MinimalOpenAPI follows [Semantic Versioning](https://semver.org/) and uses [MinVer](https://github.com/adamralph/minver) to derive package versions from Git tags.
+MinimalOpenAPI follows Semantic Versioning and uses MinVer to derive package versions from Git tags.
 
-Configuration lives in [`Directory.Build.props`](../Directory.Build.props):
+Configuration lives in `Directory.Build.props`. Release tags use the `v` prefix. The release workflow uses `calculate-next-version@v0.4` with a minimum version of `1.0.0`, and the selected release version is supplied to the build through `MinVerVersionOverride`.
 
-```xml
-<MinVerTagPrefix>v</MinVerTagPrefix>
-<MinVerDefaultPreReleaseIdentifiers>preview</MinVerDefaultPreReleaseIdentifiers>
-<MinVerAutoIncrement>minor</MinVerAutoIncrement>
-```
+The workflow supports `major`, `minor`, and `patch` bumps and the `stable`, `alpha`, `beta`, and `rc` channels.
 
-Examples:
-
-| Git state | Package version |
-|---|---|
-| Exactly on `v1.0.0` | `1.0.0` |
-| Exactly on `v1.0.0-rc.3` | `1.0.0-rc.3` |
-| Commits after a prerelease tag | The prerelease version plus MinVer height metadata |
-| Commits after `v1.0.0` | A `1.1.0-preview...` development version |
-
-Tags must use the `v` prefix.
+Release-note ranges follow the shared release policy: releases within the same prerelease channel are incremental, while the first release in a new channel and stable releases generate notes from the previous stable release.
 
 ## Published package
 
@@ -37,166 +24,100 @@ It contains:
 - the NuGet README;
 - a portable-PDB symbol package.
 
-`MinimalOpenAPI.Abstractions`, `MinimalOpenAPI.Parser.Yaml`, and `MinimalOpenAPI.Parser.Json` are implementation projects with `<IsPackable>false</IsPackable>`. Their assemblies are bundled inside the main package and are not published independently.
+`MinimalOpenAPI.Abstractions`, `MinimalOpenAPI.Parser.Yaml`, and `MinimalOpenAPI.Parser.Json` are implementation projects. Their assemblies are bundled inside the main package and are not published independently.
 
 ## Prerequisites
 
-- .NET 10 SDK matching [`global.json`](../global.json)
-- Push access to the repository
-- Permission to create tags and GitHub Releases
-- NuGet.org ownership of the `MinimalOpenAPI` package
-- A NuGet Trusted Publisher configured for `.github/workflows/publish.yml`
+- Push access to the repository and permission to run the release workflow from `master`.
+- NuGet.org ownership of `MinimalOpenAPI`.
+- A NuGet Trusted Publisher configured for `.github/workflows/publish.yml`.
 
-## NuGet Trusted Publishing
-
-NuGet.org publication uses GitHub Actions OIDC rather than a long-lived API key.
-
-Configure the package once on NuGet.org:
-
-1. Open **Manage package → Trusted Publishers**.
-2. Add a **GitHub Actions** trusted publisher.
-3. Use:
-
-   | Field | Value |
-   |---|---|
-   | Repository owner | `Kralizek` |
-   | Repository name | `MinimalOpenApi` |
-   | Workflow file | `publish.yml` |
-   | Environment | Leave blank unless the workflow is later moved to a protected environment |
-
-The publish workflow requires `id-token: write` and uses `nuget/login` to obtain a short-lived token.
+NuGet.org publication uses GitHub Actions OIDC through `nuget/login`; no long-lived NuGet API key is required.
 
 ## Preparing a release
 
-### 1. Freeze behavior
+Before releasing:
 
-For a stable release, avoid unrelated feature work after the final release candidate. Only release blockers and repository/release corrections should land between the final RC and the stable tag.
+1. Ensure the intended release commit is on `master` and CI is green.
+2. Update `CHANGELOG.md`.
+3. Move new analyzer diagnostics from `AnalyzerReleases.Unshipped.md` to `AnalyzerReleases.Shipped.md` under the target version when appropriate.
+4. Update README/NuGet README examples, feature-support documentation, and known limitations when needed.
+5. Close or move issues assigned to the release milestone.
 
-### 2. Update release records
+Keep an empty `## Unreleased` section at the top of the changelog.
 
-Before tagging:
+## Release validation
 
-- update [`CHANGELOG.md`](../CHANGELOG.md);
-- move new analyzer diagnostics from `AnalyzerReleases.Unshipped.md` to `AnalyzerReleases.Shipped.md` under the target version;
-- update README and NuGet README examples when the documented stable version changes;
-- update the feature support matrix and known limitations;
-- close or move issues assigned to the release milestone.
+Every workflow-driven release, including a dry run, performs the important release gates before anything is published:
 
-Keep an empty `## Unreleased` section at the top of the changelog for subsequent work.
+1. shared restore, format verification, build, and tests;
+2. pack `MinimalOpenAPI` with the calculated release version;
+3. run `scripts/validate-package.sh` against the produced package;
+4. restore `sample/SmokeTest/SmokeTest.csproj` with `./artifacts` as a package source, ensuring it consumes the package produced by this run;
+5. build and publish the smoke-test application;
+6. verify that an authored OpenAPI schema is present below the publish output's `openapi/schemas/` directory.
 
-### 3. Validate locally
+The package-layout and downstream-consumption checks are MOA-specific release gates. They intentionally remain in this repository rather than in the shared GitHub Actions.
 
-Run the same checks expected by CI and publication:
+## Dry run
 
-```shell
-dotnet restore
-dotnet format --verify-no-changes --no-restore
-dotnet build --no-restore --configuration Release --warnaserror
-dotnet test --no-build --configuration Release
+Use **Actions → Release → Run workflow** and enable `dry_run` to validate a release candidate without publishing it.
 
-dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj \
-  --no-build \
-  --configuration Release \
-  --output ./artifacts
+Choose the same version bump and release channel you intend to use for the real release.
 
-bash scripts/validate-package.sh ./artifacts
+A dry run calculates the intended version and release-note baseline, builds, tests, packs, validates the package, and runs the downstream-consumption smoke test.
 
-dotnet restore sample/SmokeTest/SmokeTest.csproj --force --no-cache
-dotnet build sample/SmokeTest/SmokeTest.csproj \
-  --no-restore \
-  --configuration Release \
-  --warnaserror
-dotnet publish sample/SmokeTest/SmokeTest.csproj \
-  --no-restore \
-  --configuration Release \
-  --output /tmp/minimalopenapi-smoke
-```
+A dry run does **not**:
 
-Confirm that the smoke-test publish output contains an authored OpenAPI document below `openapi/schemas/`.
-
-### 4. Inspect package metadata
-
-The validation script checks the package layout, README, repository metadata, MIT license expression, and symbol package.
-
-For manual inspection:
-
-```shell
-unzip -p ./artifacts/MinimalOpenAPI.*.nupkg '*.nuspec' | less
-unzip -l ./artifacts/MinimalOpenAPI.*.nupkg
-unzip -l ./artifacts/MinimalOpenAPI.*.snupkg
-```
-
-Confirm that:
-
-- the package and nuspec versions match the intended tag;
-- authors, description, license, repository URL, and project URL are correct;
-- runtime, analyzer, parser, targets, and README files are present;
-- no unintended public NuGet dependencies are introduced;
-- the symbol package contains portable PDBs.
-
-## Publishing workflows
-
-[`.github/workflows/publish.yml`](../.github/workflows/publish.yml) supports two paths:
-
-| Trigger | Destination |
-|---|---|
-| Manual `workflow_dispatch` | GitHub Packages |
-| Published GitHub Release | GitHub Release assets and NuGet.org |
-
-Both paths restore, build, test, pack, validate package contents, and consume the produced package through the clean smoke-test project before publishing.
-
-A published GitHub Release can be either a prerelease or a stable release. The workflow validates that:
-
-- the release tag is valid Semantic Versioning with a `v` prefix;
-- the checked-out commit is exactly the release tag;
-- tags with a prerelease suffix are marked as GitHub prereleases;
-- stable tags are not marked as prereleases.
+- create or push a Git tag;
+- create a GitHub Release;
+- publish to GitHub Packages;
+- publish to NuGet.org.
 
 ## Cutting a prerelease
 
-1. Ensure the target commit is green.
-2. Create and push a tag such as:
+1. Ensure `master` contains the exact code and release records you want to publish.
+2. Open **Actions → Release → Run workflow**.
+3. Select the version bump.
+4. Select `alpha`, `beta`, or `rc`.
+5. Run a dry run first when you want to validate the candidate without publishing.
+6. Run the workflow with `dry_run` disabled to publish.
 
-   ```shell
-   git tag v1.1.0-rc.1
-   git push origin v1.1.0-rc.1
-   ```
+The workflow calculates the prerelease sequence, creates and pushes the immutable version tag, creates a GitHub prerelease with generated release notes, publishes the package, and attaches the package artifacts to the release.
 
-3. Create a GitHub Release for that tag and mark it as a **prerelease**.
-4. Publish the release.
-5. Verify the workflow and NuGet.org package.
-6. Consume the published package from a clean external project.
-
-Use manual workflow dispatch only when a GitHub Packages build is desired without publishing a GitHub Release or NuGet.org package.
+Do not create the release tag or GitHub Release manually.
 
 ## Cutting a stable release
 
-1. Confirm the final release candidate has been validated externally.
+1. Confirm the intended release candidate has been validated.
 2. Merge the final release-record and repository-polish changes.
-3. Confirm all required checks pass on `master`.
-4. Tag the exact validated commit:
+3. Confirm required checks pass on `master`.
+4. Open **Actions → Release → Run workflow**.
+5. Select the required version bump and `stable` as the release channel.
+6. Run a dry run if desired.
+7. Run the workflow with `dry_run` disabled to publish.
 
-   ```shell
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
+The workflow creates the version tag and GitHub Release and publishes the exact package that passed the release validation.
 
-5. Draft a GitHub Release from `v1.0.0`.
-6. Use the corresponding changelog section as the release notes, editing it for readability where useful.
-7. Publish the release.
-8. Verify:
-   - `.nupkg` and `.snupkg` assets are attached to the GitHub Release;
-   - the package is available on NuGet.org;
-   - symbols are indexed;
-   - the NuGet README renders correctly;
-   - Source Link resolves repository source;
-   - installation succeeds in a new .NET 10 ASP.NET Core project.
+Do not create the stable tag or GitHub Release manually.
+
+## Publishing destinations
+
+A successful non-dry-run release publishes the same validated package to:
+
+- GitHub Packages;
+- the GitHub Release as `.nupkg` and `.snupkg` assets;
+- NuGet.org.
+
+GitHub Packages is configured only when publishing. It is not required as a restore source for the repository build.
 
 ## Post-release checklist
 
-- [ ] Confirm the GitHub Release and NuGet.org package show the same version and notes.
-- [ ] Confirm symbol-server and Source Link behavior.
+- [ ] Confirm the GitHub Release and NuGet.org package have the expected version.
+- [ ] Confirm the release notes use the intended channel baseline.
+- [ ] Confirm the `.nupkg` and `.snupkg` assets are attached to the GitHub Release.
+- [ ] Confirm symbols and Source Link behavior.
+- [ ] Confirm the NuGet README renders correctly.
+- [ ] Install the package in a clean .NET 10 ASP.NET Core project.
 - [ ] Close the release milestone and completed issues.
 - [ ] Keep `## Unreleased` at the top of the changelog.
-- [ ] Ensure development builds now resolve to the next MinVer preview line.
-- [ ] Announce any known limitations that are especially relevant to existing prerelease users.
