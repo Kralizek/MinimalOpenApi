@@ -32,7 +32,7 @@ jobs:
 
       - name: Validate release metadata
         if: github.event_name == 'release'
-        uses: Kralizek/github-actions/actions/validate-release@v0.3
+        uses: Kralizek/github-actions/actions/validate-release@v0.4
         with:
           tag: ${{ github.event.release.tag_name }}
           prerelease: ${{ github.event.release.prerelease }}
