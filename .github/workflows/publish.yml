@@ -90,6 +90,15 @@ jobs:
           --force
           --no-cache
           --configfile sample/SmokeTest/nuget.config
+          -p:MinimalOpenAPIVersion=${{ steps.version.outputs.version }}
+
+      - name: Verify smoke test package version
+        env:
+          EXPECTED_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          jq -e --arg package "MinimalOpenAPI/$EXPECTED_VERSION" '.libraries[$package] != null' \
+            sample/SmokeTest/obj/project.assets.json >/dev/null
 
       - name: Build package-consumption smoke test
         run: |
