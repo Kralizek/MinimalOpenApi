@@ -53,7 +53,7 @@ Every workflow-driven release, including a dry run, performs the important relea
 1. shared restore, format verification, build, and tests;
 2. pack `MinimalOpenAPI` with the calculated release version;
 3. run `scripts/validate-package.sh` against the produced package;
-4. restore `sample/SmokeTest/SmokeTest.csproj` with `./artifacts` as a package source, ensuring it consumes the package produced by this run;
+4. restore `sample/SmokeTest/SmokeTest.csproj` using `sample/SmokeTest/nuget.config`, whose `local-artifacts` source points to `../../artifacts`, and require the exact version calculated for this release;
 5. build and publish the smoke-test application;
 6. verify that an authored OpenAPI schema is present below the publish output's `openapi/schemas/` directory.
 
