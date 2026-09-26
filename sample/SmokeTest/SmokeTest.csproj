@@ -13,16 +13,20 @@
     This is the whole point of the smoke test: verify the packed artifact works
     exactly as a real downstream consumer would experience it.
 
-    The floating version *-* resolves to the latest available version including
-    pre-release builds, which is what `dotnet pack` produces locally and in CI.
-    The only source for this package is the local-artifacts feed defined in
-    nuget.config, so it always picks up the just-packed artifact.
+    The package version is injectable so release validation can require the exact
+    version produced by the current workflow. It defaults to *-* for ordinary
+    local/CI smoke-test use. The release workflow passes its calculated version
+    explicitly and verifies that exact version in project.assets.json.
 
     The MinimalOpenAPI package bundles both the source generator and the runtime
     services, so no additional package references are needed.
   -->
+  <PropertyGroup>
+    <MinimalOpenAPIVersion Condition="'$(MinimalOpenAPIVersion)' == ''">*-*</MinimalOpenAPIVersion>
+  </PropertyGroup>
+
   <ItemGroup>
-    <PackageReference Include="MinimalOpenAPI" Version="*-*" />
+    <PackageReference Include="MinimalOpenAPI" Version="$(MinimalOpenAPIVersion)" />
   </ItemGroup>
 
   <ItemGroup>

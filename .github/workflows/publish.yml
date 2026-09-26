@@ -1,76 +1,80 @@
-name: Publish
+name: Release
 
 on:
   workflow_dispatch:
-  release:
-    types: [published]
+    inputs:
+      bump:
+        description: Version bump
+        required: true
+        default: minor
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+      release_channel:
+        description: Release channel
+        required: true
+        default: stable
+        type: choice
+        options:
+          - stable
+          - alpha
+          - beta
+          - rc
+      dry_run:
+        description: Validate the selected release without publishing packages or creating a release
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
-  group: publish-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
+permissions:
+  packages: write
+  contents: write
+  id-token: write
+
 jobs:
-  publish:
+  release:
     name: Validate, pack, and publish
     runs-on: ubuntu-latest
-    permissions:
-      packages: write
-      contents: write
-      id-token: write
 
     steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0  # MinVer requires full tag history to calculate the package version.
-
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: '10.0.x'
-          source-url: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
-        env:
-          NUGET_AUTH_TOKEN: ${{ github.token }}
-
-      - name: Validate release metadata
-        if: github.event_name == 'release'
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-          RELEASE_IS_PRERELEASE: ${{ github.event.release.prerelease }}
+      - name: Validate release source
+        if: github.ref != 'refs/heads/master'
         run: |
-          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "Release tag is not a supported Semantic Versioning tag: $RELEASE_TAG" >&2
-            exit 1
-          fi
+          echo "Releases must be dispatched from master."
+          exit 1
 
-          release_commit="$(git rev-parse "$RELEASE_TAG^{commit}")"
-          head_commit="$(git rev-parse HEAD)"
-          if [[ "$release_commit" != "$head_commit" ]]; then
-            echo "Release tag $RELEASE_TAG does not point to the checked-out commit." >&2
-            exit 1
-          fi
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-          if [[ "$RELEASE_TAG" == *-* ]]; then
-            if [[ "$RELEASE_IS_PRERELEASE" != "true" ]]; then
-              echo "Prerelease tag $RELEASE_TAG must be published as a GitHub prerelease." >&2
-              exit 1
-            fi
-          elif [[ "$RELEASE_IS_PRERELEASE" != "false" ]]; then
-            echo "Stable tag $RELEASE_TAG must not be published as a GitHub prerelease." >&2
-            exit 1
-          fi
+      - name: Calculate release version
+        id: version
+        uses: Kralizek/github-actions/actions/calculate-next-version@v0.4
+        with:
+          bump: ${{ inputs.bump }}
+          channel: ${{ inputs.release_channel != 'stable' && inputs.release_channel || '' }}
+          minimum-version: 1.0.0
 
-      - name: Restore
-        run: dotnet restore
-
-      - name: Verify formatting
-        run: dotnet format --verify-no-changes --no-restore
-
-      - name: Build
-        run: dotnet build --no-restore --configuration Release --warnaserror
-
-      - name: Test
-        run: dotnet test --no-build --configuration Release
+      - name: Build and test
+        uses: Kralizek/github-actions/actions/dotnet-build@v0.4
+        env:
+          MinVerVersionOverride: ${{ steps.version.outputs.version }}
+        with:
+          checkout: false
+          global_json_file: ''
+          dotnet_version: '10.0.x'
+          test_arguments: ''
 
       - name: Pack
+        env:
+          MinVerVersionOverride: ${{ steps.version.outputs.version }}
         run: |
           dotnet pack src/MinimalOpenAPI/MinimalOpenAPI.csproj \
             --no-build \
@@ -81,7 +85,20 @@ jobs:
         run: bash scripts/validate-package.sh ./artifacts
 
       - name: Restore package-consumption smoke test
-        run: dotnet restore sample/SmokeTest/SmokeTest.csproj --force --no-cache
+        run: >-
+          dotnet restore sample/SmokeTest/SmokeTest.csproj
+          --force
+          --no-cache
+          --configfile sample/SmokeTest/nuget.config
+          -p:MinimalOpenAPIVersion=${{ steps.version.outputs.version }}
+
+      - name: Verify smoke test package version
+        env:
+          EXPECTED_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          jq -e --arg package "MinimalOpenAPI/$EXPECTED_VERSION" '.libraries[$package] != null' \
+            sample/SmokeTest/obj/project.assets.json >/dev/null
 
       - name: Build package-consumption smoke test
         run: |
@@ -111,33 +128,72 @@ jobs:
             ./artifacts/*.snupkg
           if-no-files-found: error
 
+      - name: Dry-run release summary
+        if: inputs.dry_run
+        run: |
+          echo "Dry run: no packages or GitHub release will be published."
+          echo "Version: ${{ steps.version.outputs.version }}"
+          echo "Version bump: ${{ inputs.bump }}"
+          echo "Release channel: ${{ inputs.release_channel }}"
+          echo "Release notes start tag: ${{ steps.version.outputs['release-notes-start-tag'] }}"
+
+      - name: Create GitHub release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_NOTES_START_TAG: ${{ steps.version.outputs['release-notes-start-tag'] }}
+        run: |
+          set -euo pipefail
+          git tag "$TAG" HEAD
+          git push origin "$TAG"
+
+          args=("$TAG" --verify-tag --generate-notes --title "$TAG")
+          if [[ "${{ inputs.release_channel }}" != "stable" ]]; then
+            args+=(--prerelease)
+          fi
+          if [[ -n "$RELEASE_NOTES_START_TAG" ]]; then
+            args+=(--notes-start-tag "$RELEASE_NOTES_START_TAG")
+          fi
+          gh release create "${args[@]}"
+
+      - name: Configure GitHub Packages source
+        if: ${{ !inputs.dry_run }}
+        run: >-
+          dotnet nuget add source
+          "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          --name github
+          --username "${{ github.actor }}"
+          --password "${{ github.token }}"
+          --store-password-in-clear-text
+
       - name: Push to GitHub Packages
-        if: github.event_name == 'workflow_dispatch'
+        if: ${{ !inputs.dry_run }}
         run: |
           dotnet nuget push "./artifacts/*.nupkg" \
-            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --source github \
             --api-key "${{ github.token }}" \
             --skip-duplicate
 
       - name: Upload packages to GitHub Release
-        if: github.event_name == 'release'
+        if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload "${{ github.event.release.tag_name }}" \
+          gh release upload "${{ steps.version.outputs.tag }}" \
             ./artifacts/*.nupkg \
             ./artifacts/*.snupkg \
             --repo "${{ github.repository }}"
 
       - name: NuGet login
-        if: github.event_name == 'release'
+        if: ${{ !inputs.dry_run }}
         id: nuget-login
         uses: nuget/login@v1
         with:
           user: Kralizek
 
       - name: Push to NuGet.org
-        if: github.event_name == 'release'
+        if: ${{ !inputs.dry_run }}
         run: |
           dotnet nuget push "./artifacts/*.nupkg" \
             --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
