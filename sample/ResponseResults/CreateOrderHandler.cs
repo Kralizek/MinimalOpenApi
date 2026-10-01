@@ -31,13 +31,13 @@ public sealed class CreateOrderHandler : CreateOrderEndpointBase
                 }));
         }
 
-        if (_store.ContainsExternalReference(request.ExternalReference))
+        var order = _store.TryAdd(request.ExternalReference, request.CustomerName, request.Amount);
+        if (order is null)
         {
             return Task.FromResult<Results<Created<Order>, BadRequestProblem, Conflict<string>>>(
                 TypedResults.Conflict($"An order with reference {request.ExternalReference} already exists."));
         }
 
-        var order = _store.Add(request.ExternalReference, request.CustomerName, request.Amount);
         return Task.FromResult<Results<Created<Order>, BadRequestProblem, Conflict<string>>>(
             TypedResults.Created($"/orders/{order.Id}", order));
     }
