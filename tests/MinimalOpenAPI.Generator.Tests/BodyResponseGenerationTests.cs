@@ -31,7 +31,7 @@ public class BodyResponseGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "GetResultEndpointBase.g.cs");
 
-        Assert.That(source, Does.Contain("global::Microsoft.AspNetCore.Http.IResult HandleAsync("));
+        Assert.That(source, Does.Contain("Task<global::Microsoft.AspNetCore.Http.IResult> HandleAsync("));
         Assert.That(source, Does.Not.Contain("HttpResults.Ok<string>"));
     }
 

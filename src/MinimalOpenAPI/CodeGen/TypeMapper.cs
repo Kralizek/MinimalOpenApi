@@ -296,7 +296,10 @@ internal static class TypeMapper
                 201 => $"global::Microsoft.AspNetCore.Http.HttpResults.Created<{responseType}>",
                 202 => $"global::Microsoft.AspNetCore.Http.HttpResults.Accepted<{responseType}>",
                 400 => $"global::Microsoft.AspNetCore.Http.HttpResults.BadRequest<{responseType}>",
-                _ => $"global::Microsoft.AspNetCore.Http.HttpResults.Ok<{responseType}>"
+                404 => $"global::Microsoft.AspNetCore.Http.HttpResults.NotFound<{responseType}>",
+                409 => $"global::Microsoft.AspNetCore.Http.HttpResults.Conflict<{responseType}>",
+                422 => $"global::Microsoft.AspNetCore.Http.HttpResults.UnprocessableEntity<{responseType}>",
+                _ => "global::Microsoft.AspNetCore.Http.IResult"
             };
         }
 
