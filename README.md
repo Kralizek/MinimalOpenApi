@@ -174,6 +174,12 @@ To override the handler response set for an operation, use a `MinimalOpenApiHand
 
 The operation must declare every status code named by `IncludeStatusCodes` and `ExcludeStatusCodes`. Global exclusions are applied first, then includes, then excludes (excludes win). With one OpenAPI document, `OpenApi` on the override may be omitted; for multiple documents, set `OpenApi="openapi.yaml"` to select a configured item. Explicit selection is also supported for single-document projects. Invalid contracts, operation IDs and status codes produce `MOA015` errors.
 
+ASP.NET Core's typed `Results<>` union supports at most six distinct handler
+result types. Operations exceeding that limit produce a `MOA017` error rather
+than an invalid generated union. Handler response filtering can exclude
+responses produced outside the handler while preserving the authored endpoint
+metadata; keep responses produced by the handler in the contract.
+
 ## Supported features
 
 | Area | Support |

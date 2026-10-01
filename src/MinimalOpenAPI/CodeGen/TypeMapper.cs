@@ -315,6 +315,7 @@ internal static class TypeMapper
     /// <summary>Builds the return type for a handler: Results&lt;T1, T2, ...&gt; or single type.</summary>
     public static string BuildReturnType(
         List<OpenApiResponse> responses,
+        out int alternativeCount,
         string? contractsNamespace = null,
         InlineSchemaResolver? resolveInline = null,
         Func<string, string>? resolveReference = null)
@@ -325,11 +326,13 @@ internal static class TypeMapper
             .Distinct()
             .ToList();
 
+        alternativeCount = types.Count;
         return types.Count switch
         {
             0 => "global::Microsoft.AspNetCore.Http.IResult",
             1 => types[0],
-            _ => $"global::Microsoft.AspNetCore.Http.HttpResults.Results<{string.Join(", ", types)}>"
+            <= 6 => $"global::Microsoft.AspNetCore.Http.HttpResults.Results<{string.Join(", ", types)}>",
+            _ => "global::Microsoft.AspNetCore.Http.IResult"
         };
     }
 

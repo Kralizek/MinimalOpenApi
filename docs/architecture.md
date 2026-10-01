@@ -499,7 +499,8 @@ and automatic 400 responses for invalid values.
 
 **Return type**: `BuildReturnType` collects resolved handler responses (all declared
 responses by default), maps each to its `Microsoft.AspNetCore.Http.HttpResults.*` type, and
-wraps multiple types in `Results<T1, T2, …>`.
+wraps two to six distinct types in `Results<T1, T2, …>`. More than six distinct
+handler result types produce MOA017 instead of an invalid `Results<>` declaration.
 
 **Naming conventions**:
 
@@ -543,6 +544,7 @@ wraps multiple types in `Results<T1, T2, …>`.
 | **MOA014** | Error | A generated request/response variant or inline-derived object or enum name conflicts with another generated contract symbol. Rename one of the schemas or properties so every generated C# type name is unique. |
 | **MOA015** | Error | Handler response configuration names an unknown contract, missing operation, undeclared response, or malformed HTTP status code. |
 | **MOA016** | Error | Two or more operations in one OpenAPI document share an `operationId`; generation is aborted for that document. |
+| **MOA017** | Error | An operation generates more than six distinct handler result alternatives, exceeding ASP.NET Core's `Results<>` limit. |
 
 ---
 
