@@ -9,6 +9,9 @@ public sealed class InMemoryOrderStore
 
     public Order? Get(Guid id) => _orders.GetValueOrDefault(id);
 
+    public bool ContainsExternalReference(string externalReference)
+        => _orders.Values.Any(order => order.ExternalReference == externalReference);
+
     public Order Add(string externalReference, string customerName, double amount)
     {
         var id = Guid.NewGuid();

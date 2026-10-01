@@ -8,6 +8,7 @@ This sample demonstrates generated endpoint result types and response handling.
 |---------|-----------|-------|
 | `Created<T>` result | `createOrder` | `CreateOrderHandler.cs` |
 | Schema-less `BadRequestProblem` | `createOrder` | `CreateOrderHandler.cs` |
+| JSON `Conflict<string>` result | `createOrder` | `CreateOrderHandler.cs` |
 | `Ok<T>` result | `getOrder` | `GetOrderHandler.cs` |
 | Schema-backed `NotFoundProblem` | `getOrder` | `GetOrderHandler.cs` |
 | `NoContent` result | `cancelOrder` | `CancelOrderHandler.cs` |
@@ -39,8 +40,8 @@ MinimalOpenAPI generates typed problem wrapper types from `application/problem+j
 
 | File | What to look at |
 |------|----------------|
-| `openapi.yaml` | Multiple `application/problem+json` responses, some with schemas |
-| `CreateOrderHandler.cs` | `Results<Created<Order>, BadRequestProblem>` usage |
+| `openapi.yaml` | Multiple `application/problem+json` responses and a JSON 409 response |
+| `CreateOrderHandler.cs` | `Results<Created<Order>, BadRequestProblem, Conflict<string>>` usage |
 | `GetOrderHandler.cs` | `Results<Ok<Order>, NotFoundProblem>` with typed payload |
 | `CancelOrderHandler.cs` | `Results<NoContent, NotFoundProblem>` schema-less problem |
 
@@ -55,6 +56,11 @@ Then try:
 
 ```shell
 # Create an order
+curl -X POST http://localhost:5000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"externalReference":"ORD-001","customerName":"Alice","amount":99.99}'
+
+# Repeat the create request to get a JSON string with HTTP 409
 curl -X POST http://localhost:5000/orders \
   -H "Content-Type: application/json" \
   -d '{"externalReference":"ORD-001","customerName":"Alice","amount":99.99}'

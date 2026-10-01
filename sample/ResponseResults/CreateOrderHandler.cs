@@ -17,13 +17,13 @@ public sealed class CreateOrderHandler : CreateOrderEndpointBase
 
     public CreateOrderHandler(InMemoryOrderStore store) => _store = store;
 
-    public override Task<Results<Created<Order>, BadRequestProblem>> HandleAsync(
+    public override Task<Results<Created<Order>, BadRequestProblem, Conflict<string>>> HandleAsync(
         Request request,
         CancellationToken cancellationToken)
     {
         if (request.Amount < 0)
         {
-            return Task.FromResult<Results<Created<Order>, BadRequestProblem>>(
+            return Task.FromResult<Results<Created<Order>, BadRequestProblem, Conflict<string>>>(
                 new BadRequestProblem(new ProblemDetails
                 {
                     Title = "Invalid amount",
@@ -31,8 +31,14 @@ public sealed class CreateOrderHandler : CreateOrderEndpointBase
                 }));
         }
 
+        if (_store.ContainsExternalReference(request.ExternalReference))
+        {
+            return Task.FromResult<Results<Created<Order>, BadRequestProblem, Conflict<string>>>(
+                TypedResults.Conflict($"An order with reference {request.ExternalReference} already exists."));
+        }
+
         var order = _store.Add(request.ExternalReference, request.CustomerName, request.Amount);
-        return Task.FromResult<Results<Created<Order>, BadRequestProblem>>(
+        return Task.FromResult<Results<Created<Order>, BadRequestProblem, Conflict<string>>>(
             TypedResults.Created($"/orders/{order.Id}", order));
     }
 }
