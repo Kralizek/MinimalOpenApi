@@ -7,7 +7,7 @@ paths:
     post:
       operationId: createOrder
       summary: Create order
-      description: Demonstrates Created plus schema-less BadRequest problem response.
+      description: Demonstrates Created, schema-less BadRequest problem, and JSON Conflict responses.
       tags:
         - orders
       requestBody:
@@ -43,6 +43,12 @@ paths:
           description: Bad Request
           content:
             application/problem+json: {}
+        "409":
+          description: Duplicate external reference
+          content:
+            application/json:
+              schema:
+                type: string
   /orders/{id}:
     parameters:
       - name: id

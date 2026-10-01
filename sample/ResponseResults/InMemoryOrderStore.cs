@@ -7,21 +7,35 @@ public sealed class InMemoryOrderStore
 {
     private readonly Dictionary<Guid, Order> _orders = new();
 
-    public Order? Get(Guid id) => _orders.GetValueOrDefault(id);
-
-    public Order Add(string externalReference, string customerName, double amount)
+    public Order? Get(Guid id)
     {
-        var id = Guid.NewGuid();
-        var order = new Order
-        {
-            Id = id,
-            ExternalReference = externalReference,
-            CustomerName = customerName,
-            Amount = amount
-        };
-        _orders[id] = order;
-        return order;
+        lock (_orders)
+            return _orders.GetValueOrDefault(id);
     }
 
-    public bool Cancel(Guid id) => _orders.Remove(id);
+    public Order? TryAdd(string externalReference, string customerName, double amount)
+    {
+        lock (_orders)
+        {
+            if (_orders.Values.Any(order => order.ExternalReference == externalReference))
+                return null;
+
+            var id = Guid.NewGuid();
+            var order = new Order
+            {
+                Id = id,
+                ExternalReference = externalReference,
+                CustomerName = customerName,
+                Amount = amount
+            };
+            _orders[id] = order;
+            return order;
+        }
+    }
+
+    public bool Cancel(Guid id)
+    {
+        lock (_orders)
+            return _orders.Remove(id);
+    }
 }

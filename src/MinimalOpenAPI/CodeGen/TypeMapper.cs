@@ -32,7 +32,8 @@ internal static class TypeMapper
         string ResponseName,
         string? ProblemName,
         string? TypedResultName,
-        string StatusCodeExpression);
+        string StatusCodeExpression,
+        bool SupportsTypedPayload = false);
 
     /// <summary>
     /// A synthetic type name used as a sentinel to mark a property that could not be
@@ -288,19 +289,12 @@ internal static class TypeMapper
             ? MapSchema(schema, contractsNamespace: contractsNamespace, resolveInline: resolveInline, resolveReference: resolveReference)
             : null;
 
-        if (responseType is not null && responseType != "object")
-        {
-            return statusCode switch
-            {
-                200 => $"global::Microsoft.AspNetCore.Http.HttpResults.Ok<{responseType}>",
-                201 => $"global::Microsoft.AspNetCore.Http.HttpResults.Created<{responseType}>",
-                202 => $"global::Microsoft.AspNetCore.Http.HttpResults.Accepted<{responseType}>",
-                400 => $"global::Microsoft.AspNetCore.Http.HttpResults.BadRequest<{responseType}>",
-                _ => $"global::Microsoft.AspNetCore.Http.HttpResults.Ok<{responseType}>"
-            };
-        }
-
         var mapping = GetHttpStatusCodeMapping(statusCode);
+        if (responseType is not null && responseType != "object")
+            return mapping.SupportsTypedPayload
+                ? $"global::Microsoft.AspNetCore.Http.HttpResults.{mapping.ResponseName}<{responseType}>"
+                : "global::Microsoft.AspNetCore.Http.IResult";
+
         return mapping.TypedResultName is not null
             ? $"global::Microsoft.AspNetCore.Http.HttpResults.{mapping.TypedResultName}"
             : "global::Microsoft.AspNetCore.Http.IResult";
@@ -525,18 +519,18 @@ internal static class TypeMapper
 
     private static HttpStatusCodeMapping GetHttpStatusCodeMapping(int statusCode) => statusCode switch
     {
-        200 => new HttpStatusCodeMapping(200, "Ok", "Ok", "Ok", "global::Microsoft.AspNetCore.Http.StatusCodes.Status200OK"),
-        201 => new HttpStatusCodeMapping(201, "Created", "Created", "Created", "global::Microsoft.AspNetCore.Http.StatusCodes.Status201Created"),
-        202 => new HttpStatusCodeMapping(202, "Accepted", "Accepted", "Accepted", "global::Microsoft.AspNetCore.Http.StatusCodes.Status202Accepted"),
+        200 => new HttpStatusCodeMapping(200, "Ok", "Ok", "Ok", "global::Microsoft.AspNetCore.Http.StatusCodes.Status200OK", SupportsTypedPayload: true),
+        201 => new HttpStatusCodeMapping(201, "Created", "Created", "Created", "global::Microsoft.AspNetCore.Http.StatusCodes.Status201Created", SupportsTypedPayload: true),
+        202 => new HttpStatusCodeMapping(202, "Accepted", "Accepted", "Accepted", "global::Microsoft.AspNetCore.Http.StatusCodes.Status202Accepted", SupportsTypedPayload: true),
         204 => new HttpStatusCodeMapping(204, "NoContent", "NoContent", "NoContent", "global::Microsoft.AspNetCore.Http.StatusCodes.Status204NoContent"),
         302 => new HttpStatusCodeMapping(302, "Redirect", null, null, "global::Microsoft.AspNetCore.Http.StatusCodes.Status302Found"),
-        400 => new HttpStatusCodeMapping(400, "BadRequest", "BadRequest", "BadRequest", "global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest"),
+        400 => new HttpStatusCodeMapping(400, "BadRequest", "BadRequest", "BadRequest", "global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest", SupportsTypedPayload: true),
         401 => new HttpStatusCodeMapping(401, "Unauthorized", "Unauthorized", "UnauthorizedHttpResult", "global::Microsoft.AspNetCore.Http.StatusCodes.Status401Unauthorized"),
         403 => new HttpStatusCodeMapping(403, "Forbidden", "Forbidden", "ForbidHttpResult", "global::Microsoft.AspNetCore.Http.StatusCodes.Status403Forbidden"),
-        404 => new HttpStatusCodeMapping(404, "NotFound", "NotFound", "NotFound", "global::Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound"),
-        409 => new HttpStatusCodeMapping(409, "Conflict", "Conflict", "Conflict", "global::Microsoft.AspNetCore.Http.StatusCodes.Status409Conflict"),
-        422 => new HttpStatusCodeMapping(422, "UnprocessableEntity", "UnprocessableEntity", "UnprocessableEntity", "global::Microsoft.AspNetCore.Http.StatusCodes.Status422UnprocessableEntity"),
-        500 => new HttpStatusCodeMapping(500, "InternalServerError", "InternalServerError", null, "global::Microsoft.AspNetCore.Http.StatusCodes.Status500InternalServerError"),
+        404 => new HttpStatusCodeMapping(404, "NotFound", "NotFound", "NotFound", "global::Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound", SupportsTypedPayload: true),
+        409 => new HttpStatusCodeMapping(409, "Conflict", "Conflict", "Conflict", "global::Microsoft.AspNetCore.Http.StatusCodes.Status409Conflict", SupportsTypedPayload: true),
+        422 => new HttpStatusCodeMapping(422, "UnprocessableEntity", "UnprocessableEntity", "UnprocessableEntity", "global::Microsoft.AspNetCore.Http.StatusCodes.Status422UnprocessableEntity", SupportsTypedPayload: true),
+        500 => new HttpStatusCodeMapping(500, "InternalServerError", "InternalServerError", "InternalServerError", "global::Microsoft.AspNetCore.Http.StatusCodes.Status500InternalServerError", SupportsTypedPayload: true),
         _ => new HttpStatusCodeMapping(statusCode, $"Status{statusCode}", null, null, statusCode.ToString(CultureInfo.InvariantCulture))
     };
 }
