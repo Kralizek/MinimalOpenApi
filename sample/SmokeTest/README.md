@@ -18,6 +18,15 @@ This project is a **CI/package-consumption sample**, not the recommended startin
 | `readOnly` / `writeOnly` scoped DTOs | `CreateAccountEndpoint.cs`, `openapi.yaml` `Account` |
 | Reusable component parameters | `GetTenantItemsEndpoint.cs`, `openapi.yaml` `components/parameters` |
 | Explicit `PublishAs` metadata | `SmokeTest.csproj` |
+| Handler-response exclusions and per-operation override | `SmokeTest.csproj`, `PingEndpoint.cs`, `GetTenantItemsEndpoint.cs` |
+
+Both `/ping` and `/tenants/{tenantId}/items` declare `401` and `403`. The
+document-level exclusion keeps both out of the tenant handler's `Ok<string>`
+return type. The `ping` override includes both statuses again, then excludes
+`401`, so its return type is `Results<Ok<string>, ForbidHttpResult>`. Compiling this
+consumer against the packed package verifies that its `buildTransitive` targets
+forward both kinds of metadata to the generator; the authored responses remain
+in the OpenAPI document and endpoint metadata.
 
 ## How to run
 

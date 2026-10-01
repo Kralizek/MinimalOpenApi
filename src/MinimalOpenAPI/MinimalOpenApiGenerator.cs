@@ -31,6 +31,12 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     private const string DisplayNameMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiDisplayName";
     private const string DisplayVersionMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiDisplayVersion";
     private const string ReadWriteSchemaHandlingMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiReadWriteSchemaHandling";
+    private const string GlobalExcludeMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiExcludeStatusCodesFromHandlers";
+    private const string OverrideMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiHandlerResponse";
+    private const string OverrideOpenApiKey = "build_metadata.AdditionalFiles.MinimalOpenApiOverrideOpenApi";
+    private const string OverrideOperationIdKey = "build_metadata.AdditionalFiles.MinimalOpenApiOverrideOperationId";
+    private const string OverrideIncludeKey = "build_metadata.AdditionalFiles.MinimalOpenApiIncludeStatusCodes";
+    private const string OverrideExcludeKey = "build_metadata.AdditionalFiles.MinimalOpenApiExcludeStatusCodes";
     private const string RootNamespaceKey = "build_property.RootNamespace";
 
     /// <summary>
@@ -52,6 +58,23 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 var options = pair.Right.GetOptions(pair.Left);
                 var content = pair.Left.GetText(ct)?.ToString() ?? string.Empty;
                 return CreateOpenApiFileInput(content, pair.Left.Path, options);
+            });
+
+        var overrides = context.AdditionalTextsProvider
+            .Combine(context.AnalyzerConfigOptionsProvider)
+            .Where(pair =>
+            {
+                pair.Right.GetOptions(pair.Left).TryGetValue(OverrideMetadataKey, out var flag);
+                return string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase);
+            })
+            .Select((pair, _) =>
+            {
+                var options = pair.Right.GetOptions(pair.Left);
+                options.TryGetValue(OverrideOpenApiKey, out var openApi);
+                options.TryGetValue(OverrideOperationIdKey, out var operationId);
+                options.TryGetValue(OverrideIncludeKey, out var include);
+                options.TryGetValue(OverrideExcludeKey, out var exclude);
+                return new HandlerResponseOverride(openApi, operationId, include, exclude);
             });
 
         // 2. Get root namespace
@@ -101,20 +124,25 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             .Select((c, _) => c!);
 
         // 5. Combine parsed docs with discovered classes
-        var combined = parsedDocuments
+        var combined = parsedDocuments.Collect()
             .Combine(classDeclarations.Collect())
             .Combine(duplicateSpecNames)
-            .Select((pair, _) =>
-                new GeneratorPipelineInput(
-                    ParsedFile: pair.Left.Left,
-                    Classes: pair.Left.Right,
-                    DuplicatesBySpecName: pair.Right));
+            .Combine(overrides.Collect());
 
         // 6. Generate source files
-        context.RegisterSourceOutput(combined, GenerateSource);
+        context.RegisterSourceOutput(combined, (spc, input) =>
+        {
+            var documents = input.Left.Left.Left;
+            var classes = input.Left.Left.Right.ToArray();
+            var duplicates = input.Left.Right;
+            var resolved = ResolveHandlerResponses(spc, documents, input.Right);
+            foreach (var document in documents)
+                GenerateSource(spc, new GeneratorPipelineInput(document, classes, duplicates), resolved);
+        });
     }
 
-    private static void GenerateSource(SourceProductionContext spc, GeneratorPipelineInput input)
+    private static void GenerateSource(SourceProductionContext spc, GeneratorPipelineInput input,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, List<OpenApiResponse>>> handlerResponses)
     {
         if (!TryCreateGenerationInput(spc, input, out var generationInput))
             return;
@@ -124,7 +152,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         GenerateForDocument(
             spc,
             generationInput,
-            input.Classes.ToArray());
+            input.Classes.ToArray(),
+            handlerResponses.TryGetValue(generationInput.Path, out var responses) ? responses : new Dictionary<string, List<OpenApiResponse>>());
     }
 
     private static bool TryCreateGenerationInput(
@@ -212,6 +241,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         options.TryGetValue(DisplayNameMetadataKey, out var displayName);
         options.TryGetValue(DisplayVersionMetadataKey, out var displayVersion);
         options.TryGetValue(ReadWriteSchemaHandlingMetadataKey, out var readWriteSchemaHandling);
+        options.TryGetValue(GlobalExcludeMetadataKey, out var globalExclude);
         var specName = DeriveSpecName(path, explicitNamespace);
 
         return new OpenApiFileInput(
@@ -222,7 +252,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             PublishAs: string.IsNullOrWhiteSpace(publishAs) ? null : publishAs,
             DisplayName: string.IsNullOrWhiteSpace(displayName) ? null : displayName,
             DisplayVersion: string.IsNullOrWhiteSpace(displayVersion) ? null : displayVersion,
-            ReadWriteSchemaHandling: string.IsNullOrWhiteSpace(readWriteSchemaHandling) ? null : readWriteSchemaHandling);
+            ReadWriteSchemaHandling: string.IsNullOrWhiteSpace(readWriteSchemaHandling) ? null : readWriteSchemaHandling,
+            GlobalExclude: globalExclude);
     }
 
     private static ParsedOpenApiFile ParseOpenApiFile(OpenApiFileInput file, string rootNamespace)
@@ -241,6 +272,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 DisplayName: file.DisplayName,
                 DisplayVersion: file.DisplayVersion,
                 ReadWriteSchemaHandling: file.ReadWriteSchemaHandling,
+                GlobalExclude: file.GlobalExclude,
                 ParseError: null,
                 UnsupportedExtension: ext);
         }
@@ -258,6 +290,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 DisplayName: file.DisplayName,
                 DisplayVersion: file.DisplayVersion,
                 ReadWriteSchemaHandling: file.ReadWriteSchemaHandling,
+                GlobalExclude: file.GlobalExclude,
                 ParseError: null,
                 UnsupportedExtension: null);
         }
@@ -273,6 +306,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 DisplayName: file.DisplayName,
                 DisplayVersion: file.DisplayVersion,
                 ReadWriteSchemaHandling: file.ReadWriteSchemaHandling,
+                GlobalExclude: file.GlobalExclude,
                 ParseError: ex.Message,
                 UnsupportedExtension: null);
         }
@@ -290,6 +324,132 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
                     .ToArray(),
                 StringComparer.Ordinal);
+
+    private sealed record HandlerResponseOverride(string? OpenApi, string? OperationId,
+        string? IncludeStatusCodes, string? ExcludeStatusCodes);
+
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, List<OpenApiResponse>>> ResolveHandlerResponses(
+        SourceProductionContext spc,
+        ImmutableArray<ParsedOpenApiFile> documents,
+        ImmutableArray<HandlerResponseOverride> overrides)
+    {
+        var result = new Dictionary<string, IReadOnlyDictionary<string, List<OpenApiResponse>>>(StringComparer.OrdinalIgnoreCase);
+        var bound = new Dictionary<string, List<HandlerResponseOverride>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in overrides)
+        {
+            if (string.IsNullOrWhiteSpace(item.OperationId))
+            {
+                Report("MinimalOpenApiHandlerResponse is missing OperationId.");
+                continue;
+            }
+
+            ParsedOpenApiFile? selected = null;
+            if (string.IsNullOrWhiteSpace(item.OpenApi))
+            {
+                if (documents.Length == 1)
+                    selected = documents[0];
+                else
+                    Report("MinimalOpenApiHandlerResponse for OperationId '" + item.OperationId + "' requires OpenApi when multiple contracts are configured.");
+            }
+            else
+            {
+                selected = documents.FirstOrDefault(d => SameContract(d.Path, item.OpenApi!));
+                if (selected is null)
+                    Report("OpenApi '" + item.OpenApi + "' is not configured as an <OpenApi> item.");
+            }
+
+            if (selected is not null)
+            {
+                if (!bound.TryGetValue(selected.Path, out var list))
+                    bound[selected.Path] = list = [];
+                list.Add(item);
+            }
+        }
+
+        foreach (var document in documents)
+        {
+            if (document.Document is null)
+                continue;
+
+            var perOperation = new Dictionary<string, List<OpenApiResponse>>(StringComparer.Ordinal);
+            result[document.Path] = perOperation;
+            var globalValid = TryParseCodes(document.GlobalExclude, "ExcludeStatusCodesFromHandlers", document.Path, out var globalCodes);
+            bound.TryGetValue(document.Path, out var items);
+
+            foreach (var item in items ?? [])
+            {
+                var matches = document.Document.Operations.Where(o => o.OperationId == item.OperationId).ToList();
+                if (matches.Count == 0)
+                {
+                    Report("OperationId '" + item.OperationId + "' was not found in OpenAPI document '" + document.Path + "'.");
+                    continue;
+                }
+                if (matches.Count > 1)
+                    continue;
+                var op = matches[0];
+                var includeValid = TryParseCodes(item.IncludeStatusCodes, "IncludeStatusCodes", document.Path, out var include);
+                var excludeValid = TryParseCodes(item.ExcludeStatusCodes, "ExcludeStatusCodes", document.Path, out var exclude);
+                foreach (var (codes, name) in new[] { (include, "IncludeStatusCodes"), (exclude, "ExcludeStatusCodes") })
+                    foreach (var code in codes.Where(c => op.Responses.All(r => r.StatusCode != c)))
+                        Report(name + " contains status code '" + code + "' not declared by OperationId '" + op.OperationId + "' in OpenAPI document '" + document.Path + "'.");
+
+                if (!globalValid || !includeValid || !excludeValid ||
+                    include.Concat(exclude).Any(c => op.Responses.All(r => r.StatusCode != c)))
+                    continue;
+
+                if (!perOperation.TryGetValue(op.OperationId, out var filtered))
+                    perOperation[op.OperationId] = filtered = op.Responses.Where(r => !globalCodes.Contains(r.StatusCode)).ToList();
+                foreach (var response in op.Responses.Where(r => include.Contains(r.StatusCode) && filtered.All(f => f.StatusCode != r.StatusCode)))
+                    filtered.Add(response);
+                filtered.RemoveAll(r => exclude.Contains(r.StatusCode));
+                filtered.Sort((a, b) => a.StatusCode.CompareTo(b.StatusCode));
+            }
+
+            if (globalValid)
+                foreach (var op in document.Document.Operations)
+                    if (!perOperation.ContainsKey(op.OperationId))
+                        perOperation[op.OperationId] = op.Responses.Where(r => !globalCodes.Contains(r.StatusCode)).ToList();
+        }
+        return result;
+
+        bool TryParseCodes(string? value, string name, string path, out HashSet<int> codes)
+        {
+            codes = [];
+            if (string.IsNullOrWhiteSpace(value))
+                return true;
+            var valid = true;
+            foreach (var token in value!.Split([';', '|']))
+            {
+                var text = token.Trim();
+                if (text.Length != 3 || !int.TryParse(text, System.Globalization.NumberStyles.None,
+                        System.Globalization.CultureInfo.InvariantCulture, out var code) || code < 100 || code > 599)
+                {
+                    Report(name + " contains invalid HTTP status code '" + text + "' in OpenAPI document '" + path + "'.");
+                    valid = false;
+                }
+                else
+                    codes.Add(code);
+            }
+            return valid;
+        }
+
+        void Report(string message) => spc.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.InvalidHandlerResponseConfiguration, Location.None, message));
+    }
+
+    private static bool SameContract(string path, string selector)
+    {
+        try
+        {
+            return string.Equals(System.IO.Path.GetFullPath(path), System.IO.Path.GetFullPath(selector),
+                StringComparison.OrdinalIgnoreCase);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
 
     private static readonly Version[] _knownVersions =
     [
@@ -509,7 +669,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     private static void GenerateForDocument(
         SourceProductionContext spc,
         OpenApiGenerationInput input,
-        ClassInfo[] allClasses)
+        ClassInfo[] allClasses,
+        IReadOnlyDictionary<string, List<OpenApiResponse>> handlerResponses)
     {
         var doc = input.Document;
         var rootNamespace = input.RootNamespace;
@@ -519,6 +680,20 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         var publishAs = input.PublishAs;
         var displayName = input.DisplayName;
         var displayVersion = input.DisplayVersion;
+
+        var duplicateOperationIds = doc.Operations
+            .GroupBy(o => o.OperationId, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .ToList();
+        foreach (var group in duplicateOperationIds)
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.DuplicateOperationId,
+                CreateOpenApiLocation(openApiFilePath),
+                group.Key,
+                openApiFilePath));
+
+        if (duplicateOperationIds.Count > 0)
+            return;
 
         // Resolve $ref parameter references before code generation; work with the returned
         // normalized operation list so the parsed OpenApiDocument is never mutated.
@@ -594,7 +769,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             // Generate handler base
             var handlerConflicts = new List<MinimalOpenAPI.Generator.CodeGen.AllOfPropertyConflict>();
             var handlerMultipartShapes = new List<MinimalOpenAPI.Generator.CodeGen.MultipartUnsupportedShape>();
-            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, directionality, doc.Schemas, handlerConflicts, handlerMultipartShapes);
+            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, directionality, doc.Schemas, handlerConflicts, handlerMultipartShapes,
+                handlerResponses.TryGetValue(op.OperationId, out var filtered) ? filtered : op.Responses);
             spc.AddSource(OperationHintName(specName, handlerBase), handlerSource);
 
             foreach (var conflict in handlerConflicts.Distinct())
@@ -738,7 +914,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         string? PublishAs,
         string? DisplayName,
         string? DisplayVersion,
-        string? ReadWriteSchemaHandling);
+        string? ReadWriteSchemaHandling,
+        string? GlobalExclude);
 
     /// <summary>Parsed file state, including parser/extension failures used for diagnostics.</summary>
     private sealed record ParsedOpenApiFile(
@@ -751,6 +928,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         string? DisplayName,
         string? DisplayVersion,
         string? ReadWriteSchemaHandling,
+        string? GlobalExclude,
         string? ParseError,
         string? UnsupportedExtension)
     {

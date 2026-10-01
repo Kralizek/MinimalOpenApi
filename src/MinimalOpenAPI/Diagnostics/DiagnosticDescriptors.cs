@@ -136,4 +136,21 @@ internal static class DiagnosticDescriptors
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidHandlerResponseConfiguration = new(
+        id: "MOA015",
+        title: "Invalid handler response configuration",
+        messageFormat: "{0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    /// <summary>Multiple operations in the same OpenAPI document share an operation ID.</summary>
+    public static readonly DiagnosticDescriptor DuplicateOperationId = new(
+        id: "MOA016",
+        title: "Duplicate operation ID",
+        messageFormat: "OperationId '{0}' is duplicated in OpenAPI document '{1}'. Operation IDs must be unique within a document.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

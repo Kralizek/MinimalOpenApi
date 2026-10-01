@@ -1,0 +1,15 @@
+openapi: "3.0.0"
+info:
+  title: Filtered response test
+  version: "1"
+paths:
+  /filtered-response-test:
+    get:
+      operationId: getFiltered
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden

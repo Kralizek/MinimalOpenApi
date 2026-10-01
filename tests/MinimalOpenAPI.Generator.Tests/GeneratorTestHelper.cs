@@ -49,7 +49,9 @@ internal static class GeneratorTestHelper
         string? publishAs = null,
         string? displayName = null,
         string? displayVersion = null,
-        string? readWriteSchemaHandling = null)
+        string? readWriteSchemaHandling = null,
+        IReadOnlyDictionary<string, string>? globalExclusionsByFile = null,
+        IReadOnlyList<(string? OpenApi, string? OperationId, string? IncludeStatusCodes, string? ExcludeStatusCodes)>? overrides = null)
     {
         // Create a minimal compilation for the generator
         var references = new List<MetadataReference>
@@ -74,6 +76,7 @@ internal static class GeneratorTestHelper
 
         var additionalTexts = additionalFiles
             .Select(f => (AdditionalText)new TestAdditionalText(f.FileName, f.Content))
+            .Concat((overrides ?? []).Select((_, i) => (AdditionalText)new TestAdditionalText($"override-{i}.txt", "")))
             .ToImmutableArray();
 
         var optionsProvider = new TestAnalyzerConfigOptionsProvider(
@@ -93,7 +96,9 @@ internal static class GeneratorTestHelper
             publishAs,
             displayName,
             displayVersion,
-            readWriteSchemaHandling);
+            readWriteSchemaHandling,
+            globalExclusionsByFile,
+            overrides);
 
         var driver = CSharpGeneratorDriver
             .Create(generator)

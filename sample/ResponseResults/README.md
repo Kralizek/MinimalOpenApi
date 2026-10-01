@@ -12,6 +12,18 @@ This sample demonstrates generated endpoint result types and response handling.
 | Schema-backed `NotFoundProblem` | `getOrder` | `GetOrderHandler.cs` |
 | `NoContent` result | `cancelOrder` | `CancelOrderHandler.cs` |
 | Schema-less `NotFoundProblem` | `cancelOrder` | `CancelOrderHandler.cs` |
+| Middleware-owned `401` / `403` | `getOrder` | `openapi.yaml`, `ResponseResults.csproj` |
+
+## Handler responses versus endpoint responses
+
+`getOrder` declares `200`, `401`, `403`, and `404` in `openapi.yaml`. The
+`OpenApi` item sets `ExcludeStatusCodesFromHandlers="401;403"` for responses
+that authentication and authorization middleware would produce, not `GetOrderHandler`.
+Its generated handler result union remains `Results<Ok<Order>, NotFoundProblem>`;
+all four statuses remain in the authored OpenAPI contract and generated endpoint
+response metadata. Without the exclusion, `401` and `403` would also appear in
+the handler result union. This sample does not install authentication middleware;
+the status codes illustrate where an application would enforce those policies.
 
 ## Generated wrapper types
 

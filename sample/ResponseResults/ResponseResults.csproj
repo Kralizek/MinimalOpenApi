@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <OpenApi Include="openapi.yaml"
+             ExcludeStatusCodesFromHandlers="401;403"
              DisplayName="Response Results Sample API"
              DisplayVersion="1.0.0" />
   </ItemGroup>

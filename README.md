@@ -146,6 +146,7 @@ Use the `Namespace` item metadata when two documents would otherwise resolve to 
 |---|---|
 | `Namespace` | Overrides the generated document namespace segment. |
 | `ReadWriteSchemaHandling` | Controls request/response contract splitting: `Ignore`, `Auto`, or `Split`. |
+| `ExcludeStatusCodesFromHandlers` | Semicolon-separated HTTP status codes omitted from generated handler results; endpoint metadata and the authored contract are unchanged. Defaults to empty. |
 | `PublishAs` | Exposes the authored document at an exact HTTP path through `MapOpenApiSchemas()`. |
 | `DisplayName` | Optional display name returned by the schema descriptor. |
 | `DisplayVersion` | Optional display version returned by the schema descriptor. |
@@ -160,6 +161,18 @@ Example:
          DisplayName="Public API"
          DisplayVersion="1.0.0" />
 ```
+
+To override the handler response set for an operation, use a `MinimalOpenApiHandlerResponse` item. MSBuild requires an `Include` item identity; use the operation ID as its value and also supply the required `OperationId` metadata:
+
+```xml
+<ItemGroup>
+  <OpenApi Include="openapi.yaml" ExcludeStatusCodesFromHandlers="401;403" />
+  <MinimalOpenApiHandlerResponse Include="getOrder" OperationId="getOrder"
+                                 IncludeStatusCodes="403" ExcludeStatusCodes="404" />
+</ItemGroup>
+```
+
+The operation must declare every status code named by `IncludeStatusCodes` and `ExcludeStatusCodes`. Global exclusions are applied first, then includes, then excludes (excludes win). With one OpenAPI document, `OpenApi` on the override may be omitted; for multiple documents, set `OpenApi="openapi.yaml"` to select a configured item. Explicit selection is also supported for single-document projects. Invalid contracts, operation IDs and status codes produce `MOA015` errors.
 
 ## Supported features
 

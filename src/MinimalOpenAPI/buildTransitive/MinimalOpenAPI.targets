@@ -22,6 +22,14 @@
   -->
 
   <!-- ── OpenApi item type ────────────────────────────────────────────── -->
+  <ItemDefinitionGroup>
+    <MinimalOpenApiHandlerResponse>
+      <OpenApi></OpenApi>
+      <OperationId></OperationId>
+      <IncludeStatusCodes></IncludeStatusCodes>
+      <ExcludeStatusCodes></ExcludeStatusCodes>
+    </MinimalOpenApiHandlerResponse>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiFile" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiNamespace" />
@@ -30,6 +38,12 @@
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiDisplayName" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiDisplayVersion" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiReadWriteSchemaHandling" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiExcludeStatusCodesFromHandlers" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiHandlerResponse" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiOverrideOpenApi" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiOverrideOperationId" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiIncludeStatusCodes" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiExcludeStatusCodes" />
     <CompilerVisibleProperty Include="RootNamespace" />
   </ItemGroup>
 
@@ -58,6 +72,9 @@
 
     MinimalOpenApiReadWriteSchemaHandling mirrors OpenApi.ReadWriteSchemaHandling and
     controls request/response DTO scoping for readOnly/writeOnly properties.
+
+    Semicolon-separated status codes use '|' in compiler-visible metadata because
+    the generated .editorconfig treats ';' as an inline comment delimiter.
   -->
   <Target Name="AddMinimalOpenApiFilesToAdditionalFiles"
           BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile">
@@ -69,8 +86,31 @@
                        MinimalOpenApiPublishAs="%(OpenApi.PublishAs)"
                        MinimalOpenApiDisplayName="%(OpenApi.DisplayName)"
                        MinimalOpenApiDisplayVersion="%(OpenApi.DisplayVersion)"
-                       MinimalOpenApiReadWriteSchemaHandling="%(OpenApi.ReadWriteSchemaHandling)" />
+                       MinimalOpenApiReadWriteSchemaHandling="%(OpenApi.ReadWriteSchemaHandling)"
+                       MinimalOpenApiExcludeStatusCodesFromHandlers="$([System.String]::Copy('%(OpenApi.ExcludeStatusCodesFromHandlers)').Replace('%3B', '|'))" />
     </ItemGroup>
+    <ItemGroup>
+      <_MinimalOpenApiOverrideFile Include="@(MinimalOpenApiHandlerResponse)"
+                                   IdentityHash="$([MSBuild]::StableStringHash('%(Identity)|%(OpenApi)|%(OperationId)|%(IncludeStatusCodes)|%(ExcludeStatusCodes)'))"
+                                   MinimalOpenApiHandlerResponse="true"
+                                   MinimalOpenApiOverrideOpenApi="%(OpenApi)"
+                                   MinimalOpenApiOverrideOperationId="%(OperationId)"
+                                   MinimalOpenApiIncludeStatusCodes="$([System.String]::Copy('%(IncludeStatusCodes)').Replace('%3B', '|'))"
+                                   MinimalOpenApiExcludeStatusCodes="$([System.String]::Copy('%(ExcludeStatusCodes)').Replace('%3B', '|'))" />
+      <_MinimalOpenApiOverrideFile Update="@(_MinimalOpenApiOverrideFile)"
+                                   Condition="'%(_MinimalOpenApiOverrideFile.MinimalOpenApiOverrideOpenApi)' != ''"
+                                   MinimalOpenApiOverrideOpenApi="$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '%(_MinimalOpenApiOverrideFile.MinimalOpenApiOverrideOpenApi)'))" />
+      <AdditionalFiles Include="@(_MinimalOpenApiOverrideFile->'$(IntermediateOutputPath)MinimalOpenApiHandlerResponse/%(IdentityHash).txt')"
+                       MinimalOpenApiHandlerResponse="%(_MinimalOpenApiOverrideFile.MinimalOpenApiHandlerResponse)"
+                       MinimalOpenApiOverrideOpenApi="%(_MinimalOpenApiOverrideFile.MinimalOpenApiOverrideOpenApi)"
+                       MinimalOpenApiOverrideOperationId="%(_MinimalOpenApiOverrideFile.MinimalOpenApiOverrideOperationId)"
+                       MinimalOpenApiIncludeStatusCodes="%(_MinimalOpenApiOverrideFile.MinimalOpenApiIncludeStatusCodes)"
+                       MinimalOpenApiExcludeStatusCodes="%(_MinimalOpenApiOverrideFile.MinimalOpenApiExcludeStatusCodes)" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(IntermediateOutputPath)MinimalOpenApiHandlerResponse/%(_MinimalOpenApiOverrideFile.IdentityHash).txt"
+                      Lines=""
+                      Overwrite="true"
+                      Condition="'@(_MinimalOpenApiOverrideFile)' != ''" />
   </Target>
 
   <!-- ── PublishAs validation ─────────────────────────────────────────── -->

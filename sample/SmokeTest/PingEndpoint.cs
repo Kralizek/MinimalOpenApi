@@ -7,6 +7,6 @@ namespace MinimalOpenAPI.Samples.SmokeTest;
 /// <summary>Minimal concrete handler for the smoke-test ping endpoint.</summary>
 public sealed class PingEndpoint : PingEndpointBase
 {
-    public override Task<Ok<string>> HandleAsync(CancellationToken cancellationToken)
-        => Task.FromResult(TypedResults.Ok("pong"));
+    public override Task<Results<Ok<string>, ForbidHttpResult>> HandleAsync(CancellationToken cancellationToken)
+        => Task.FromResult<Results<Ok<string>, ForbidHttpResult>>(TypedResults.Ok("pong"));
 }
