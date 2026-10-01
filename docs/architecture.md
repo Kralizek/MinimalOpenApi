@@ -217,6 +217,13 @@ The `<CompilerVisibleItemMetadata>` and `<CompilerVisibleProperty>` declarations
 make `MinimalOpenApiFile` and `RootNamespace` readable via
 `AnalyzerConfigOptionsProvider` inside the generator.
 
+`OpenApi.ExcludeStatusCodesFromHandlers` is forwarded as additional-file metadata.
+`MinimalOpenApiHandlerResponse` items are forwarded as empty intermediate additional
+files with compiler-visible `OpenApi`, `OperationId`, `IncludeStatusCodes` and
+`ExcludeStatusCodes` metadata. The generator binds each override to a parsed document,
+validates its operation and status codes, then filters only handler return types and
+problem-result wrappers. Endpoint metadata still uses the complete response list.
+
 ### 5.1 Contract-package pattern (gRPC-style)
 
 An OpenAPI spec can be shipped inside a separate "contracts" NuGet package and
@@ -490,8 +497,8 @@ the generated file is a valid single-pass compilation unit.
 constraints (e.g. `{id:guid}`, `{page:int}`) to ensure proper route matching
 and automatic 400 responses for invalid values.
 
-**Return type**: `BuildReturnType` collects all status codes from an operation's
-responses, maps each to its `Microsoft.AspNetCore.Http.HttpResults.*` type, and
+**Return type**: `BuildReturnType` collects resolved handler responses (all declared
+responses by default), maps each to its `Microsoft.AspNetCore.Http.HttpResults.*` type, and
 wraps multiple types in `Results<T1, T2, …>`.
 
 **Naming conventions**:
@@ -534,6 +541,7 @@ wraps multiple types in `Results<T1, T2, …>`.
 | **MOA012** | Error | Two or more schema names normalise to the same generated C# type name.  Rename one of the conflicting schemas in the spec.  Code generation is aborted for this document when a collision is detected. |
 | **MOA013** | Error | A schema name consists entirely of separator characters (e.g. `...`) and cannot be normalised to any valid C# identifier.  Rename the schema. |
 | **MOA014** | Error | A generated request/response variant or inline-derived object or enum name conflicts with another generated contract symbol. Rename one of the schemas or properties so every generated C# type name is unique. |
+| **MOA015** | Error | Handler response configuration names an unknown contract, missing or ambiguous operation, undeclared response, or malformed HTTP status code. |
 
 ---
 

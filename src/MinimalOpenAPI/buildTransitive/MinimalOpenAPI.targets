@@ -94,6 +94,9 @@
                                    MinimalOpenApiOverrideOperationId="%(OperationId)"
                                    MinimalOpenApiIncludeStatusCodes="%(IncludeStatusCodes)"
                                    MinimalOpenApiExcludeStatusCodes="%(ExcludeStatusCodes)" />
+      <_MinimalOpenApiOverrideFile Update="@(_MinimalOpenApiOverrideFile)"
+                                   Condition="'%(_MinimalOpenApiOverrideFile.MinimalOpenApiOverrideOpenApi)' != ''"
+                                   MinimalOpenApiOverrideOpenApi="$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '%(_MinimalOpenApiOverrideFile.MinimalOpenApiOverrideOpenApi)'))" />
       <AdditionalFiles Include="@(_MinimalOpenApiOverrideFile->'$(IntermediateOutputPath)MinimalOpenApiHandlerResponse/%(IdentityHash).txt')"
                        MinimalOpenApiHandlerResponse="%(_MinimalOpenApiOverrideFile.MinimalOpenApiHandlerResponse)"
                        MinimalOpenApiOverrideOpenApi="%(_MinimalOpenApiOverrideFile.MinimalOpenApiOverrideOpenApi)"

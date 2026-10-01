@@ -377,6 +377,9 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             var globalValid = TryParseCodes(document.GlobalExclude, "ExcludeStatusCodesFromHandlers", document.Path, out var globalCodes);
             bound.TryGetValue(document.Path, out var items);
 
+            foreach (var group in document.Document.Operations.GroupBy(o => o.OperationId, StringComparer.Ordinal).Where(g => g.Count() > 1))
+                Report("OperationId '" + group.Key + "' is ambiguous in OpenAPI document '" + document.Path + "'.");
+
             foreach (var item in items ?? [])
             {
                 var matches = document.Document.Operations.Where(o => o.OperationId == item.OperationId).ToList();
@@ -386,10 +389,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     continue;
                 }
                 if (matches.Count > 1)
-                {
-                    Report("OperationId '" + item.OperationId + "' is ambiguous in OpenAPI document '" + document.Path + "'.");
                     continue;
-                }
                 var op = matches[0];
                 var includeValid = TryParseCodes(item.IncludeStatusCodes, "IncludeStatusCodes", document.Path, out var include);
                 var excludeValid = TryParseCodes(item.ExcludeStatusCodes, "ExcludeStatusCodes", document.Path, out var exclude);
