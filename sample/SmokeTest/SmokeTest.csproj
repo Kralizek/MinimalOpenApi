@@ -31,9 +31,12 @@
 
   <ItemGroup>
     <OpenApi Include="openapi.yaml"
+             ExcludeStatusCodesFromHandlers="401;403"
              PublishAs="/openapi/schema.yaml"
              DisplayName="Smoke Test API"
              DisplayVersion="1.0.0" />
+    <MinimalOpenApiHandlerResponse Include="ping" OperationId="ping"
+                                   IncludeStatusCodes="401;403" ExcludeStatusCodes="401" />
   </ItemGroup>
 
 </Project>

@@ -72,6 +72,9 @@
 
     MinimalOpenApiReadWriteSchemaHandling mirrors OpenApi.ReadWriteSchemaHandling and
     controls request/response DTO scoping for readOnly/writeOnly properties.
+
+    Semicolon-separated status codes use '|' in compiler-visible metadata because
+    the generated .editorconfig treats ';' as an inline comment delimiter.
   -->
   <Target Name="AddMinimalOpenApiFilesToAdditionalFiles"
           BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile">
@@ -84,7 +87,7 @@
                        MinimalOpenApiDisplayName="%(OpenApi.DisplayName)"
                        MinimalOpenApiDisplayVersion="%(OpenApi.DisplayVersion)"
                        MinimalOpenApiReadWriteSchemaHandling="%(OpenApi.ReadWriteSchemaHandling)"
-                       MinimalOpenApiExcludeStatusCodesFromHandlers="%(OpenApi.ExcludeStatusCodesFromHandlers)" />
+                       MinimalOpenApiExcludeStatusCodesFromHandlers="$([System.String]::Copy('%(OpenApi.ExcludeStatusCodesFromHandlers)').Replace('%3B', '|'))" />
     </ItemGroup>
     <ItemGroup>
       <_MinimalOpenApiOverrideFile Include="@(MinimalOpenApiHandlerResponse)"
@@ -92,8 +95,8 @@
                                    MinimalOpenApiHandlerResponse="true"
                                    MinimalOpenApiOverrideOpenApi="%(OpenApi)"
                                    MinimalOpenApiOverrideOperationId="%(OperationId)"
-                                   MinimalOpenApiIncludeStatusCodes="%(IncludeStatusCodes)"
-                                   MinimalOpenApiExcludeStatusCodes="%(ExcludeStatusCodes)" />
+                                   MinimalOpenApiIncludeStatusCodes="$([System.String]::Copy('%(IncludeStatusCodes)').Replace('%3B', '|'))"
+                                   MinimalOpenApiExcludeStatusCodes="$([System.String]::Copy('%(ExcludeStatusCodes)').Replace('%3B', '|'))" />
       <_MinimalOpenApiOverrideFile Update="@(_MinimalOpenApiOverrideFile)"
                                    Condition="'%(_MinimalOpenApiOverrideFile.MinimalOpenApiOverrideOpenApi)' != ''"
                                    MinimalOpenApiOverrideOpenApi="$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '%(_MinimalOpenApiOverrideFile.MinimalOpenApiOverrideOpenApi)'))" />

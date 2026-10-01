@@ -54,7 +54,7 @@ paths:
     get:
       operationId: getOrder
       summary: Get order
-      description: Demonstrates Ok plus schema-backed NotFound problem response.
+      description: Demonstrates handler-owned Ok and NotFound responses alongside middleware-owned Unauthorized and Forbidden responses.
       tags:
         - orders
       responses:
@@ -64,6 +64,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Order'
+        "401":
+          description: Unauthorized (authentication middleware)
+        "403":
+          description: Forbidden (authorization middleware)
         "404":
           description: Not Found
           content:

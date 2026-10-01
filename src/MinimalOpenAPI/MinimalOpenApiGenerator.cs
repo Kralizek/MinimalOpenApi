@@ -419,7 +419,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             if (string.IsNullOrWhiteSpace(value))
                 return true;
             var valid = true;
-            foreach (var token in value!.Split(';'))
+            foreach (var token in value!.Split([';', '|']))
             {
                 var text = token.Trim();
                 if (text.Length != 3 || !int.TryParse(text, System.Globalization.NumberStyles.None,
