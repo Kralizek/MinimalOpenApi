@@ -189,7 +189,7 @@ The operation must declare every status code named by `IncludeStatusCodes` and `
 | Parameters | Typed path parameters with route constraints; query, header, reusable component, and path-level parameters. |
 | Defaults | Supported parameter defaults generate C# property initializers. |
 | JSON bodies | Component and inline request/response schemas with typed handler signatures. |
-| JSON error responses | Body-bearing 400, 404, 409, and 422 responses use status-specific typed results; combinations without a compatible typed payload result use `IResult` rather than an incorrect `Ok<T>`. |
+| JSON responses | Body-bearing 200, 201, 202, 400, 404, 409, 422, and 500 responses use status-specific typed results; combinations without a compatible typed payload result use `IResult` rather than an incorrect `Ok<T>`. |
 | Problem details | `application/problem+json` responses generate status-specific typed wrappers. |
 | Multipart forms | Form-bound request records, `IFormFile`, multiple files, and nested object fields. |
 | Endpoint policies | Per-operation endpoint configurations for authorization, rate limiting, antiforgery, request limits, and other metadata. |

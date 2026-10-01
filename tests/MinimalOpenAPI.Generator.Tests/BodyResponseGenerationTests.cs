@@ -3,11 +3,15 @@ namespace MinimalOpenAPI.Generator.Tests;
 [TestFixture]
 public class BodyResponseGenerationTests
 {
+    [TestCase(200, "Ok")]
+    [TestCase(201, "Created")]
+    [TestCase(202, "Accepted")]
     [TestCase(400, "BadRequest")]
     [TestCase(404, "NotFound")]
     [TestCase(409, "Conflict")]
     [TestCase(422, "UnprocessableEntity")]
-    public void JsonErrorBody_UsesStatusSpecificTypedResult(int statusCode, string resultName)
+    [TestCase(500, "InternalServerError")]
+    public void JsonBody_UsesStatusSpecificTypedResult(int statusCode, string resultName)
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
             userSource: "",
@@ -16,12 +20,14 @@ public class BodyResponseGenerationTests
         var source = GeneratorTestHelper.GetGeneratedSource(result, "GetResultEndpointBase.g.cs");
 
         Assert.That(source, Does.Contain($"HttpResults.{resultName}<string>"));
-        Assert.That(source, Does.Not.Contain("HttpResults.Ok<string>"));
+        if (statusCode != 200)
+            Assert.That(source, Does.Not.Contain("HttpResults.Ok<string>"));
     }
 
+    [TestCase(204)]
+    [TestCase(302)]
     [TestCase(401)]
     [TestCase(403)]
-    [TestCase(500)]
     [TestCase(418)]
     public void JsonBodyWithoutCompatibleTypedResult_UsesIResult(int statusCode)
     {
@@ -49,6 +55,18 @@ public class BodyResponseGenerationTests
         var source = GeneratorTestHelper.GetGeneratedSource(result, "GetResultEndpointBase.g.cs");
 
         Assert.That(source, Does.Contain($"HttpResults.{resultName}> HandleAsync("));
+    }
+
+    [Test]
+    public void InternalServerErrorWithoutBody_KeepsIResult()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "",
+            additionalFiles: [("openapi.yaml", SchemaLessResponseYaml.Replace("STATUS", "500", StringComparison.Ordinal))]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "GetResultEndpointBase.g.cs");
+
+        Assert.That(source, Does.Contain("Task<global::Microsoft.AspNetCore.Http.IResult> HandleAsync("));
     }
 
     private const string ResponseYaml = """
