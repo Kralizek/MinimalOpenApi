@@ -377,9 +377,6 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             var globalValid = TryParseCodes(document.GlobalExclude, "ExcludeStatusCodesFromHandlers", document.Path, out var globalCodes);
             bound.TryGetValue(document.Path, out var items);
 
-            foreach (var group in document.Document.Operations.GroupBy(o => o.OperationId, StringComparer.Ordinal).Where(g => g.Count() > 1))
-                Report("OperationId '" + group.Key + "' is ambiguous in OpenAPI document '" + document.Path + "'.");
-
             foreach (var item in items ?? [])
             {
                 var matches = document.Document.Operations.Where(o => o.OperationId == item.OperationId).ToList();
@@ -684,8 +681,18 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         var displayName = input.DisplayName;
         var displayVersion = input.DisplayVersion;
 
-        // Duplicate operation IDs would collide in generated hint names.
-        if (doc.Operations.GroupBy(o => o.OperationId, StringComparer.Ordinal).Any(g => g.Count() > 1))
+        var duplicateOperationIds = doc.Operations
+            .GroupBy(o => o.OperationId, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .ToList();
+        foreach (var group in duplicateOperationIds)
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.DuplicateOperationId,
+                CreateOpenApiLocation(openApiFilePath),
+                group.Key,
+                openApiFilePath));
+
+        if (duplicateOperationIds.Count > 0)
             return;
 
         // Resolve $ref parameter references before code generation; work with the returned

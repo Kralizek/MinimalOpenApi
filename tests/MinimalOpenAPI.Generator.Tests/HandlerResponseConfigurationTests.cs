@@ -83,16 +83,28 @@ public class HandlerResponseConfigurationTests
     }
 
     [Test]
-    public void InvalidGlobalCodeAndAmbiguousOperation_ProduceDiagnostics()
+    public void InvalidGlobalCode_ProducesDiagnostic()
     {
         var (invalid, _) = GeneratorTestHelper.RunGenerator("", [("openapi.yaml", Contract)],
             globalExclusionsByFile: new Dictionary<string, string> { ["openapi.yaml"] = "700" });
         Assert.That(invalid.Diagnostics.Any(d => d.Id == "MOA015" && d.GetMessage().Contains("invalid HTTP status code")), Is.True);
+    }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public void DuplicateOperationId_ReportsErrorAndSkipsDocument(bool withOverride)
+    {
         var secondPath = "\n  /again:\n    get:\n      operationId: getOrder\n      responses:\n        \"200\":\n          description: OK";
-        var (ambiguous, _) = GeneratorTestHelper.RunGenerator("", [("openapi.yaml", Contract + secondPath)],
-            overrides: [(null, "getOrder", "200", null)]);
-        Assert.That(ambiguous.Diagnostics.Any(d => d.Id == "MOA015" && d.GetMessage().Contains("ambiguous")), Is.True,
-            string.Join("; ", ambiguous.Diagnostics.Select(d => d.ToString())));
+        var (result, _) = GeneratorTestHelper.RunGenerator("", [("openapi.yaml", Contract + secondPath)],
+            overrides: withOverride ? [(null, "getOrder", "200", null)] : null);
+
+        Assert.That(result.Diagnostics, Has.Some.Matches<Microsoft.CodeAnalysis.Diagnostic>(
+            d => d.Id == "MOA016"
+                && d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error
+                && d.GetMessage().Contains("getOrder")
+                && d.GetMessage().Contains("openapi.yaml")
+                && d.Location.GetLineSpan().Path == "openapi.yaml"));
+        Assert.That(result.Diagnostics.Any(d => d.Id == "MOA015" || d.Id == "CS8785"), Is.False);
+        Assert.That(result.GeneratedTrees, Is.Empty);
     }
 }
