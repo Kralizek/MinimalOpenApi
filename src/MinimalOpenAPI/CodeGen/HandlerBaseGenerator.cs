@@ -25,11 +25,13 @@ internal static class HandlerBaseGenerator
         SchemaDirectionalityAnalysis directionality,
         IReadOnlyDictionary<string, OpenApiSchema>? allSchemas = null,
         List<AllOfPropertyConflict>? allOfConflicts = null,
-        List<MultipartUnsupportedShape>? multipartUnsupportedShapes = null)
+        List<MultipartUnsupportedShape>? multipartUnsupportedShapes = null,
+        List<OpenApiResponse>? handlerResponses = null)
     {
         var contractsNs = $"{rootNamespace}.{specName}.Contracts";
         var handlerClass = TypeMapper.HandlerClassName(operation.OperationId);
         var schemas = allSchemas ?? new Dictionary<string, OpenApiSchema>();
+        handlerResponses ??= operation.Responses;
 
         // When the caller does not supply a collector, use a local discard list so that
         // AllOfSchemaFlattener.Resolve always has a valid target.  Callers that care about
@@ -85,7 +87,7 @@ internal static class HandlerBaseGenerator
         };
 
         var returnType = TypeMapper.BuildReturnType(
-            operation.Responses,
+            handlerResponses,
             contractsNs,
             localResolver,
             resolveReference: referenceName => directionality.ResolveSchemaReference(referenceName, SchemaGenerationScope.Response));
@@ -137,7 +139,7 @@ internal static class HandlerBaseGenerator
             sb.AppendLine();
         }
 
-        var problemResponses = operation.Responses
+        var problemResponses = handlerResponses
             .Where(TypeMapper.IsProblemResponse)
             .OrderBy(r => r.StatusCode)
             .ToList();

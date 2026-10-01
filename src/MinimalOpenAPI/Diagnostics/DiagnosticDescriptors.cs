@@ -136,4 +136,12 @@ internal static class DiagnosticDescriptors
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidHandlerResponseConfiguration = new(
+        id: "MOA015",
+        title: "Invalid handler response configuration",
+        messageFormat: "{0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

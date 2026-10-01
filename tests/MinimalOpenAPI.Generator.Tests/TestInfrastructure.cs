@@ -43,6 +43,8 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
     private readonly string? _displayName;
     private readonly string? _displayVersion;
     private readonly string? _readWriteSchemaHandling;
+    private readonly IReadOnlyDictionary<string, string> _globalExclusions;
+    private readonly IReadOnlyList<(string? OpenApi, string? OperationId, string? IncludeStatusCodes, string? ExcludeStatusCodes)> _overrides;
 
     public TestAnalyzerConfigOptionsProvider(
         AdditionalText[] additionalTexts,
@@ -61,7 +63,9 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         string? publishAs = null,
         string? displayName = null,
         string? displayVersion = null,
-        string? readWriteSchemaHandling = null)
+        string? readWriteSchemaHandling = null,
+        IReadOnlyDictionary<string, string>? globalExclusionsByFile = null,
+        IReadOnlyList<(string? OpenApi, string? OperationId, string? IncludeStatusCodes, string? ExcludeStatusCodes)>? overrides = null)
     {
         _additionalTexts = additionalTexts;
         _rootNamespace = rootNamespace;
@@ -82,6 +86,8 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         _displayName = displayName;
         _displayVersion = displayVersion;
         _readWriteSchemaHandling = readWriteSchemaHandling;
+        _globalExclusions = globalExclusionsByFile ?? new Dictionary<string, string>();
+        _overrides = overrides ?? [];
     }
 
     public override AnalyzerConfigOptions GlobalOptions
@@ -95,7 +101,20 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
 
     public override AnalyzerConfigOptions GetOptions(AdditionalText textFile)
     {
-        var isOpenApi = _additionalTexts.Any(t => t.Path == textFile.Path);
+        var overrideIndex = Array.FindIndex(_additionalTexts, t => ReferenceEquals(t, textFile)) - (_additionalTexts.Length - _overrides.Count);
+        if (overrideIndex >= 0)
+        {
+            var item = _overrides[overrideIndex];
+            return new TestAnalyzerConfigOptions(new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.MinimalOpenApiHandlerResponse"] = "true",
+                ["build_metadata.AdditionalFiles.MinimalOpenApiOverrideOpenApi"] = item.OpenApi ?? "",
+                ["build_metadata.AdditionalFiles.MinimalOpenApiOverrideOperationId"] = item.OperationId ?? "",
+                ["build_metadata.AdditionalFiles.MinimalOpenApiIncludeStatusCodes"] = item.IncludeStatusCodes ?? "",
+                ["build_metadata.AdditionalFiles.MinimalOpenApiExcludeStatusCodes"] = item.ExcludeStatusCodes ?? "",
+            });
+        }
+        var isOpenApi = _additionalTexts.Any(t => ReferenceEquals(t, textFile));
 
         var options = new Dictionary<string, string>
         {
@@ -121,6 +140,9 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
 
         if (isOpenApi && _readWriteSchemaHandling is not null)
             options[_readWriteSchemaHandlingMetadataKey] = _readWriteSchemaHandling;
+
+        if (isOpenApi && _globalExclusions.TryGetValue(textFile.Path, out var exclusions))
+            options["build_metadata.AdditionalFiles.MinimalOpenApiExcludeStatusCodesFromHandlers"] = exclusions;
 
         return new TestAnalyzerConfigOptions(options);
     }
