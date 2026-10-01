@@ -58,7 +58,7 @@ public class BodyResponseGenerationTests
     }
 
     [Test]
-    public void InternalServerErrorWithoutBody_KeepsIResult()
+    public void InternalServerErrorWithoutBody_UsesTypedResult()
     {
         var (result, _) = GeneratorTestHelper.RunGenerator(
             userSource: "",
@@ -66,7 +66,7 @@ public class BodyResponseGenerationTests
 
         var source = GeneratorTestHelper.GetGeneratedSource(result, "GetResultEndpointBase.g.cs");
 
-        Assert.That(source, Does.Contain("Task<global::Microsoft.AspNetCore.Http.IResult> HandleAsync("));
+        Assert.That(source, Does.Contain("Task<global::Microsoft.AspNetCore.Http.HttpResults.InternalServerError> HandleAsync("));
     }
 
     private const string ResponseYaml = """

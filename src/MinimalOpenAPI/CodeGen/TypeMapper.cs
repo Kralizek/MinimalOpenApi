@@ -530,7 +530,7 @@ internal static class TypeMapper
         404 => new HttpStatusCodeMapping(404, "NotFound", "NotFound", "NotFound", "global::Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound", SupportsTypedPayload: true),
         409 => new HttpStatusCodeMapping(409, "Conflict", "Conflict", "Conflict", "global::Microsoft.AspNetCore.Http.StatusCodes.Status409Conflict", SupportsTypedPayload: true),
         422 => new HttpStatusCodeMapping(422, "UnprocessableEntity", "UnprocessableEntity", "UnprocessableEntity", "global::Microsoft.AspNetCore.Http.StatusCodes.Status422UnprocessableEntity", SupportsTypedPayload: true),
-        500 => new HttpStatusCodeMapping(500, "InternalServerError", "InternalServerError", null, "global::Microsoft.AspNetCore.Http.StatusCodes.Status500InternalServerError", SupportsTypedPayload: true),
+        500 => new HttpStatusCodeMapping(500, "InternalServerError", "InternalServerError", "InternalServerError", "global::Microsoft.AspNetCore.Http.StatusCodes.Status500InternalServerError", SupportsTypedPayload: true),
         _ => new HttpStatusCodeMapping(statusCode, $"Status{statusCode}", null, null, statusCode.ToString(CultureInfo.InvariantCulture))
     };
 }
