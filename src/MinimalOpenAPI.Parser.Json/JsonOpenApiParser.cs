@@ -82,7 +82,11 @@ public sealed class JsonOpenApiParser : IOpenApiParser
     {
         var refValue = GetString(node, "$ref");
         if (refValue is not null)
-            return new OpenApiSchema { Reference = ResolveRef(refValue) };
+            return new OpenApiSchema
+            {
+                Reference = ResolveRef(refValue),
+                RawReference = refValue
+            };
 
         var properties = new Dictionary<string, OpenApiSchema>(StringComparer.Ordinal);
         var propsNode = GetObject(node, "properties");
