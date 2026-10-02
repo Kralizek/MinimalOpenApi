@@ -15,7 +15,9 @@ public sealed class SchemaReferenceTests
         var content = JsonTemplate.Replace("REFERENCE", reference);
         var document = await new JsonOpenApiParser().ParseAsync(content);
 
-        Assert.That(document.Operations.Single().Responses.Single().Schema!.Reference, Is.EqualTo(reference));
+        var schema = document.Operations.Single().Responses.Single().Schema!;
+        Assert.That(schema.Reference, Is.EqualTo(reference));
+        Assert.That(schema.RawReference, Is.EqualTo(reference));
         AssertReferenceDiagnostic(content, "openapi.json", reference);
     }
 
@@ -26,13 +28,18 @@ public sealed class SchemaReferenceTests
         var content = YamlTemplate.Replace("REFERENCE", reference);
         var document = await new YamlOpenApiParser().ParseAsync(content);
 
-        Assert.That(document.Operations.Single().Responses.Single().Schema!.Reference, Is.EqualTo(reference));
+        var schema = document.Operations.Single().Responses.Single().Schema!;
+        Assert.That(schema.Reference, Is.EqualTo(reference));
+        Assert.That(schema.RawReference, Is.EqualTo(reference));
         AssertReferenceDiagnostic(content, "openapi.yaml", reference);
     }
 
     [TestCase("https://example.test/common.yaml#/components/schemas/Item")]
     [TestCase("file:///tmp/common.yaml#/components/schemas/Item")]
     [TestCase("#/components/parameters/Item")]
+    [TestCase("Item")]
+    [TestCase("")]
+    [TestCase("   ")]
     public void Unsupported_schema_reference_forms_report_MOA017(string reference)
         => AssertReferenceDiagnostic(JsonTemplate.Replace("REFERENCE", reference), "openapi.json", reference);
 
@@ -71,7 +78,9 @@ public sealed class SchemaReferenceTests
         var content = JsonTemplate.Replace("REFERENCE", "#/components/schemas/Item");
         var document = await new JsonOpenApiParser().ParseAsync(content);
 
-        Assert.That(document.Operations.Single().Responses.Single().Schema!.Reference, Is.EqualTo("Item"));
+        var schema = document.Operations.Single().Responses.Single().Schema!;
+        Assert.That(schema.Reference, Is.EqualTo("Item"));
+        Assert.That(schema.RawReference, Is.EqualTo("#/components/schemas/Item"));
         Assert.That(GenerateHandler(content, "openapi.json"), Does.Contain(LocalType));
     }
 
@@ -81,7 +90,9 @@ public sealed class SchemaReferenceTests
         var content = YamlTemplate.Replace("REFERENCE", "#/components/schemas/Item");
         var document = await new YamlOpenApiParser().ParseAsync(content);
 
-        Assert.That(document.Operations.Single().Responses.Single().Schema!.Reference, Is.EqualTo("Item"));
+        var schema = document.Operations.Single().Responses.Single().Schema!;
+        Assert.That(schema.Reference, Is.EqualTo("Item"));
+        Assert.That(schema.RawReference, Is.EqualTo("#/components/schemas/Item"));
         Assert.That(GenerateHandler(content, "openapi.yaml"), Does.Contain(LocalType));
     }
 
