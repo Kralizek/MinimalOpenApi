@@ -58,6 +58,18 @@ public class ResponseUnionLimitTests
     }
 
     [Test]
+    public void DuplicateFallbackType_KeepsFirstPositionAcrossNestedBoundary()
+    {
+        var statuses = new[] { 500, 407, 200, 201, 202, 400, 406, 404 };
+        var (result, _) = GeneratorTestHelper.RunGenerator("", [("openapi.yaml", Contract(statuses, bodyStatuses: [407, 406]))]);
+
+        var types = new[] { HttpResult("InternalServerError"), "global::Microsoft.AspNetCore.Http.IResult",
+            HttpResult("Ok"), HttpResult("Created"), HttpResult("Accepted"), HttpResult("BadRequest"), HttpResult("NotFound") };
+        Assert.That(GeneratorTestHelper.GetGeneratedSource(result, "GetResponsesEndpointBase.g.cs"),
+            Does.Contain($"Task<{ExpectedUnion(types, 0)}> HandleAsync("));
+    }
+
+    [Test]
     public void FilteringRestoresFlatUnionInDocumentOrder_WithoutRemovingEndpointMetadata()
     {
         var statuses = KnownResponses.Take(7).Select(r => r.Status).ToArray();

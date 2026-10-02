@@ -319,9 +319,10 @@ internal static class TypeMapper
         InlineSchemaResolver? resolveInline = null,
         Func<string, string>? resolveReference = null)
     {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         var types = responses
             .Select(r => MapResponseResultType(r, contractsNamespace, resolveInline, resolveReference))
-            .Distinct()
+            .Where(seen.Add)
             .ToList();
 
         if (types.Count == 0)
