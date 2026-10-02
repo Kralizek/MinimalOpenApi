@@ -497,10 +497,19 @@ the generated file is a valid single-pass compilation unit.
 constraints (e.g. `{id:guid}`, `{page:int}`) to ensure proper route matching
 and automatic 400 responses for invalid values.
 
-**Return type**: `BuildReturnType` collects resolved handler responses (all declared
-responses by default), maps each to its `Microsoft.AspNetCore.Http.HttpResults.*` type, and
-wraps two to six distinct types in `Results<T1, T2, …>`. More than six distinct
-handler result types produce MOA017 instead of an invalid `Results<>` declaration.
+**Return type**: `BuildReturnType` collects effective handler responses (all declared
+responses by default), maps each to its result type, and deduplicates by CLR type
+while retaining the first occurrence in OpenAPI declaration order. One type is
+returned directly; two to six use a flat ASP.NET Core `Results<T1, …>` union.
+Seven or more use recursive tail nesting: the outer `Results<>` holds the first
+five alternatives and a sixth `Results<>` for the remaining alternatives.
+Thus adding a seventh effective type changes the handler signature from
+`Results<A, B, C, D, E, F>` to `Results<A, B, C, D, E, Results<F, G>>`.
+Returning a tail alternative may require first converting it explicitly to
+the inner `Results<>`, then returning that union as the outer result. Filtering
+infrastructure-produced responses can reduce the effective handler union without
+altering the declared endpoint response metadata; handler-produced responses
+must remain in the union.
 
 **Naming conventions**:
 
@@ -544,7 +553,6 @@ handler result types produce MOA017 instead of an invalid `Results<>` declaratio
 | **MOA014** | Error | A generated request/response variant or inline-derived object or enum name conflicts with another generated contract symbol. Rename one of the schemas or properties so every generated C# type name is unique. |
 | **MOA015** | Error | Handler response configuration names an unknown contract, missing operation, undeclared response, or malformed HTTP status code. |
 | **MOA016** | Error | Two or more operations in one OpenAPI document share an `operationId`; generation is aborted for that document. |
-| **MOA017** | Error | An operation generates more than six distinct handler result alternatives, exceeding ASP.NET Core's `Results<>` limit. |
 
 ---
 

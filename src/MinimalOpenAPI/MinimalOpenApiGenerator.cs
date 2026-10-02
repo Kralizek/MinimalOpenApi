@@ -403,7 +403,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 foreach (var response in op.Responses.Where(r => include.Contains(r.StatusCode) && filtered.All(f => f.StatusCode != r.StatusCode)))
                     filtered.Add(response);
                 filtered.RemoveAll(r => exclude.Contains(r.StatusCode));
-                filtered.Sort((a, b) => a.StatusCode.CompareTo(b.StatusCode));
+                perOperation[op.OperationId] = op.Responses.Where(filtered.Contains).ToList();
             }
 
             if (globalValid)
@@ -769,14 +769,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             // Generate handler base
             var handlerConflicts = new List<MinimalOpenAPI.Generator.CodeGen.AllOfPropertyConflict>();
             var handlerMultipartShapes = new List<MinimalOpenAPI.Generator.CodeGen.MultipartUnsupportedShape>();
-            var handlerSource = HandlerBaseGenerator.Generate(op, out var resultAlternativeCount, rootNamespace, specName, directionality, doc.Schemas, handlerConflicts, handlerMultipartShapes,
+            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, directionality, doc.Schemas, handlerConflicts, handlerMultipartShapes,
                 handlerResponses.TryGetValue(op.OperationId, out var filtered) ? filtered : op.Responses);
-            if (resultAlternativeCount > 6)
-                spc.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.TooManyResultAlternatives,
-                    CreateOpenApiLocation(openApiFilePath),
-                    op.OperationId,
-                    resultAlternativeCount));
             spc.AddSource(OperationHintName(specName, handlerBase), handlerSource);
 
             foreach (var conflict in handlerConflicts.Distinct())

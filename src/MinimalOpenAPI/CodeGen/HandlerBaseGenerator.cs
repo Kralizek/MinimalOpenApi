@@ -20,7 +20,6 @@ internal static class HandlerBaseGenerator
 {
     public static string Generate(
         OpenApiOperation operation,
-        out int resultAlternativeCount,
         string rootNamespace,
         string specName,
         SchemaDirectionalityAnalysis directionality,
@@ -89,7 +88,6 @@ internal static class HandlerBaseGenerator
 
         var returnType = TypeMapper.BuildReturnType(
             handlerResponses,
-            out resultAlternativeCount,
             contractsNs,
             localResolver,
             resolveReference: referenceName => directionality.ResolveSchemaReference(referenceName, SchemaGenerationScope.Response));

@@ -312,28 +312,35 @@ internal static class TypeMapper
         return MapStatusCode(response.StatusCode, response.Schema, contractsNamespace, resolveInline, resolveReference);
     }
 
-    /// <summary>Builds the return type for a handler: Results&lt;T1, T2, ...&gt; or single type.</summary>
+    /// <summary>Builds the return type for a handler, nesting framework result unions when necessary.</summary>
     public static string BuildReturnType(
         List<OpenApiResponse> responses,
-        out int alternativeCount,
         string? contractsNamespace = null,
         InlineSchemaResolver? resolveInline = null,
         Func<string, string>? resolveReference = null)
     {
         var types = responses
-            .OrderBy(r => r.StatusCode)
             .Select(r => MapResponseResultType(r, contractsNamespace, resolveInline, resolveReference))
             .Distinct()
             .ToList();
 
-        alternativeCount = types.Count;
-        return types.Count switch
-        {
-            0 => "global::Microsoft.AspNetCore.Http.IResult",
-            1 => types[0],
-            <= 6 => $"global::Microsoft.AspNetCore.Http.HttpResults.Results<{string.Join(", ", types)}>",
-            _ => "global::Microsoft.AspNetCore.Http.IResult"
-        };
+        if (types.Count == 0)
+            return "global::Microsoft.AspNetCore.Http.IResult";
+
+        return BuildResultUnion(types, 0);
+    }
+
+    private static string BuildResultUnion(IReadOnlyList<string> types, int start)
+    {
+        var remaining = types.Count - start;
+        if (remaining == 1)
+            return types[start];
+
+        const string union = "global::Microsoft.AspNetCore.Http.HttpResults.Results";
+        if (remaining <= 6)
+            return $"{union}<{string.Join(", ", types.Skip(start))}>";
+
+        return $"{union}<{string.Join(", ", types.Skip(start).Take(5))}, {BuildResultUnion(types, start + 5)}>";
     }
 
     /// <summary>

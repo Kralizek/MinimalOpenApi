@@ -154,12 +154,4 @@ internal static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
-    /// <summary>The handler's distinct response types exceed the ASP.NET Core result union limit.</summary>
-    public static readonly DiagnosticDescriptor TooManyResultAlternatives = new(
-        id: "MOA017",
-        title: "Too many result alternatives",
-        messageFormat: "Operation '{0}' generates {1} distinct result alternatives; ASP.NET Core Results<> supports at most six. Reduce the handler response alternatives or configure handler response filtering.",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
 }
