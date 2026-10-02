@@ -553,6 +553,7 @@ must remain in the union.
 | **MOA014** | Error | A generated request/response variant or inline-derived object or enum name conflicts with another generated contract symbol. Rename one of the schemas or properties so every generated C# type name is unique. |
 | **MOA015** | Error | Handler response configuration names an unknown contract, missing operation, undeclared response, or malformed HTTP status code. |
 | **MOA016** | Error | Two or more operations in one OpenAPI document share an `operationId`; generation is aborted for that document. |
+| **MOA017** | Error | A schema `$ref` is unresolved or unsupported. MinimalOpenAPI currently supports only local `#/components/schemas/{name}` references; generation is aborted for that document. |
 
 ---
 
