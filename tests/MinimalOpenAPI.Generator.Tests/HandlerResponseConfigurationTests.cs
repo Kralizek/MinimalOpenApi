@@ -93,6 +93,29 @@ public class HandlerResponseConfigurationTests
         Assert.That(basename.Diagnostics.Any(d => d.Id == "MOA015" && d.GetMessage().Contains("does not match")), Is.True);
     }
 
+    [Test]
+    public void OpenApiFileMatching_IsCaseSensitive()
+    {
+        var (result, _) = GeneratorTestHelper.RunGenerator("",
+            [("contracts/Foo/openapi.yaml", Contract), ("contracts/foo/openapi.yaml", Contract)],
+            specNameOverridesByFilePath: new Dictionary<string, string>
+            {
+                ["contracts/Foo/openapi.yaml"] = "Upper",
+                ["contracts/foo/openapi.yaml"] = "Lower",
+            },
+            handlers: [("contracts/Foo/openapi.yaml", "getOrder", null, "403")]);
+
+        Assert.That(result.Diagnostics.Any(d => d.Id == "MOA015"), Is.False);
+        Assert.That(GeneratorTestHelper.GetGeneratedSource(result, "Upper.GetOrderEndpointBase.g.cs"), Does.Not.Contain("ForbidHttpResult"));
+        Assert.That(GeneratorTestHelper.GetGeneratedSource(result, "Lower.GetOrderEndpointBase.g.cs"), Does.Contain("ForbidHttpResult"));
+
+        var (wrongCase, _) = GeneratorTestHelper.RunGenerator("",
+            [("contracts/Foo/openapi.yaml", Contract)],
+            handlers: [("contracts/foo/openapi.yaml", "getOrder", null, "403")]);
+
+        Assert.That(wrongCase.Diagnostics.Any(d => d.Id == "MOA015" && d.GetMessage().Contains("does not match")), Is.True);
+    }
+
     [TestCase(null, "getOrder", null, null, "requires OpenApiFile")]
     [TestCase("missing.yaml", "getOrder", null, null, "does not match")]
     [TestCase("public.yaml", null, null, null, "missing Include")]
