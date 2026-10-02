@@ -28,6 +28,14 @@ public sealed class OpenApiSchema
     /// </summary>
     public string? Reference { get; init; }
 
+    /// <summary>
+    /// The original <c>$ref</c> text as authored in the OpenAPI document.
+    /// Parsers retain this value so validation can distinguish a normalized local
+    /// <c>#/components/schemas/...</c> reference from an external or relative reference
+    /// that happens to have the same text as a local component name.
+    /// </summary>
+    public string? RawReference { get; init; }
+
     /// <summary>For <c>array</c>-typed schemas, describes the element type.</summary>
     public OpenApiSchema? Items { get; init; }
 
