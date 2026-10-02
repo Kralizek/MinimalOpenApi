@@ -681,6 +681,21 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         var displayName = input.DisplayName;
         var displayVersion = input.DisplayVersion;
 
+        var unresolvedSchemaReferences = SchemaReferenceValidator.FindUnresolvedReferences(doc);
+        if (unresolvedSchemaReferences.Count > 0)
+        {
+            foreach (var reference in unresolvedSchemaReferences)
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.UnresolvedSchemaReference,
+                    CreateOpenApiLocation(openApiFilePath),
+                    reference,
+                    openApiFilePath));
+            }
+
+            return;
+        }
+
         var duplicateOperationIds = doc.Operations
             .GroupBy(o => o.OperationId, StringComparer.Ordinal)
             .Where(group => group.Count() > 1)

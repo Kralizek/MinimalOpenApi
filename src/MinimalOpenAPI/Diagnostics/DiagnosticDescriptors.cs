@@ -154,4 +154,13 @@ internal static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    /// <summary>A schema reference does not resolve to a local component schema.</summary>
+    public static readonly DiagnosticDescriptor UnresolvedSchemaReference = new(
+        id: "MOA017",
+        title: "Unresolved or unsupported schema reference",
+        messageFormat: "Schema reference '{0}' in '{1}' could not be resolved. MinimalOpenAPI supports only references to schemas declared in the same document under components/schemas; external and remote schema references are not supported.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
 }

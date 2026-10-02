@@ -84,7 +84,11 @@ public sealed class YamlOpenApiParser : IOpenApiParser
     {
         var refValue = GetString(node, "$ref");
         if (refValue is not null)
-            return new OpenApiSchema { Reference = ResolveRef(refValue) };
+            return new OpenApiSchema
+            {
+                Reference = ResolveRef(refValue),
+                RawReference = refValue
+            };
 
         var properties = new Dictionary<string, OpenApiSchema>(StringComparer.Ordinal);
         var propsNode = GetMapping(node, "properties");
