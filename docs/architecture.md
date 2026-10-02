@@ -218,11 +218,18 @@ make `MinimalOpenApiFile` and `RootNamespace` readable via
 `AnalyzerConfigOptionsProvider` inside the generator.
 
 `OpenApi.ExcludeStatusCodesFromHandlers` is forwarded as additional-file metadata.
-`MinimalOpenApiHandlerResponse` items are forwarded as empty intermediate additional
-files with compiler-visible `OpenApi`, `OperationId`, `IncludeStatusCodes` and
-`ExcludeStatusCodes` metadata. The generator binds each override to a parsed document,
-validates its operation and status codes, then filters only handler return types and
-problem-result wrappers. Endpoint metadata still uses the complete response list.
+`MinimalOpenApiHandler` items are forwarded as empty intermediate additional
+files with compiler-visible `OpenApiFile`, `Include`, `IncludeStatusCodes` and
+`ExcludeStatusCodes` metadata. `Include` is the operationId. `OpenApiFile` matches
+the configured `<OpenApi Include="...">` item identity/path, not just its basename.
+It may be omitted for one document, but is required when multiple documents are
+configured. The generator validates the selected document, operation and status
+codes, then filters only handler return types and problem-result wrappers. Endpoint
+metadata still uses the complete response list.
+
+The configuration layers are distinct: `<OpenApi>` controls document-level
+generation settings, `<MinimalOpenApiHandler>` controls per-operation handler
+generation, and `EndpointConfigurationBase` controls runtime endpoint behavior.
 
 ### 5.1 Contract-package pattern (gRPC-style)
 
