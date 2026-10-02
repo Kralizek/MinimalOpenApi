@@ -36,6 +36,7 @@
              DisplayName="Smoke Test API"
              DisplayVersion="1.0.0" />
     <MinimalOpenApiHandler Include="ping"
+                           OpenApiFile="openapi.yaml"
                            IncludeStatusCodes="401;403" ExcludeStatusCodes="401" />
   </ItemGroup>
 
