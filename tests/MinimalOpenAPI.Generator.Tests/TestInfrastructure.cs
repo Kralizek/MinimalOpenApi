@@ -79,8 +79,8 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         _namespaceKey = namespaceKey;
         _specNameOverride = specNameOverride;
         _specNameOverridesByFilePath = specNameOverridesByFilePath is null
-            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, string>(specNameOverridesByFilePath, StringComparer.OrdinalIgnoreCase);
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new Dictionary<string, string>(specNameOverridesByFilePath, StringComparer.Ordinal);
         _schemaIdOverride = schemaId;
         _publishAs = publishAs;
         _displayName = displayName;

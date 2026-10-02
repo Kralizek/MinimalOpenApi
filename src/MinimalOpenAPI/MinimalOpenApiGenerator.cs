@@ -339,8 +339,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         ImmutableArray<ParsedOpenApiFile> documents,
         ImmutableArray<HandlerCustomization> handlers)
     {
-        var result = new Dictionary<string, IReadOnlyDictionary<string, List<OpenApiResponse>>>(StringComparer.OrdinalIgnoreCase);
-        var bound = new Dictionary<string, List<HandlerCustomization>>(StringComparer.OrdinalIgnoreCase);
+        var result = new Dictionary<string, IReadOnlyDictionary<string, List<OpenApiResponse>>>(StringComparer.Ordinal);
+        var bound = new Dictionary<string, List<HandlerCustomization>>(StringComparer.Ordinal);
 
         foreach (var item in handlers)
         {
