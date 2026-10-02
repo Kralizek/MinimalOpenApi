@@ -42,11 +42,19 @@ internal static class SchemaReferenceValidator
         if (!visited.Add(schema))
             return;
 
-        if (!string.IsNullOrWhiteSpace(schema.Reference))
+        if (schema.Reference is not null)
         {
-            if (!components.TryGetValue(schema.Reference!, out var referenced))
+            const string localSchemaPrefix = "#/components/schemas/";
+            if (schema.RawReference is not null &&
+                !schema.RawReference.StartsWith(localSchemaPrefix, StringComparison.Ordinal))
             {
-                unresolved.Add(schema.Reference!);
+                unresolved.Add(schema.RawReference);
+                return;
+            }
+
+            if (!components.TryGetValue(schema.Reference, out var referenced))
+            {
+                unresolved.Add(schema.RawReference ?? schema.Reference);
                 return;
             }
 
