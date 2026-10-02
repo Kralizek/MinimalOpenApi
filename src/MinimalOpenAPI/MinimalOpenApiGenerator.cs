@@ -447,7 +447,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     private static bool SameItemPath(string itemIdentity, string selector)
     {
         return string.Equals(NormalizeItemPath(itemIdentity), NormalizeItemPath(selector),
-            StringComparison.OrdinalIgnoreCase);
+            StringComparison.Ordinal);
     }
 
     private static string NormalizeItemPath(string path)
