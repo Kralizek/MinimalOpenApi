@@ -174,6 +174,22 @@ To override the handler response set for an operation, use a `MinimalOpenApiHand
 
 The operation must declare every status code named by `IncludeStatusCodes` and `ExcludeStatusCodes`. Global exclusions are applied first, then includes, then excludes (excludes win). With one OpenAPI document, `OpenApi` on the override may be omitted; for multiple documents, set `OpenApi="openapi.yaml"` to select a configured item. Explicit selection is also supported for single-document projects. Invalid contracts, operation IDs and status codes produce `MOA015` errors.
 
+Handlers use a single typed result for one effective response type and a flat
+ASP.NET Core `Results<>` union for two to six distinct types. Beyond six, the
+generator nests framework `Results<>` unions in the tail: the outer union holds
+the first five types and a sixth `Results<>` containing the rest, recursively.
+Types follow the OpenAPI response declaration order, with duplicate result
+types appearing only once at their first occurrence. Adding a seventh effective
+type changes a flat six-type signature to a nested signature; implementations
+must update their overrides. An outer alternative converts directly, while a
+nested-tail alternative may need explicit conversion to the inner `Results<>`
+before conversion to the outer union.
+
+Handler response filtering can keep responses produced outside the handler
+(such as authentication middleware responses) out of its union without changing
+endpoint metadata. Do not filter responses actually produced by the handler
+merely to reduce the union size.
+
 ## Supported features
 
 | Area | Support |

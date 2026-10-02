@@ -403,7 +403,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 foreach (var response in op.Responses.Where(r => include.Contains(r.StatusCode) && filtered.All(f => f.StatusCode != r.StatusCode)))
                     filtered.Add(response);
                 filtered.RemoveAll(r => exclude.Contains(r.StatusCode));
-                filtered.Sort((a, b) => a.StatusCode.CompareTo(b.StatusCode));
+                perOperation[op.OperationId] = op.Responses.Where(filtered.Contains).ToList();
             }
 
             if (globalValid)

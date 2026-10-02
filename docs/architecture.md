@@ -497,9 +497,19 @@ the generated file is a valid single-pass compilation unit.
 constraints (e.g. `{id:guid}`, `{page:int}`) to ensure proper route matching
 and automatic 400 responses for invalid values.
 
-**Return type**: `BuildReturnType` collects resolved handler responses (all declared
-responses by default), maps each to its `Microsoft.AspNetCore.Http.HttpResults.*` type, and
-wraps multiple types in `Results<T1, T2, …>`.
+**Return type**: `BuildReturnType` collects effective handler responses (all declared
+responses by default), maps each to its result type, and deduplicates by CLR type
+while retaining the first occurrence in OpenAPI declaration order. One type is
+returned directly; two to six use a flat ASP.NET Core `Results<T1, …>` union.
+Seven or more use recursive tail nesting: the outer `Results<>` holds the first
+five alternatives and a sixth `Results<>` for the remaining alternatives.
+Thus adding a seventh effective type changes the handler signature from
+`Results<A, B, C, D, E, F>` to `Results<A, B, C, D, E, Results<F, G>>`.
+Returning a tail alternative may require first converting it explicitly to
+the inner `Results<>`, then returning that union as the outer result. Filtering
+infrastructure-produced responses can reduce the effective handler union without
+altering the declared endpoint response metadata; handler-produced responses
+must remain in the union.
 
 **Naming conventions**:
 
