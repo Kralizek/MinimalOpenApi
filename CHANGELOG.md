@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 1.1.0
+
 ### Added
 
 - Handler response filtering through `OpenApi.ExcludeStatusCodesFromHandlers` and per-operation `MinimalOpenApiHandler` items using `IncludeStatusCodes` / `ExcludeStatusCodes`, without removing declared endpoint response metadata.
+- Recursive tail-nested ASP.NET Core `Results<>` unions for more than six distinct effective handler result types.
+- Compile-time diagnostics: MOA015 for invalid handler response configuration, MOA016 for duplicate `operationId`, and MOA017 for unresolved or unsupported schema references.
+
+### Fixed
+
+- Body-bearing non-success responses now use the appropriate status-specific ASP.NET Core typed result when one exists.
+- Body-bearing statuses without a compatible built-in typed result safely fall back to `IResult` instead of an incorrect `Ok<T>`.
+- Unsupported, external, relative, missing, empty, and otherwise unresolved schema `$ref` values now fail with MOA017 before malformed generated code can be emitted.
 
 ## 1.0.0
 
@@ -21,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Directional contracts** through `ReadWriteSchemaHandling="Ignore|Auto|Split"`, including reachable `readOnly` and `writeOnly` analysis and request/response-specific contract graphs.
 - **Schema validation metadata** for string, number, and array constraints. `format: email` emits `[EmailAddress]`, `format: uri` emits `[Url]`, and `format: date` maps to `DateOnly`.
 - **Operation parameters** for path, query, header, and cookie declarations, including path-level parameters, reusable component parameters, operation-level overrides, route constraints, and supported default-value initializers.
-- **Typed response results**, including status-specific wrappers for `application/problem+json` payloads and nested ASP.NET Core `Results<>` unions for more than six effective handler result types.
+- **Typed response results**, including status-specific wrappers for `application/problem+json` payloads.
 - **Request-body media type tracking** so generation can deliberately distinguish JSON, multipart form data, and unsupported media types.
 - **`multipart/form-data` generation** with form-bound nested request records, `IFormFile`, `IReadOnlyList<IFormFile>`, mixed file and scalar fields, and nested object binding through dotted form keys.
 - **Multiple OpenAPI documents per project**, each isolated in a document-specific generated namespace with optional `Namespace` item metadata.
