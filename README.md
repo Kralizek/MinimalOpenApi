@@ -162,17 +162,32 @@ Example:
          DisplayVersion="1.0.0" />
 ```
 
-To override the handler response set for an operation, use a `MinimalOpenApiHandlerResponse` item. MSBuild requires an `Include` item identity; use the operation ID as its value and also supply the required `OperationId` metadata:
+Handler response filtering has three layers: `<OpenApi>` configures document-wide generation settings, `<MinimalOpenApiHandler>` configures generated handler responses for one operation, and `EndpointConfigurationBase` customizes the mapped endpoint at runtime.
+
+Use the OpenAPI `operationId` as the `<MinimalOpenApiHandler>` item identity (`Include`):
 
 ```xml
 <ItemGroup>
   <OpenApi Include="openapi.yaml" ExcludeStatusCodesFromHandlers="401;403" />
-  <MinimalOpenApiHandlerResponse Include="getOrder" OperationId="getOrder"
-                                 IncludeStatusCodes="403" ExcludeStatusCodes="404" />
+  <MinimalOpenApiHandler Include="getOrder"
+                         IncludeStatusCodes="403" ExcludeStatusCodes="409" />
 </ItemGroup>
 ```
 
-The operation must declare every status code named by `IncludeStatusCodes` and `ExcludeStatusCodes`. Global exclusions are applied first, then includes, then excludes (excludes win). With one OpenAPI document, `OpenApi` on the override may be omitted; for multiple documents, set `OpenApi="openapi.yaml"` to select a configured item. Explicit selection is also supported for single-document projects. Invalid contracts, operation IDs and status codes produce `MOA015` errors.
+With multiple documents, select one using `OpenApiFile`, which matches the configured `<OpenApi Include="...">` path:
+
+```xml
+<ItemGroup>
+  <OpenApi Include="contracts/orders/openapi.yaml" />
+  <OpenApi Include="contracts/admin/openapi.yaml" />
+
+  <MinimalOpenApiHandler Include="getOrder"
+                         OpenApiFile="contracts/orders/openapi.yaml"
+                         ExcludeStatusCodes="409" />
+</ItemGroup>
+```
+
+`OpenApiFile` may be omitted when exactly one `<OpenApi>` item is configured; if supplied, it is validated even for a single document. With multiple documents it is required and must match the full configured item path (a basename alone does not match). `Include` must name an operation in the selected document. The operation must declare every status code named by `IncludeStatusCodes` and `ExcludeStatusCodes`. Global exclusions are applied first, then handler includes, then handler excludes (excludes win). Invalid document selectors, operation IDs and status codes produce `MOA015` errors. Filtering affects generated handler result types only; all declared responses remain in endpoint/OpenAPI metadata.
 
 Handlers use a single typed result for one effective response type and a flat
 ASP.NET Core `Results<>` union for two to six distinct types. Beyond six, the

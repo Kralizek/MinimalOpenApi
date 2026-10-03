@@ -86,6 +86,38 @@ var schemas = app.MapOpenApiSchemas();
 
 The returned descriptors can be used to configure Swagger UI, Scalar, or another OpenAPI viewer. MinimalOpenAPI serves the authored document; it does not generate a second document from C# at runtime.
 
+## Handler response filtering
+
+Configuration is layered: `<OpenApi>` sets document-level generation options,
+`<MinimalOpenApiHandler>` sets generated handler responses for one operation,
+and `EndpointConfigurationBase` provides runtime endpoint customization.
+
+The handler item's `Include` is the OpenAPI `operationId`:
+
+```xml
+<ItemGroup>
+  <OpenApi Include="openapi.yaml" ExcludeStatusCodesFromHandlers="401;403" />
+  <MinimalOpenApiHandler Include="getOrder"
+                         IncludeStatusCodes="403" ExcludeStatusCodes="409" />
+</ItemGroup>
+```
+
+For multiple documents, `OpenApiFile` identifies the configured `<OpenApi>`
+item path; basenames do not match paths in other directories:
+
+```xml
+<MinimalOpenApiHandler Include="getOrder"
+                       OpenApiFile="contracts/orders/openapi.yaml"
+                       ExcludeStatusCodes="409" />
+```
+
+`OpenApiFile` is optional with exactly one document and required with multiple
+documents. An explicitly supplied path is always validated. Global exclusions
+are applied before handler includes and excludes, with excludes taking
+precedence. Status codes must be declared by the selected operation. Filtering
+changes handler result types only; declared responses remain in endpoint
+metadata.
+
 ## More documentation
 
 Full documentation, samples, limitations, architecture notes, and release guidance are available in the repository:

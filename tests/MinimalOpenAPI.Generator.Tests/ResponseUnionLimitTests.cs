@@ -75,7 +75,7 @@ public class ResponseUnionLimitTests
         var statuses = KnownResponses.Take(7).Select(r => r.Status).ToArray();
         var (result, _) = GeneratorTestHelper.RunGenerator("", [("openapi.yaml", Contract(statuses))],
             globalExclusionsByFile: new Dictionary<string, string> { ["openapi.yaml"] = "500;401" },
-            overrides: [(null, "getResponses", "500", null)]);
+            handlers: [(null, "getResponses", "500", null)]);
 
         var expectedTypes = KnownResponses.Take(6).Select(r => HttpResult(r.Type)).ToArray();
         Assert.That(GeneratorTestHelper.GetGeneratedSource(result, "GetResponsesEndpointBase.g.cs"),
@@ -90,7 +90,7 @@ public class ResponseUnionLimitTests
     {
         var statuses = KnownResponses.Take(7).Select(r => r.Status).ToArray();
         var (result, _) = GeneratorTestHelper.RunGenerator("", [("openapi.yaml", Contract(statuses))],
-            overrides: [(null, "getResponses", null, "404")]);
+            handlers: [(null, "getResponses", null, "404")]);
 
         var expectedTypes = KnownResponses.Take(7).Where(r => r.Status != 404).Select(r => HttpResult(r.Type)).ToArray();
         Assert.That(GeneratorTestHelper.GetGeneratedSource(result, "GetResponsesEndpointBase.g.cs"),

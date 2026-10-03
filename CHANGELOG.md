@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Handler response filtering through `OpenApi.ExcludeStatusCodesFromHandlers` and per-operation `MinimalOpenApiHandlerResponse` items, without removing declared endpoint response metadata.
+- Handler response filtering through `OpenApi.ExcludeStatusCodesFromHandlers` and per-operation `MinimalOpenApiHandler` items using `IncludeStatusCodes` / `ExcludeStatusCodes`, without removing declared endpoint response metadata.
 
 ## 1.0.0
 

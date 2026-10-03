@@ -32,11 +32,12 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     private const string DisplayVersionMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiDisplayVersion";
     private const string ReadWriteSchemaHandlingMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiReadWriteSchemaHandling";
     private const string GlobalExcludeMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiExcludeStatusCodesFromHandlers";
-    private const string OverrideMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiHandlerResponse";
-    private const string OverrideOpenApiKey = "build_metadata.AdditionalFiles.MinimalOpenApiOverrideOpenApi";
-    private const string OverrideOperationIdKey = "build_metadata.AdditionalFiles.MinimalOpenApiOverrideOperationId";
-    private const string OverrideIncludeKey = "build_metadata.AdditionalFiles.MinimalOpenApiIncludeStatusCodes";
-    private const string OverrideExcludeKey = "build_metadata.AdditionalFiles.MinimalOpenApiExcludeStatusCodes";
+    private const string OpenApiIdentityMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiFileIdentity";
+    private const string HandlerMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiHandler";
+    private const string HandlerOpenApiFileKey = "build_metadata.AdditionalFiles.MinimalOpenApiHandlerOpenApiFile";
+    private const string HandlerIncludeKey = "build_metadata.AdditionalFiles.MinimalOpenApiHandlerInclude";
+    private const string HandlerIncludeStatusCodesKey = "build_metadata.AdditionalFiles.MinimalOpenApiHandlerIncludeStatusCodes";
+    private const string HandlerExcludeStatusCodesKey = "build_metadata.AdditionalFiles.MinimalOpenApiHandlerExcludeStatusCodes";
     private const string RootNamespaceKey = "build_property.RootNamespace";
 
     /// <summary>
@@ -60,21 +61,21 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 return CreateOpenApiFileInput(content, pair.Left.Path, options);
             });
 
-        var overrides = context.AdditionalTextsProvider
+        var handlers = context.AdditionalTextsProvider
             .Combine(context.AnalyzerConfigOptionsProvider)
             .Where(pair =>
             {
-                pair.Right.GetOptions(pair.Left).TryGetValue(OverrideMetadataKey, out var flag);
+                pair.Right.GetOptions(pair.Left).TryGetValue(HandlerMetadataKey, out var flag);
                 return string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase);
             })
             .Select((pair, _) =>
             {
                 var options = pair.Right.GetOptions(pair.Left);
-                options.TryGetValue(OverrideOpenApiKey, out var openApi);
-                options.TryGetValue(OverrideOperationIdKey, out var operationId);
-                options.TryGetValue(OverrideIncludeKey, out var include);
-                options.TryGetValue(OverrideExcludeKey, out var exclude);
-                return new HandlerResponseOverride(openApi, operationId, include, exclude);
+                options.TryGetValue(HandlerOpenApiFileKey, out var openApiFile);
+                options.TryGetValue(HandlerIncludeKey, out var include);
+                options.TryGetValue(HandlerIncludeStatusCodesKey, out var includeStatusCodes);
+                options.TryGetValue(HandlerExcludeStatusCodesKey, out var excludeStatusCodes);
+                return new HandlerCustomization(openApiFile, include, includeStatusCodes, excludeStatusCodes);
             });
 
         // 2. Get root namespace
@@ -127,7 +128,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         var combined = parsedDocuments.Collect()
             .Combine(classDeclarations.Collect())
             .Combine(duplicateSpecNames)
-            .Combine(overrides.Collect());
+            .Combine(handlers.Collect());
 
         // 6. Generate source files
         context.RegisterSourceOutput(combined, (spc, input) =>
@@ -242,11 +243,13 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         options.TryGetValue(DisplayVersionMetadataKey, out var displayVersion);
         options.TryGetValue(ReadWriteSchemaHandlingMetadataKey, out var readWriteSchemaHandling);
         options.TryGetValue(GlobalExcludeMetadataKey, out var globalExclude);
+        options.TryGetValue(OpenApiIdentityMetadataKey, out var itemIdentity);
         var specName = DeriveSpecName(path, explicitNamespace);
 
         return new OpenApiFileInput(
             Content: content,
             Path: path,
+            ItemIdentity: itemIdentity ?? path,
             SpecName: specName,
             SchemaId: schemaId ?? string.Empty,
             PublishAs: string.IsNullOrWhiteSpace(publishAs) ? null : publishAs,
@@ -265,6 +268,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             return new ParsedOpenApiFile(
                 Document: null,
                 Path: file.Path,
+                ItemIdentity: file.ItemIdentity,
                 RootNamespace: rootNamespace,
                 SpecName: file.SpecName,
                 SchemaId: file.SchemaId,
@@ -283,6 +287,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             return new ParsedOpenApiFile(
                 Document: doc,
                 Path: file.Path,
+                ItemIdentity: file.ItemIdentity,
                 RootNamespace: rootNamespace,
                 SpecName: file.SpecName,
                 SchemaId: file.SchemaId,
@@ -299,6 +304,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             return new ParsedOpenApiFile(
                 Document: null,
                 Path: file.Path,
+                ItemIdentity: file.ItemIdentity,
                 RootNamespace: rootNamespace,
                 SpecName: file.SpecName,
                 SchemaId: file.SchemaId,
@@ -325,38 +331,38 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     .ToArray(),
                 StringComparer.Ordinal);
 
-    private sealed record HandlerResponseOverride(string? OpenApi, string? OperationId,
+    private sealed record HandlerCustomization(string? OpenApiFile, string? Include,
         string? IncludeStatusCodes, string? ExcludeStatusCodes);
 
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, List<OpenApiResponse>>> ResolveHandlerResponses(
         SourceProductionContext spc,
         ImmutableArray<ParsedOpenApiFile> documents,
-        ImmutableArray<HandlerResponseOverride> overrides)
+        ImmutableArray<HandlerCustomization> handlers)
     {
-        var result = new Dictionary<string, IReadOnlyDictionary<string, List<OpenApiResponse>>>(StringComparer.OrdinalIgnoreCase);
-        var bound = new Dictionary<string, List<HandlerResponseOverride>>(StringComparer.OrdinalIgnoreCase);
+        var result = new Dictionary<string, IReadOnlyDictionary<string, List<OpenApiResponse>>>(StringComparer.Ordinal);
+        var bound = new Dictionary<string, List<HandlerCustomization>>(StringComparer.Ordinal);
 
-        foreach (var item in overrides)
+        foreach (var item in handlers)
         {
-            if (string.IsNullOrWhiteSpace(item.OperationId))
+            if (string.IsNullOrWhiteSpace(item.Include))
             {
-                Report("MinimalOpenApiHandlerResponse is missing OperationId.");
+                Report("MinimalOpenApiHandler is missing Include (operationId).");
                 continue;
             }
 
             ParsedOpenApiFile? selected = null;
-            if (string.IsNullOrWhiteSpace(item.OpenApi))
+            if (string.IsNullOrWhiteSpace(item.OpenApiFile))
             {
                 if (documents.Length == 1)
                     selected = documents[0];
                 else
-                    Report("MinimalOpenApiHandlerResponse for OperationId '" + item.OperationId + "' requires OpenApi when multiple contracts are configured.");
+                    Report("MinimalOpenApiHandler for Include '" + item.Include + "' requires OpenApiFile when multiple OpenAPI files are configured.");
             }
             else
             {
-                selected = documents.FirstOrDefault(d => SameContract(d.Path, item.OpenApi!));
+                selected = documents.FirstOrDefault(d => SameItemPath(d.ItemIdentity, item.OpenApiFile!));
                 if (selected is null)
-                    Report("OpenApi '" + item.OpenApi + "' is not configured as an <OpenApi> item.");
+                    Report("OpenApiFile '" + item.OpenApiFile + "' does not match a configured <OpenApi> item.");
             }
 
             if (selected is not null)
@@ -379,10 +385,10 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
             foreach (var item in items ?? [])
             {
-                var matches = document.Document.Operations.Where(o => o.OperationId == item.OperationId).ToList();
+                var matches = document.Document.Operations.Where(o => o.OperationId == item.Include).ToList();
                 if (matches.Count == 0)
                 {
-                    Report("OperationId '" + item.OperationId + "' was not found in OpenAPI document '" + document.Path + "'.");
+                    Report("Include '" + item.Include + "' (operationId) was not found in OpenAPI document '" + document.ItemIdentity + "'.");
                     continue;
                 }
                 if (matches.Count > 1)
@@ -392,7 +398,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 var excludeValid = TryParseCodes(item.ExcludeStatusCodes, "ExcludeStatusCodes", document.Path, out var exclude);
                 foreach (var (codes, name) in new[] { (include, "IncludeStatusCodes"), (exclude, "ExcludeStatusCodes") })
                     foreach (var code in codes.Where(c => op.Responses.All(r => r.StatusCode != c)))
-                        Report(name + " contains status code '" + code + "' not declared by OperationId '" + op.OperationId + "' in OpenAPI document '" + document.Path + "'.");
+                        Report(name + " contains status code '" + code + "' not declared by Include '" + op.OperationId + "' in OpenAPI document '" + document.ItemIdentity + "'.");
 
                 if (!globalValid || !includeValid || !excludeValid ||
                     include.Concat(exclude).Any(c => op.Responses.All(r => r.StatusCode != c)))
@@ -438,17 +444,36 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             DiagnosticDescriptors.InvalidHandlerResponseConfiguration, Location.None, message));
     }
 
-    private static bool SameContract(string path, string selector)
+    private static bool SameItemPath(string itemIdentity, string selector)
     {
-        try
+        return string.Equals(NormalizeItemPath(itemIdentity), NormalizeItemPath(selector),
+            StringComparison.Ordinal);
+    }
+
+    private static string NormalizeItemPath(string path)
+    {
+        var normalized = path.Replace('\\', '/');
+        var prefix = string.Empty;
+        var rooted = normalized.StartsWith("/", StringComparison.Ordinal);
+        if (normalized.Length >= 2 && char.IsLetter(normalized[0]) && normalized[1] == ':')
         {
-            return string.Equals(System.IO.Path.GetFullPath(path), System.IO.Path.GetFullPath(selector),
-                StringComparison.OrdinalIgnoreCase);
+            prefix = normalized[..2];
+            normalized = normalized[2..];
+            rooted = normalized.StartsWith("/", StringComparison.Ordinal);
         }
-        catch (ArgumentException)
+
+        var segments = new List<string>();
+        foreach (var segment in normalized.Split('/'))
         {
-            return false;
+            if (segment.Length == 0 || segment == ".")
+                continue;
+            if (segment == ".." && segments.Count > 0 && segments[^1] != "..")
+                segments.RemoveAt(segments.Count - 1);
+            else if (segment != ".." || !rooted)
+                segments.Add(segment);
         }
+
+        return prefix + (rooted ? "/" : string.Empty) + string.Join("/", segments);
     }
 
     private static readonly Version[] _knownVersions =
@@ -924,6 +949,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     private sealed record OpenApiFileInput(
         string Content,
         string Path,
+        string ItemIdentity,
         string SpecName,
         string SchemaId,
         string? PublishAs,
@@ -936,6 +962,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     private sealed record ParsedOpenApiFile(
         OpenApiDocument? Document,
         string Path,
+        string ItemIdentity,
         string RootNamespace,
         string SpecName,
         string SchemaId,

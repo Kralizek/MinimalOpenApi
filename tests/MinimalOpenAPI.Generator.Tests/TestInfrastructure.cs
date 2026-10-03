@@ -44,7 +44,7 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
     private readonly string? _displayVersion;
     private readonly string? _readWriteSchemaHandling;
     private readonly IReadOnlyDictionary<string, string> _globalExclusions;
-    private readonly IReadOnlyList<(string? OpenApi, string? OperationId, string? IncludeStatusCodes, string? ExcludeStatusCodes)> _overrides;
+    private readonly IReadOnlyList<(string? OpenApiFile, string? Include, string? IncludeStatusCodes, string? ExcludeStatusCodes)> _handlers;
 
     public TestAnalyzerConfigOptionsProvider(
         AdditionalText[] additionalTexts,
@@ -65,7 +65,7 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         string? displayVersion = null,
         string? readWriteSchemaHandling = null,
         IReadOnlyDictionary<string, string>? globalExclusionsByFile = null,
-        IReadOnlyList<(string? OpenApi, string? OperationId, string? IncludeStatusCodes, string? ExcludeStatusCodes)>? overrides = null)
+        IReadOnlyList<(string? OpenApiFile, string? Include, string? IncludeStatusCodes, string? ExcludeStatusCodes)>? handlers = null)
     {
         _additionalTexts = additionalTexts;
         _rootNamespace = rootNamespace;
@@ -79,15 +79,15 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         _namespaceKey = namespaceKey;
         _specNameOverride = specNameOverride;
         _specNameOverridesByFilePath = specNameOverridesByFilePath is null
-            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, string>(specNameOverridesByFilePath, StringComparer.OrdinalIgnoreCase);
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new Dictionary<string, string>(specNameOverridesByFilePath, StringComparer.Ordinal);
         _schemaIdOverride = schemaId;
         _publishAs = publishAs;
         _displayName = displayName;
         _displayVersion = displayVersion;
         _readWriteSchemaHandling = readWriteSchemaHandling;
         _globalExclusions = globalExclusionsByFile ?? new Dictionary<string, string>();
-        _overrides = overrides ?? [];
+        _handlers = handlers ?? [];
     }
 
     public override AnalyzerConfigOptions GlobalOptions
@@ -101,24 +101,25 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
 
     public override AnalyzerConfigOptions GetOptions(AdditionalText textFile)
     {
-        var overrideIndex = Array.FindIndex(_additionalTexts, t => ReferenceEquals(t, textFile)) - (_additionalTexts.Length - _overrides.Count);
-        if (overrideIndex >= 0)
+        var handlerIndex = Array.FindIndex(_additionalTexts, t => ReferenceEquals(t, textFile)) - (_additionalTexts.Length - _handlers.Count);
+        if (handlerIndex >= 0)
         {
-            var item = _overrides[overrideIndex];
+            var item = _handlers[handlerIndex];
             return new TestAnalyzerConfigOptions(new Dictionary<string, string>
             {
-                ["build_metadata.AdditionalFiles.MinimalOpenApiHandlerResponse"] = "true",
-                ["build_metadata.AdditionalFiles.MinimalOpenApiOverrideOpenApi"] = item.OpenApi ?? "",
-                ["build_metadata.AdditionalFiles.MinimalOpenApiOverrideOperationId"] = item.OperationId ?? "",
-                ["build_metadata.AdditionalFiles.MinimalOpenApiIncludeStatusCodes"] = item.IncludeStatusCodes ?? "",
-                ["build_metadata.AdditionalFiles.MinimalOpenApiExcludeStatusCodes"] = item.ExcludeStatusCodes ?? "",
+                ["build_metadata.AdditionalFiles.MinimalOpenApiHandler"] = "true",
+                ["build_metadata.AdditionalFiles.MinimalOpenApiHandlerOpenApiFile"] = item.OpenApiFile ?? "",
+                ["build_metadata.AdditionalFiles.MinimalOpenApiHandlerInclude"] = item.Include ?? "",
+                ["build_metadata.AdditionalFiles.MinimalOpenApiHandlerIncludeStatusCodes"] = item.IncludeStatusCodes ?? "",
+                ["build_metadata.AdditionalFiles.MinimalOpenApiHandlerExcludeStatusCodes"] = item.ExcludeStatusCodes ?? "",
             });
         }
         var isOpenApi = _additionalTexts.Any(t => ReferenceEquals(t, textFile));
 
         var options = new Dictionary<string, string>
         {
-            [_metadataKey] = isOpenApi ? "true" : "false"
+            [_metadataKey] = isOpenApi ? "true" : "false",
+            ["build_metadata.AdditionalFiles.MinimalOpenApiFileIdentity"] = textFile.Path
         };
 
         if (isOpenApi && _specNameOverridesByFilePath.TryGetValue(textFile.Path, out var namespaceOverride))
