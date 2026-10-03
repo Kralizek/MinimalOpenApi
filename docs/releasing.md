@@ -94,8 +94,8 @@ Do not create the release tag or GitHub Release manually.
 3. Confirm required checks pass on `master`.
 4. Open **Actions → Release → Run workflow**.
 5. Select the required version bump and `stable` as the release channel.
-6. Run a dry run if desired.
-7. Run the workflow with `dry_run` disabled to publish.
+6. Run the workflow with `dry_run` enabled and confirm validation succeeds.
+7. Run the same workflow again with `dry_run` disabled to publish.
 
 The workflow creates the version tag and GitHub Release and publishes the exact package that passed the release validation.
 
