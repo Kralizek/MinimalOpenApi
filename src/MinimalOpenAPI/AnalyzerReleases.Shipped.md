@@ -18,3 +18,13 @@ MOA011 | MinimalOpenAPI | Error | Unsupported multipart/form-data field shape
 MOA012 | MinimalOpenAPI | Error | Schema name collision
 MOA013 | MinimalOpenAPI | Error | Unnormalisable schema name
 MOA014 | MinimalOpenAPI | Error | Generated symbol collision
+
+## Release 1.1.0
+
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|--------------------
+MOA015 | MinimalOpenAPI | Error | Invalid handler response configuration
+MOA016 | MinimalOpenAPI | Error | Duplicate operation ID
+MOA017 | MinimalOpenAPI | Error | Unresolved or unsupported schema reference
