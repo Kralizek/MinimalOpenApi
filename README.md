@@ -329,7 +329,7 @@ See [`docs/schema-feature-roadmap.md`](docs/schema-feature-roadmap.md) for the d
 
 ## Diagnostics
 
-The generator reports stable `MOA001`–`MOA014` diagnostics for missing implementations, duplicate handlers or configurations, parser failures, unsupported configuration, unresolved references, unsupported multipart shapes, and generated-name collisions.
+The generator reports stable `MOA001`–`MOA017` diagnostics for missing implementations, duplicate handlers or configurations, parser failures, unsupported configuration, unresolved references, unsupported multipart shapes, generated-name collisions, invalid handler-response configuration, duplicate operation IDs, and unsupported schema references.
 
 See [`docs/architecture.md`](docs/architecture.md) for the complete diagnostic table and internal design.
 
