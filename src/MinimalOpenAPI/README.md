@@ -55,6 +55,9 @@ Implement the generated `<OperationId>EndpointBase` class for each operation. No
 - path, query, header, reusable, and path-level parameters
 - parameter default values
 - typed results and `application/problem+json` wrappers
+- handler response filtering through `ExcludeStatusCodesFromHandlers` and per-operation `MinimalOpenApiHandler` include/exclude overrides
+- recursively nested ASP.NET Core `Results<>` unions for more than six distinct effective handler result types
+- diagnostics MOA015–MOA017 for invalid handler responses, duplicate operation IDs, and unresolved or unsupported schema references
 - `multipart/form-data`, `IFormFile`, multiple files, and nested form objects
 - deterministic schema-name normalization with compile-time collision diagnostics
 - explicit schema publication through `PublishAs` and `MapOpenApiSchemas()`
