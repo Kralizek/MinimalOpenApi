@@ -162,7 +162,7 @@ Example:
          DisplayVersion="1.0.0" />
 ```
 
-Handler response filtering has three layers: `<OpenApi>` configures document-wide generation settings, `<MinimalOpenApiHandler>` configures generated handler responses for one operation, and `EndpointConfigurationBase` customizes the mapped endpoint at runtime.
+Handler response filtering models **response ownership**: the OpenAPI contract describes every response a caller can observe, while the generated handler signature should contain only responses the handler implementation is responsible for producing. `<OpenApi>` configures document-wide generation settings, `<MinimalOpenApiHandler>` configures per-operation handler ownership, and `EndpointConfigurationBase` customizes the mapped endpoint at runtime.
 
 Use the OpenAPI `operationId` as the `<MinimalOpenApiHandler>` item identity (`Include`):
 
@@ -173,6 +173,15 @@ Use the OpenAPI `operationId` as the `<MinimalOpenApiHandler>` item identity (`I
                          IncludeStatusCodes="403" ExcludeStatusCodes="409" />
 </ItemGroup>
 ```
+
+Because `MinimalOpenApiHandler` is an MSBuild item, normal semicolon item expansion can apply the same metadata to multiple operations:
+
+```xml
+<MinimalOpenApiHandler Include="createName;updateName;createAddress;updateAddress"
+                       ExcludeStatusCodes="400" />
+```
+
+The `OpenApiFile`, `IncludeStatusCodes`, and `ExcludeStatusCodes` metadata are applied to each expanded operation item.
 
 With multiple documents, select one using `OpenApiFile`, which matches the configured `<OpenApi Include="...">` path:
 
