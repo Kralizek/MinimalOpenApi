@@ -230,6 +230,12 @@ metadata still uses the complete response list.
 The configuration layers are distinct: `<OpenApi>` controls document-level
 generation settings, `<MinimalOpenApiHandler>` controls per-operation handler
 generation, and `EndpointConfigurationBase` controls runtime endpoint behavior.
+This separation models response ownership: endpoint/OpenAPI metadata retains the
+complete observable HTTP contract, while handler filtering narrows only the
+responses the concrete handler is responsible for returning. Because
+`MinimalOpenApiHandler` is an MSBuild item, semicolon-separated `Include` values
+expand into multiple handler items; the same `OpenApiFile`, `IncludeStatusCodes`,
+and `ExcludeStatusCodes` metadata is therefore applied to each expanded operation.
 
 ### 5.1 Contract-package pattern (gRPC-style)
 
