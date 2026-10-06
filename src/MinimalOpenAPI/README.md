@@ -91,9 +91,7 @@ The returned descriptors can be used to configure Swagger UI, Scalar, or another
 
 ## Handler response filtering
 
-Configuration is layered: `<OpenApi>` sets document-level generation options,
-`<MinimalOpenApiHandler>` sets generated handler responses for one operation,
-and `EndpointConfigurationBase` provides runtime endpoint customization.
+Handler response filtering models **response ownership**: the OpenAPI contract keeps every response callers can observe, while generated handler signatures contain only responses the handler implementation owns. Configuration remains layered: `<OpenApi>` sets document-level generation options, `<MinimalOpenApiHandler>` sets per-operation handler ownership, and `EndpointConfigurationBase` provides runtime endpoint customization.
 
 The handler item's `Include` is the OpenAPI `operationId`:
 
@@ -104,6 +102,15 @@ The handler item's `Include` is the OpenAPI `operationId`:
                          IncludeStatusCodes="403" ExcludeStatusCodes="409" />
 </ItemGroup>
 ```
+
+A semicolon-separated `Include` uses normal MSBuild item expansion, so one declaration can apply the same handler settings to several operation IDs:
+
+```xml
+<MinimalOpenApiHandler Include="createName;updateName;createAddress;updateAddress"
+                       ExcludeStatusCodes="400" />
+```
+
+The remaining metadata on that item applies to every expanded operation.
 
 For multiple documents, `OpenApiFile` identifies the configured `<OpenApi>`
 item path; basenames do not match paths in other directories:
