@@ -281,7 +281,9 @@ MinimalOpenAPI 1.1 supports:
 - typed problem responses;
 - multipart files and nested form objects;
 - schema publishing and viewer integration;
-- deterministic component-name normalization;\n- handler response ownership/filtering and nested result unions;\n- MOA015–MOA017 diagnostics.
+- deterministic component-name normalization;
+- handler response ownership/filtering and nested result unions;
+- MOA015–MOA017 diagnostics.
 
 Before adding manual models or endpoints, check the repository README, samples, and feature support matrix.
 
@@ -307,7 +309,10 @@ Before adding manual models or endpoints, check the repository README, samples, 
 | `MOA009` | Duplicate resolved document namespace | Add unique `Namespace` metadata. |
 | `MOA010` | Invalid read/write mode | Use `Ignore`, `Auto`, or `Split`. |
 | `MOA011` | Unsupported multipart field shape | Restructure arrays of objects or dictionaries. |
-| `MOA012`–`MOA014` | Generated-name collision | Rename the conflicting schema or property in OpenAPI. |\n| `MOA015` | Invalid handler-response configuration | Verify document selector, operation ID, declared statuses and filter precedence. |\n| `MOA016` | Duplicate operation ID | Give each operation a unique `operationId`. |\n| `MOA017` | Unsupported/unresolved schema `$ref` | Correct the contract to use supported local schema references. |
+| `MOA012`–`MOA014` | Generated-name collision | Rename the conflicting schema or property in OpenAPI. |
+| `MOA015` | Invalid handler-response configuration | Verify document selector, operation ID, declared statuses and filter precedence. |
+| `MOA016` | Duplicate operation ID | Give each operation a unique `operationId`. |
+| `MOA017` | Unsupported/unresolved schema `$ref` | Correct the contract to use supported local schema references. |
 | `NotImplementedException` at runtime | Missing override or call to base implementation | Override `HandleAsync` and remove the base call. |
 | Duplicate route at startup | Manual and generated mapping both register the operation | Remove the manual mapping. |
 
