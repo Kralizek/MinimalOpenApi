@@ -8,7 +8,7 @@ This is a **manual agent evaluation fixture**, not an automated AI evaluation. R
 
 ## Additional schema-design probe
 
-In a second evaluation, ask the agent to add an operation-specific JSON request containing a nested object and an array of inline object items, with an inline response object. Check that it uses supported inline schemas and generated types instead of inventing global components or writing manual DTOs. Then ask about `oneOf` and `anyOf`: the agent should identify them as unsupported, distinguish them from `allOf`, and **not** silently replace their semantics.
+In a second evaluation, ask the agent to add an operation-specific JSON request containing a nested object and an array of inline object items, with an inline response object. Give two endpoints initially identical transport-only response envelopes but different anticipated evolution; verify the agent keeps those envelopes inline rather than extracting them into a shared component merely for deduplication. Also provide a business-level entity used by both endpoints and verify the agent references its `components/schemas` definition from the inline payloads. Check that it uses supported nested inline schemas and generated types rather than writing manual DTOs. Then ask about `oneOf` and `anyOf`: the agent should identify them as unsupported, distinguish them from `allOf`, and **not** silently replace their semantics.
 
 ## Acceptance criteria
 
@@ -18,7 +18,7 @@ In a second evaluation, ask the agent to add an operation-specific JSON request 
 - 401/403 exclusions affect the GET handler signature, not its OpenAPI response metadata.
 - Security middleware is actually configured for the endpoint, not assumed from filtered signatures.
 - The seven-response operation compiles using generated nested `Results<...>` type, without arbitrarily filtering handler-owned statuses.
-- Endpoint-specific JSON schemas remain inline when appropriate; nested objects and inline array item objects use generated types. Unsupported `oneOf`/`anyOf` are explained without unsafe substitution.
+- Transport-only JSON schemas remain inline even when their current structures match across operations; genuinely shared business concepts use `components/schemas`; nested objects and inline array item objects use generated types. Unsupported `oneOf`/`anyOf` are explained without unsafe substitution.
 - No MOA001–MOA017 diagnostic remains and `dotnet build`, application tests and endpoint checks succeed.
 - The agent reports concrete validation evidence, not just a claim of success.
 
