@@ -1,6 +1,6 @@
 ---
 name: minimalopenapi
-description: Implement and maintain contract-first ASP.NET Core Minimal APIs using the MinimalOpenAPI NuGet package, its OpenAPI-generated handlers, response ownership rules, and diagnostics.
+description: Build contract-first ASP.NET Core Minimal APIs with MinimalOpenAPI and migrate existing code-first ASP.NET Core APIs while preserving HTTP compatibility; covers generated handlers, schema design, response ownership, and diagnostics.
 ---
 
 # MinimalOpenAPI consumer skill
@@ -12,13 +12,13 @@ Use this skill when a project references `MinimalOpenAPI`, asks to implement a c
 1. Inspect the application's existing package version, target framework, OpenAPI documents, and route/DI registration before making changes. If migrating from code-first, follow the [migration playbook](references/migration.md) and establish baseline HTTP behavior before replacing endpoints. Require .NET 10 and OpenAPI 3.0/3.1 YAML or JSON.
 2. Use the **single** `MinimalOpenAPI` NuGet package. For new projects select an appropriate current stable version; do not mechanically install an example's historical version. Preserve the chosen version when editing an existing application unless an upgrade is requested.
 3. Edit the authored OpenAPI contract first. Give each operation a unique `operationId`, then register the document using an `<OpenApi Include="..." />` MSBuild item.
-4. Model **shared business-level concepts** in `components/schemas`; keep **transport-only request/response shapes inline** within the operation, including nested objects and inline array item objects. Identical wire shapes alone do not justify sharing: endpoints should be able to evolve independently; see [generated types](references/generated-types.md).
+4. For new endpoints, prefer inline request/response schemas (including nested objects and inline array items) when each endpoint should evolve independently. Use `components/schemas` for **any intentionally shared contract**, whether business-level or transport-level. During migration preserve existing named schemas and deliberate cross-operation reuse; do not mechanically inline them. Semantic ownership and intended coupling matter more than schema category; see [generated types](references/generated-types.md).
 5. Check [unsupported and partial OpenAPI constructs](references/feature-support.md) before using polymorphism, unusual media types, or advanced binding features. Never silently alter the contract to hide an unsupported construct.
 6. Build to inspect generated types and `HandleAsync` signatures. Do not guess names or signatures and never edit generated C#.
 7. Implement one concrete `<OperationId>EndpointBase` per operation. Register `builder.Services.AddMinimalOpenApi()` and `app.MapMinimalOpenApiEndpoints()` once; do not duplicate routes or register generated handlers manually.
 8. Separate contract responses (every HTTP status a caller may observe) from **handler-owned** responses. Before filtering, identify which layer actually produces each status; see [response handling](references/response-handling.md).
 9. Use generated `<OperationId>EndpointConfigurationBase` for endpoint policies such as authorization and antiforgery. Rebuild and address all generator diagnostics before considering work complete.
-10. Validate the built application and exercise affected endpoints. Consult repository [samples](../../sample/README.md) for concrete shapes.
+10. Validate the built application and exercise affected endpoints. See the [repository samples](https://github.com/Kralizek/MinimalOpenApi/blob/master/sample/README.md) for additional concrete shapes (optional; bundled references contain the essential guidance).
 
 ## Load only what is needed
 
