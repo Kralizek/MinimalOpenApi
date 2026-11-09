@@ -352,4 +352,4 @@ Versions are derived from Git tags through MinVer. Release instructions are docu
 
 Contributions are welcome. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request. Changes to generated behavior should include tests and corresponding documentation.
 
-Coding agents working inside this repository should also read [`AGENTS.md`](AGENTS.md). Agents consuming MinimalOpenAPI in another project should use the [portable consumer skill](skills/minimalopenapi/SKILL.md), its [agent evaluation scenario](skills/minimalopenapi/evals/consumer-scenario.md), or the [consumer guide](docs/consumer-agents.md).
+Coding agents working inside this repository should also read [`AGENTS.md`](AGENTS.md). Agents consuming MinimalOpenAPI in another project—including migrating an existing code-first API—should use the [portable consumer skill](skills/minimalopenapi/SKILL.md), its [agent evaluation scenario](skills/minimalopenapi/evals/consumer-scenario.md), or the [consumer guide](docs/consumer-agents.md).
