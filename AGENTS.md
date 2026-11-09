@@ -5,7 +5,7 @@ It is not a replacement for [`README.md`](README.md) or [`CONTRIBUTING.md`](CONT
 
 ---
 
-## 1. Repository purpose
+**Audience separation:** This file is for agents modifying the MinimalOpenAPI repository. For agents using MinimalOpenAPI in another application, use [`skills/minimalopenapi/SKILL.md`](skills/minimalopenapi/SKILL.md) or [`docs/consumer-agents.md`](docs/consumer-agents.md). Keep these resources in sync when consumer APIs change.\n\n## 1. Repository purpose
 
 MinimalOpenAPI is a **contract-first** OpenAPI framework for ASP.NET Core Minimal APIs.
 You author an OpenAPI YAML or JSON spec; a Roslyn incremental source generator reads it at build time and emits DTO records, abstract handler base classes, DI registration, and endpoint mapping.
@@ -35,7 +35,7 @@ sample/
   Parameters/          ← demonstrates all parameter kinds (path, query, header, cookie, component $ref)
   SchemaShapes/        ← demonstrates DTO shapes (enums, allOf, readOnly/writeOnly, additionalProperties)
   ResponseResults/     ← demonstrates typed result and problem wrapper types
-  GeneratedFiles/      ← demonstrates EmitCompilerGeneratedFiles to inspect generated output
+  GeneratedFiles/      ← demonstrates EmitCompilerGeneratedFiles to inspect generated output\n  MultipartNested/     ← multipart form fields and nested objects\n  ResponseResults/     ← typed response handling and middleware-owned statuses
 docs/
   architecture.md               ← internals, data flow, design decisions, extensibility
   releasing.md                  ← versioning (MinVer / Git tags) and release process
@@ -126,7 +126,7 @@ find /tmp/smoketest-publish/openapi/schemas -name "openapi.yaml" | grep -q . && 
 - Cover the change with a new or updated generator test in `MinimalOpenAPI.Generator.Tests`.
 - Also run `MinimalOpenAPI.IntegrationTests` to catch end-to-end regressions.
 - Run the smoke test (pack + build `sample/SmokeTest`) to confirm the packed NuGet artifact still works as a real downstream consumer would experience it.
-- Diagnostics live in `MinimalOpenAPI.Generator`; the codes are `MOA001`–`MOA005` (see `docs/architecture.md` §8).
+- Diagnostics live in `MinimalOpenAPI.Generator`; the codes are `MOA001`–`MOA017` (see `docs/architecture.md` §8).
 
 ### Runtime changes
 - Cover the change with a new or updated test in `MinimalOpenAPI.Runtime.Tests`.
@@ -143,11 +143,11 @@ find /tmp/smoketest-publish/openapi/schemas -name "openapi.yaml" | grep -q . && 
 ### Public API changes
 - Document them in `README.md` (usage examples, limitations).
 - Add XML doc comments to new public members.
-- Consider backward compatibility — until `1.0.0` is tagged, breaking changes are permitted but must be flagged in `CHANGELOG.md` (update or rewrite the relevant existing entry if one exists; add a new entry only if the change is not already represented — see changelog policy below).
+- Consider backward compatibility — since `1.0.0` has shipped, follow SemVer for breaking changes. Describe consumer-visible changes under `Unreleased` without rewriting published release sections.
 
 ### Changelog policy
 
-The changelog describes the **consumer-visible public surface** of the package; it is not an append-only activity log.
+The changelog describes the **consumer-visible public surface** of the package. Published release sections must be preserved, while unreleased content may be curated.
 The project is pre-1.0.0, so treat the `## Unreleased` section as a curated description of the planned 1.0.0 surface — revise and consolidate entries freely rather than appending to them.
 
 **Before touching `CHANGELOG.md`, ask two questions in order:**
