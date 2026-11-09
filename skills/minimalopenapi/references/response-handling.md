@@ -33,4 +33,4 @@ For multiple documents, set `OpenApiFile` to the **full configured item path** (
 
 Distinct handler response types are emitted in OpenAPI declaration order (deduplicated by result type). Two through six use flat ASP.NET Core `Results<...>`; more than six use **recursive tail-nested unions** (first five alternatives plus a sixth nested `Results<...>`). A nested alternative may need explicit conversion to its inner union and then outer union. Always inspect the generated `HandleAsync` signature after response changes, and adapt the override.
 
-See [the ResponseResults sample](../../../sample/ResponseResults/README.md) for a tested example.
+See [the ResponseResults sample](https://github.com/Kralizek/MinimalOpenApi/blob/master/sample/ResponseResults/README.md) for a tested example.
