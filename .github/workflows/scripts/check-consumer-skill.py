@@ -23,11 +23,22 @@ def main() -> None:
     guide = read(GUIDE)
     scenario = read(EVAL)
     assert re.search(r"\A---\nname: minimalopenapi\ndescription: .+\n---\n", skill), "Invalid skill frontmatter"
-    for doc in [SKILL, GUIDE, EVAL, ROOT / "README.md"]:
+    skill_dir = SKILL.parent
+    skill_docs = [SKILL, EVAL, *sorted((skill_dir / "references").glob("*.md"))]
+    for doc in [*skill_docs, GUIDE, ROOT / "README.md"]:
         content = read(doc)
-        for match in re.finditer(r"\]\(([^)]+\.md)(?:#[^)]*)?\)", content):
-            target = (doc.parent / match.group(1)).resolve()
-            assert target.is_relative_to(ROOT) and target.is_file(), f"Broken link in {doc.relative_to(ROOT)}: {match.group(1)}"
+        for match in re.finditer(r"\]\(([^)]+)\)", content):
+            destination = match.group(1).split("#", 1)[0]
+            if not destination or "://" in destination or destination.startswith(("mailto:", "#")):
+                continue
+            target = (doc.parent / destination).resolve()
+            assert target.is_relative_to(ROOT) and target.exists(), (
+                f"Broken local link in {doc.relative_to(ROOT)}: {destination}"
+            )
+            if doc in skill_docs:
+                assert target.is_relative_to(skill_dir), (
+                    f"Non-portable link in {doc.relative_to(ROOT)}: {destination}"
+                )
 
     for name in ["configuration", "generated-types", "response-handling", "diagnostics", "migration", "version-migration", "feature-support"]:
         assert f"references/{name}.md" in skill, f"Missing reference in SKILL.md: {name}"
