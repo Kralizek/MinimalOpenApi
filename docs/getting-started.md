@@ -14,7 +14,9 @@ MinimalOpenAPI is a contract-first OpenAPI framework for ASP.NET Core Minimal AP
 dotnet add package MinimalOpenAPI --version 1.1.0
 ```
 
-The example shows version 1.1.0; check the latest stable release for new projects and preserve an existing application's version unless upgrading.\n\n`MinimalOpenAPI` is the only package you need. It contains the source generator and the required ASP.NET Core runtime services.
+The example shows version 1.1.0; check the latest stable release for new projects and preserve an existing application's version unless upgrading.
+
+`MinimalOpenAPI` is the only package you need. It contains the source generator and the required ASP.NET Core runtime services.
 
 ## 2. Add an OpenAPI document
 
