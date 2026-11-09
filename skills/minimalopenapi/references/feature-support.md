@@ -1,6 +1,6 @@
 # OpenAPI feature support and boundaries
 
-Check the [repository feature matrix](../../../docs/schema-feature-roadmap.md) before choosing a construct. The table below summarizes the documented surface; it does **not** imply that an unsupported construct is invalid OpenAPI. These are limitations of **MinimalOpenAPI generation**.
+Check the [repository feature matrix](https://github.com/Kralizek/MinimalOpenApi/blob/master/docs/schema-feature-roadmap.md) before choosing a construct. The table below summarizes the documented surface; it does **not** imply that an unsupported construct is invalid OpenAPI. These are limitations of **MinimalOpenAPI generation**.
 
 ## Unsupported or deferred constructs
 
@@ -28,4 +28,4 @@ Check the [repository feature matrix](../../../docs/schema-feature-roadmap.md) b
 
 An agent must not quietly discard unsupported OpenAPI semantics, substitute an unrelated construct, or claim support based solely on OpenAPI validity. Explain the constraint, inspect the generator diagnostics, and agree on a contract-preserving path where possible.
 
-For precise details and future changes, consult [the feature support matrix](../../../docs/schema-feature-roadmap.md) and the installed package's release notes.
+For precise details and future changes, consult [the feature support matrix](https://github.com/Kralizek/MinimalOpenApi/blob/master/docs/schema-feature-roadmap.md) and the installed package's release notes.
