@@ -1,0 +1,34 @@
+name: Consumer Agent Skill
+
+on:
+  pull_request:
+    paths:
+      - 'skills/minimalopenapi/**'
+      - 'docs/consumer-agents.md'
+      - 'docs/getting-started.md'
+      - 'README.md'
+      - 'src/MinimalOpenAPI/README.md'
+      - '.github/workflows/consumer-skill.yml'
+      - '.github/workflows/scripts/check-consumer-skill.py'
+  push:
+    branches: [master]
+    paths:
+      - 'skills/minimalopenapi/**'
+      - 'docs/consumer-agents.md'
+      - 'docs/getting-started.md'
+      - 'README.md'
+      - 'src/MinimalOpenAPI/README.md'
+      - '.github/workflows/consumer-skill.yml'
+      - '.github/workflows/scripts/check-consumer-skill.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check consumer agent skill and references
+        run: python3 .github/workflows/scripts/check-consumer-skill.py

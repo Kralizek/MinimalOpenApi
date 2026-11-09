@@ -21,14 +21,14 @@ The OpenAPI document remains the source of truth; application code supplies only
 ## Installation
 
 ```shell
-dotnet add package MinimalOpenAPI --version 1.0.0
+dotnet add package MinimalOpenAPI --version 1.1.0
 ```
 
 Or add the package and OpenAPI document directly to the project file:
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="MinimalOpenAPI" Version="1.0.0" />
+  <PackageReference Include="MinimalOpenAPI" Version="1.1.0" />
   <OpenApi Include="openapi.yaml" />
 </ItemGroup>
 ```
@@ -36,6 +36,8 @@ Or add the package and OpenAPI document directly to the project file:
 `MinimalOpenAPI` is the only package consumers need. The parser and abstraction assemblies are bundled with the source generator and are not published as separate packages.
 
 For a focused walkthrough from installation to the first generated endpoint, see [Getting started](docs/getting-started.md).
+
+For new applications, verify the current stable NuGet version; 1.1.0 is illustrative, not a permanent pin. Preserve existing dependencies unless upgrading.
 
 ## Quick start
 
@@ -159,7 +161,7 @@ Example:
          ReadWriteSchemaHandling="Auto"
          PublishAs="/openapi/schema.yaml"
          DisplayName="Public API"
-         DisplayVersion="1.0.0" />
+         DisplayVersion="1.1.0" />
 ```
 
 Handler response filtering models **response ownership**: the OpenAPI contract describes every response a caller can observe, while the generated handler signature should contain only responses the handler implementation is responsible for producing. `<OpenApi>` configures document-wide generation settings, `<MinimalOpenApiHandler>` configures per-operation handler ownership, and `EndpointConfigurationBase` customizes the mapped endpoint at runtime.
@@ -352,4 +354,4 @@ Versions are derived from Git tags through MinVer. Release instructions are docu
 
 Contributions are welcome. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request. Changes to generated behavior should include tests and corresponding documentation.
 
-Coding agents working inside this repository should also read [`AGENTS.md`](AGENTS.md). Agents consuming MinimalOpenAPI in another project should use [`docs/consumer-agents.md`](docs/consumer-agents.md).
+Coding agents working inside this repository should also read [`AGENTS.md`](AGENTS.md). Agents consuming MinimalOpenAPI in another project—including migrating an existing code-first API—should use the [portable consumer skill](skills/minimalopenapi/SKILL.md), its [agent evaluation scenario](skills/minimalopenapi/evals/consumer-scenario.md), or the [consumer guide](docs/consumer-agents.md).

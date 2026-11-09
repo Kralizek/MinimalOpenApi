@@ -13,7 +13,7 @@ You author an OpenAPI 3.0 or 3.1 document in YAML or JSON. At build time, Minima
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="MinimalOpenAPI" Version="1.0.0" />
+  <PackageReference Include="MinimalOpenAPI" Version="1.1.0" />
   <OpenApi Include="openapi.yaml" />
 </ItemGroup>
 ```
@@ -28,6 +28,8 @@ var app = builder.Build();
 app.MapMinimalOpenApiEndpoints();
 app.Run();
 ```
+
+The version demonstrates the 1.1 feature set; verify the current stable version for new applications.
 
 Implement the generated `<OperationId>EndpointBase` class for each operation. No manual route or handler registration is required.
 
@@ -133,3 +135,5 @@ metadata.
 Full documentation, samples, limitations, architecture notes, and release guidance are available in the repository:
 
 https://github.com/Kralizek/MinimalOpenApi
+
+Consumer agents: [portable skill](https://github.com/Kralizek/MinimalOpenApi/tree/master/skills/minimalopenapi) and [consumer guide](https://github.com/Kralizek/MinimalOpenApi/blob/master/docs/consumer-agents.md).
