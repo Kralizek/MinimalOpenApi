@@ -383,7 +383,9 @@ See the [feature support reference](../skills/minimalopenapi/references/feature-
 | `NotImplementedException` at runtime | Missing override or call to base implementation | Override `HandleAsync` and remove the base call. |
 | Duplicate route at startup | Manual and generated mapping both register the operation | Remove the manual mapping. |
 
-## Existing projects
+## Migrating existing code-first applications
+
+Follow the [code-first migration playbook](../skills/minimalopenapi/references/migration.md) when replacing manual Minimal API or controller endpoints. Establish existing HTTP behavior as the compatibility baseline, create a per-endpoint migration report, and migrate one cohesive group at a time. Preserve route, serializer, middleware, authorization and error behavior; remove old mappings at cutover to avoid duplicates. The [MOA version migration guide](../skills/minimalopenapi/references/version-migration.md) addresses a different task: upgrading applications already using MOA.
 
 When integrating into an established application:
 
