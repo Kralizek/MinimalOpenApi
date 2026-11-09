@@ -11,10 +11,10 @@ MinimalOpenAPI is a contract-first OpenAPI framework for ASP.NET Core Minimal AP
 ## 1. Install the package
 
 ```shell
-dotnet add package MinimalOpenAPI --version 1.0.0
+dotnet add package MinimalOpenAPI --version 1.1.0
 ```
 
-`MinimalOpenAPI` is the only package you need. It contains the source generator and the required ASP.NET Core runtime services.
+The example shows version 1.1.0; check the latest stable release for new projects and preserve an existing application's version unless upgrading.\n\n`MinimalOpenAPI` is the only package you need. It contains the source generator and the required ASP.NET Core runtime services.
 
 ## 2. Add an OpenAPI document
 
@@ -62,7 +62,7 @@ Register the document in the project file:
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="MinimalOpenAPI" Version="1.0.0" />
+  <PackageReference Include="MinimalOpenAPI" Version="1.1.0" />
   <OpenApi Include="openapi.yaml" />
 </ItemGroup>
 ```
@@ -175,4 +175,4 @@ The returned descriptors can be passed to Swagger UI, Scalar, or another OpenAPI
 - Review the [supported feature matrix](schema-feature-roadmap.md).
 - Explore the focused projects under [`sample/`](../sample/).
 - Read the [architecture guide](architecture.md) for generated structure and diagnostics.
-- Use the [consumer agent guide](consumer-agents.md) when delegating integration work to a coding agent.
+- Use the [consumer agent skill](../skills/minimalopenapi/SKILL.md) or [consumer guide](consumer-agents.md) when delegating integration work to a coding agent.
