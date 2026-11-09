@@ -14,9 +14,13 @@ Create a per-endpoint migration table containing: route/method, current handler,
 
 Create an OpenAPI 3.0/3.1 YAML or JSON document and register it with an `<OpenApi Include="...">` MSBuild item. Preserve existing public routes, HTTP methods, route constraints, parameter names and sources, content types, status codes, JSON field names, casing, nullability, required fields, defaults and error shapes.
 
-**Semantic schema ownership:** use `components/schemas` for intentionally shared **business-level concepts**; use inline operation request/response schemas for **transport-only shapes**, even when two endpoints currently have identical DTOs. This avoids coupling endpoints whose wire contracts should evolve independently. JSON inline schemas may contain nested object properties and inline arrays of objects: MOA generates typed records for them. A transport schema can `$ref` a shared business concept.
+**Preserve established schema contracts:** retain existing named schemas and deliberate cross-operation reuse, including transport DTOs intentionally shared by multiple endpoints. Do not mechanically convert existing components into inline schemas. For new endpoint-specific shapes that should evolve independently, prefer inline request/response schemas; use `components/schemas` when a business concept **or transport contract** is intentionally shared and expected to evolve together. Decide by semantics and coupling, not by whether a schema is labeled business or transport. JSON inline schemas can contain nested objects and arrays of inline objects; MOA generates typed records for them. Inline shapes may also `$ref` shared components.
 
 Before coding, compare every construct to [feature support](feature-support.md). In particular `oneOf`/`anyOf`, binary or text response families, certain media types and multipart arrays of objects are not supported. Do **not** silently change semantics to fit generator capabilities; document and discuss blockers.
+
+## Optional: contracts also consumed by client SDK generators
+
+If the authored OpenAPI document drives server code **and** client SDKs, inventory every relevant consumer/generator and its version before changing the contract. Validate the proposed document with each relevant generator, not just MOA. Pay particular attention to differences in handling of nullability, required properties, `readOnly`/`writeOnly`, enums, and serialization. Review generated client API changes and downstream compatibility; document intentional breaking changes and migration steps. A successful server build alone does not prove clients remain compatible. This is a compatibility check, not a recommendation for a particular client generator.
 
 ## 3. Separate handler-owned and infrastructure-owned statuses
 
@@ -57,9 +61,9 @@ Run build, integration tests and smoke checks. Address generator diagnostics in 
 Operation: GET /customers/{id} -> operationId: getCustomer
 Current: route registration / handler / input binding / serializer
 Observed contract: statuses, content types, payload shape, policies
-Proposed contract: inline transport response; references to shared business schemas
+Proposed contract: endpoint-local shapes where appropriate; preserve intentionally shared named schemas
 Response owners: handler (200/404); middleware (401/403 if confirmed)
-Potential blockers: unsupported schemas/media types, custom filters/converters
+Potential blockers: unsupported schemas/media types, custom filters/converters, client generator compatibility (if applicable)
 Verification: baseline HTTP cases, new HTTP cases, parity results
 Cutover: old mapping removed, no duplicate endpoint, rollback strategy
 ```
