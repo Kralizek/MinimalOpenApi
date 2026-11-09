@@ -37,7 +37,9 @@ Or add the package and OpenAPI document directly to the project file:
 
 For a focused walkthrough from installation to the first generated endpoint, see [Getting started](docs/getting-started.md).
 
-For new applications, verify the current stable NuGet version; 1.1.0 is illustrative, not a permanent pin. Preserve existing dependencies unless upgrading.\n\n## Quick start
+For new applications, verify the current stable NuGet version; 1.1.0 is illustrative, not a permanent pin. Preserve existing dependencies unless upgrading.
+
+## Quick start
 
 ### 1. Define the contract
 
