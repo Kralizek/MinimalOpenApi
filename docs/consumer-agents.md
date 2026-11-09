@@ -173,11 +173,11 @@ General rules:
 
 When exact generated source is needed, enable Roslyn generated-file emission as documented in the repository README.
 
-## Shared business concepts versus endpoint transport schemas
+## Intentional schema sharing and independent endpoint evolution
 
-Use **`components/schemas` for shared business-level concepts** with stable, intentional meaning across operations, such as a domain entity or value object. Define **transport-only request and response shapes inline** under each operation's `requestBody` or response media type: commands, endpoint-specific projections, wrappers, and other wire contracts.
+For new endpoints, prefer **inline** request/response shapes under the operation's `requestBody` or response media type when those transport contracts should evolve independently. Use `components/schemas` for **intentionally shared contracts**, whether they represent business concepts (such as value objects) or transport DTOs that multiple operations deliberately share and are expected to evolve together.
 
-The goal is **independent endpoint evolution**, not simply reducing duplicate schema definitions. Two endpoints that happen to use identical request or response fields today should not automatically share a component: a shared transport DTO couples future changes to both endpoints. Conversely, if both endpoints genuinely refer to the same business concept, reference the shared schema even from within an inline transport object. Decide based on semantic ownership, not frequency of reuse.
+The decision is about **semantic ownership and intentional coupling**, not the business-versus-transport label or the number of identical fields. Do not extract identical endpoint DTOs merely for deduplication. When migrating an existing API, **preserve named schemas and deliberate reuse**, even for transport schemas; do not mechanically inline them. An inline endpoint shape may `$ref` any intentionally shared component.
 
 Nested inline objects and arrays of inline objects are supported for JSON and produce generated typed records. For example:
 
@@ -221,7 +221,7 @@ paths:
                     format: uuid
 ```
 
-MinimalOpenAPI generates operation-scoped request/response records and nested types from supported inline shapes. Those transport types can evolve without forcing changes to unrelated operations, while genuinely shared business concepts can remain referenced through `$ref`. Build and inspect the emitted names before implementing handlers; never invent nested C# symbols. This advice applies to JSON payloads: **multipart form arrays of objects and dictionaries are not supported**, even though JSON inline array item objects are.
+MinimalOpenAPI generates operation-scoped request/response records and nested types from supported inline shapes. Endpoint-specific transport types can evolve without forcing changes to unrelated operations, while intentionally shared business or transport schemas can remain referenced through `$ref`. Build and inspect the emitted names before implementing handlers; never invent nested C# symbols. This advice applies to JSON payloads: **multipart form arrays of objects and dictionaries are not supported**, even though JSON inline array item objects are.
 
 See the [generated-types reference](../skills/minimalopenapi/references/generated-types.md) and [feature matrix](schema-feature-roadmap.md).
 
@@ -385,7 +385,7 @@ See the [feature support reference](../skills/minimalopenapi/references/feature-
 
 ## Migrating existing code-first applications
 
-Follow the [code-first migration playbook](../skills/minimalopenapi/references/migration.md) when replacing manual Minimal API or controller endpoints. Establish existing HTTP behavior as the compatibility baseline, create a per-endpoint migration report, and migrate one cohesive group at a time. Preserve route, serializer, middleware, authorization and error behavior; remove old mappings at cutover to avoid duplicates. The [MOA version migration guide](../skills/minimalopenapi/references/version-migration.md) addresses a different task: upgrading applications already using MOA.
+Follow the [code-first migration playbook](../skills/minimalopenapi/references/migration.md) when replacing manual Minimal API or controller endpoints. Preserve established named schemas, deliberate transport-level reuse, and client-generator compatibility where relevant. Establish existing HTTP behavior as the compatibility baseline, create a per-endpoint migration report, and migrate one cohesive group at a time. Preserve route, serializer, middleware, authorization and error behavior; remove old mappings at cutover to avoid duplicates. The [MOA version migration guide](../skills/minimalopenapi/references/version-migration.md) addresses a different task: upgrading applications already using MOA.
 
 When integrating into an established application:
 
