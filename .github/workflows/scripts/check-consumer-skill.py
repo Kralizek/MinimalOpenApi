@@ -29,7 +29,7 @@ def main() -> None:
             target = (doc.parent / match.group(1)).resolve()
             assert target.is_relative_to(ROOT) and target.is_file(), f"Broken link in {doc.relative_to(ROOT)}: {match.group(1)}"
 
-    for name in ["configuration", "generated-types", "response-handling", "diagnostics", "migration"]:
+    for name in ["configuration", "generated-types", "response-handling", "diagnostics", "migration", "feature-support"]:
         assert f"references/{name}.md" in skill, f"Missing reference in SKILL.md: {name}"
         read(SKILL.parent / "references" / f"{name}.md")
 
@@ -39,6 +39,8 @@ def main() -> None:
     ]:
         assert value in guide, f"Missing consumer guide feature: {value}"
     assert "1.0 supports:" not in guide, "Outdated supported-version heading"
+    for value in ["oneOf", "anyOf", "inline", "nested"]:
+        assert value in guide and value in skill + read(SKILL.parent / "references" / "feature-support.md") + read(SKILL.parent / "references" / "generated-types.md"), f"Missing feature guidance: {value}"
     for value in ["401", "403", "seven", "build", "middleware"]:
         assert value in scenario, f"Evaluation scenario missing {value}"
     print("Consumer skill structure, links, version guidance and evaluation fixture: OK")
