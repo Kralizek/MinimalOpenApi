@@ -8,4 +8,4 @@
 6. New MOA015, MOA016 and MOA017 diagnostics catch invalid handler-response configuration, duplicate operation IDs and unsupported/unresolved schema references. Repair the contract or item metadata.
 7. Run the application's build/tests and exercise responses produced by middleware separately from business-handler responses.
 
-Reference [1.1 release notes](../../../CHANGELOG.md#110) and [consumer guide](../../../docs/consumer-agents.md). No generated file should be hand-edited during migration.
+Reference [1.1 release notes](https://github.com/Kralizek/MinimalOpenApi/blob/master/CHANGELOG.md#110) and [consumer guide](https://github.com/Kralizek/MinimalOpenApi/blob/master/docs/consumer-agents.md). No generated file should be hand-edited during migration.
