@@ -2,9 +2,11 @@
 
 After adding or changing an `<OpenApi>` item, run `dotnet build`; inspect the emitted `<OperationId>EndpointBase` and its exact `HandleAsync` override. Generated namespaces are `{RootNamespace}.{SpecName}.Contracts` and `{RootNamespace}.{SpecName}.Endpoints`. Use the actual emitted signature and namespace; never infer them solely from an OpenAPI name.
 
-## Prefer endpoint-local inline schemas when appropriate
+## Distinguish business schemas from transport schemas
 
-For request and response objects used by **one operation**, prefer declaring the object directly under the operation's media-type `schema` rather than creating a global `components/schemas` entry just to give it a name. This keeps endpoint-specific contracts scoped to the operation, and MinimalOpenAPI generates typed records for them.
+Use `components/schemas` for **shared business-level concepts** whose identity and semantics intentionally span API operations (for example, a domain entity or value object). Declare **transport-only request and response shapes inline**, directly beneath the operation's media-type `schema`. This includes endpoint-specific projections, commands, envelopes, filters, and response wrappers, even when two operations currently expose identical properties.
+
+The deciding factor is **semantic ownership**, not the number of references or whether two schemas happen to look alike. Reusing an endpoint-specific DTO through `components/schemas` couples otherwise independent endpoints: changing one endpoint's wire contract can accidentally force a change to another. Keep those shapes inline so each operation can evolve independently. Conversely, use a shared component when the contract truly represents the *same business concept*, whose shared evolution is intentional.
 
 Inline schemas can contain **nested object properties**, inline arrays of objects, and deeper nested combinations: these generate additional typed records rather than falling back to `object` or `object[]` for supported JSON shapes.
 
@@ -50,7 +52,7 @@ paths:
                     format: uuid
 ```
 
-Generated names are scoped and deterministic, but **inspect generated C# before coding against them**; do not invent nested type names. Use shared components for deliberately reusable domain contracts, cross-operation consistency, or when multiple operations truly share the same shape. Do not duplicate a shared contract as inline copies merely to follow a style rule.
+Generated names are scoped and deterministic, but **inspect generated C# before coding against them**; do not invent nested type names. A shared business concept may be referenced from several inline transport shapes. Do not extract transport DTOs into global components merely to deduplicate fields, and do not inline a genuine shared business concept simply to avoid a `$ref`.
 
 This recommendation concerns **JSON** request/response schemas. Multipart form arrays of objects and dictionaries remain unsupported (MOA011), even though JSON inline arrays of objects work.
 
