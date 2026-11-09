@@ -173,9 +173,11 @@ General rules:
 
 When exact generated source is needed, enable Roslyn generated-file emission as documented in the repository README.
 
-## Prefer inline schemas for endpoint-specific objects
+## Shared business concepts versus endpoint transport schemas
 
-When a request or response object belongs to just one operation, prefer declaring the schema **inline** under the operation's `requestBody` or response media type. You don't need a `components/schemas` entry for every object simply to obtain a generated C# type. Reserve reusable components for genuinely shared shapes or intentionally shared domain contracts.
+Use **`components/schemas` for shared business-level concepts** with stable, intentional meaning across operations, such as a domain entity or value object. Define **transport-only request and response shapes inline** under each operation's `requestBody` or response media type: commands, endpoint-specific projections, wrappers, and other wire contracts.
+
+The goal is **independent endpoint evolution**, not simply reducing duplicate schema definitions. Two endpoints that happen to use identical request or response fields today should not automatically share a component: a shared transport DTO couples future changes to both endpoints. Conversely, if both endpoints genuinely refer to the same business concept, reference the shared schema even from within an inline transport object. Decide based on semantic ownership, not frequency of reuse.
 
 Nested inline objects and arrays of inline objects are supported for JSON and produce generated typed records. For example:
 
@@ -219,7 +221,7 @@ paths:
                     format: uuid
 ```
 
-MinimalOpenAPI generates operation-scoped request/response records and nested types from supported inline shapes. Build and inspect the emitted names before implementing handlers; never invent nested C# symbols. This advice applies to JSON payloads: **multipart form arrays of objects and dictionaries are not supported**, even though JSON inline array item objects are.
+MinimalOpenAPI generates operation-scoped request/response records and nested types from supported inline shapes. Those transport types can evolve without forcing changes to unrelated operations, while genuinely shared business concepts can remain referenced through `$ref`. Build and inspect the emitted names before implementing handlers; never invent nested C# symbols. This advice applies to JSON payloads: **multipart form arrays of objects and dictionaries are not supported**, even though JSON inline array item objects are.
 
 See the [generated-types reference](../skills/minimalopenapi/references/generated-types.md) and [feature matrix](schema-feature-roadmap.md).
 
