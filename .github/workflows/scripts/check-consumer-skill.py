@@ -29,7 +29,7 @@ def main() -> None:
             target = (doc.parent / match.group(1)).resolve()
             assert target.is_relative_to(ROOT) and target.is_file(), f"Broken link in {doc.relative_to(ROOT)}: {match.group(1)}"
 
-    for name in ["configuration", "generated-types", "response-handling", "diagnostics", "migration", "feature-support"]:
+    for name in ["configuration", "generated-types", "response-handling", "diagnostics", "migration", "version-migration", "feature-support"]:
         assert f"references/{name}.md" in skill, f"Missing reference in SKILL.md: {name}"
         read(SKILL.parent / "references" / f"{name}.md")
 
