@@ -32,4 +32,4 @@ For multiple documents choose distinct `Namespace` metadata if derived names col
 
 `ReadWriteSchemaHandling`: `Ignore` is neutral, `Auto` creates directional request/response shapes when needed (default), and `Split` always creates directional graphs from body roots.
 
-Inspect [main documentation](../../../README.md) and [getting started](../../../docs/getting-started.md) before adopting optional conventions.
+Inspect [main documentation](https://github.com/Kralizek/MinimalOpenApi/blob/master/README.md) and [getting started](https://github.com/Kralizek/MinimalOpenApi/blob/master/docs/getting-started.md) before adopting optional conventions.
