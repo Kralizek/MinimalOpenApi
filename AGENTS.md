@@ -68,7 +68,7 @@ Depending on the task, inspect the relevant files before touching any code:
 - **Preserve the package split** unless the task explicitly requires restructuring.
 - **Extend existing patterns** (e.g. new type-mapping entry in `TypeMapper`, new parser following the `IOpenApiParser` pattern) rather than inventing new ones.
 - **Update docs and tests when behaviour changes** — if generated output changes, update generator test fixtures; if runtime behaviour changes, update runtime/integration tests; if public APIs change, update `README.md` and XML docs.
-- **Public API changes need extra care** — the project is moving toward 1.0; breaking changes require justification.
+- **Public API changes need extra care** — the project is post-1.0; follow SemVer and justify breaking changes.
 
 ---
 
@@ -148,7 +148,7 @@ find /tmp/smoketest-publish/openapi/schemas -name "openapi.yaml" | grep -q . && 
 ### Changelog policy
 
 The changelog describes the **consumer-visible public surface** of the package. Published release sections must be preserved, while unreleased content may be curated.
-The project is pre-1.0.0, so treat the `## Unreleased` section as a curated description of the planned 1.0.0 surface — revise and consolidate entries freely rather than appending to them.
+The project is post-1.0.0: curate the `## Unreleased` section for upcoming changes, and preserve published release sections as historical records.
 
 **Before touching `CHANGELOG.md`, ask two questions in order:**
 
