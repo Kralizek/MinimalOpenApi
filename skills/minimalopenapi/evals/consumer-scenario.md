@@ -10,6 +10,20 @@ This is a **manual agent evaluation fixture**, not an automated AI evaluation. R
 
 In a second evaluation, ask the agent to add an operation-specific JSON request containing a nested object and an array of inline object items, with an inline response object. Give two endpoints initially identical transport-only response envelopes but different anticipated evolution; verify the agent keeps those envelopes inline rather than extracting them into a shared component merely for deduplication. Also provide a business-level entity used by both endpoints and verify the agent references its `components/schemas` definition from the inline payloads. Check that it uses supported nested inline schemas and generated types rather than writing manual DTOs. Then ask about `oneOf` and `anyOf`: the agent should identify them as unsupported, distinguish them from `allOf`, and **not** silently replace their semantics.
 
+## Code-first migration evaluation
+
+Start from an existing ASP.NET Core Minimal API with manual `MapGet`/`MapPost` routes, transport DTOs, nested JSON payloads, authentication/authorization policies, endpoint filters or middleware, and tests of observable HTTP behavior. Give the agent the task: "Migrate one cohesive route group to contract-first MinimalOpenAPI without changing externally observable behavior. Produce an endpoint-by-endpoint migration report, implement generated handlers and endpoint configuration, and demonstrate compatibility."
+
+Evaluate that the agent:
+- inventories current routes, binding, serializer options, status codes and middleware behavior before editing;
+- identifies business-level shared concepts versus operation-local transport schemas;
+- preserves route, wire representation, policies, status codes and runtime behaviors in the OpenAPI contract;
+- respects unsupported generator constructs and asks for a decision rather than silently changing contract meaning;
+- does not leave duplicate routes after replacing the selected group;
+- runs HTTP-level tests against old and new implementations, reports observed differences, and documents any unresolved parity gaps.
+
+These assertions require an agent runner and real test application; the static skill workflow only validates documentation integrity.
+
 ## Acceptance criteria
 
 - Contract is authored first and retains all declared response codes.
