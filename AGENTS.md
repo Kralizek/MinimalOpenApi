@@ -5,7 +5,9 @@ It is not a replacement for [`README.md`](README.md) or [`CONTRIBUTING.md`](CONT
 
 ---
 
-**Audience separation:** This file is for agents modifying the MinimalOpenAPI repository. For agents using MinimalOpenAPI in another application, use [`skills/minimalopenapi/SKILL.md`](skills/minimalopenapi/SKILL.md) or [`docs/consumer-agents.md`](docs/consumer-agents.md). Keep these resources in sync when consumer APIs change.\n\n## 1. Repository purpose
+**Audience separation:** This file is for agents modifying the MinimalOpenAPI repository. For agents using MinimalOpenAPI in another application, use [`skills/minimalopenapi/SKILL.md`](skills/minimalopenapi/SKILL.md) or [`docs/consumer-agents.md`](docs/consumer-agents.md). Keep these resources in sync when consumer APIs change.
+
+## 1. Repository purpose
 
 MinimalOpenAPI is a **contract-first** OpenAPI framework for ASP.NET Core Minimal APIs.
 You author an OpenAPI YAML or JSON spec; a Roslyn incremental source generator reads it at build time and emits DTO records, abstract handler base classes, DI registration, and endpoint mapping.
@@ -35,7 +37,9 @@ sample/
   Parameters/          ← demonstrates all parameter kinds (path, query, header, cookie, component $ref)
   SchemaShapes/        ← demonstrates DTO shapes (enums, allOf, readOnly/writeOnly, additionalProperties)
   ResponseResults/     ← demonstrates typed result and problem wrapper types
-  GeneratedFiles/      ← demonstrates EmitCompilerGeneratedFiles to inspect generated output\n  MultipartNested/     ← multipart form fields and nested objects\n  ResponseResults/     ← typed response handling and middleware-owned statuses
+  GeneratedFiles/      ← demonstrates EmitCompilerGeneratedFiles to inspect generated output
+  MultipartNested/     ← multipart form fields and nested objects
+  ResponseResults/     ← typed response handling and middleware-owned statuses
 docs/
   architecture.md               ← internals, data flow, design decisions, extensibility
   releasing.md                  ← versioning (MinVer / Git tags) and release process
