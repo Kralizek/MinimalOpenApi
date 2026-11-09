@@ -2,6 +2,58 @@
 
 After adding or changing an `<OpenApi>` item, run `dotnet build`; inspect the emitted `<OperationId>EndpointBase` and its exact `HandleAsync` override. Generated namespaces are `{RootNamespace}.{SpecName}.Contracts` and `{RootNamespace}.{SpecName}.Endpoints`. Use the actual emitted signature and namespace; never infer them solely from an OpenAPI name.
 
+## Prefer endpoint-local inline schemas when appropriate
+
+For request and response objects used by **one operation**, prefer declaring the object directly under the operation's media-type `schema` rather than creating a global `components/schemas` entry just to give it a name. This keeps endpoint-specific contracts scoped to the operation, and MinimalOpenAPI generates typed records for them.
+
+Inline schemas can contain **nested object properties**, inline arrays of objects, and deeper nested combinations: these generate additional typed records rather than falling back to `object` or `object[]` for supported JSON shapes.
+
+```yaml
+paths:
+  /orders:
+    post:
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customer]
+              properties:
+                customer:
+                  type: object
+                  required: [name]
+                  properties:
+                    name:
+                      type: string
+                lines:
+                  type: array
+                  items:
+                    type: object
+                    required: [sku, quantity]
+                    properties:
+                      sku:
+                        type: string
+                      quantity:
+                        type: integer
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orderId:
+                    type: string
+                    format: uuid
+```
+
+Generated names are scoped and deterministic, but **inspect generated C# before coding against them**; do not invent nested type names. Use shared components for deliberately reusable domain contracts, cross-operation consistency, or when multiple operations truly share the same shape. Do not duplicate a shared contract as inline copies merely to follow a style rule.
+
+This recommendation concerns **JSON** request/response schemas. Multipart form arrays of objects and dictionaries remain unsupported (MOA011), even though JSON inline arrays of objects work.
+
 Typical mappings:
 - Path parameters become direct handler parameters; query, header, and cookie parameters appear in nested `Parameters` records. Cookie binding needs application-specific access.
 - Inline body objects become nested `Request` records; component object schemas become contracts; string enums become C# enums; `allOf` object branches flatten.
