@@ -5,11 +5,11 @@ description: Implement and maintain contract-first ASP.NET Core Minimal APIs usi
 
 # MinimalOpenAPI consumer skill
 
-Use this skill when a project references `MinimalOpenAPI` or asks to implement a contract-first ASP.NET Core Minimal API using it. This is **consumer guidance**, not instructions for changing the MinimalOpenAPI generator repository.
+Use this skill when a project references `MinimalOpenAPI`, asks to implement a contract-first ASP.NET Core Minimal API, or needs to migrate an existing code-first ASP.NET Core API. This is **consumer guidance**, not instructions for changing the MinimalOpenAPI generator repository.
 
 ## Workflow
 
-1. Inspect the application's existing package version, target framework, OpenAPI documents, and route/DI registration before making changes. Require .NET 10 and OpenAPI 3.0/3.1 YAML or JSON.
+1. Inspect the application's existing package version, target framework, OpenAPI documents, and route/DI registration before making changes. If migrating from code-first, follow the [migration playbook](references/migration.md) and establish baseline HTTP behavior before replacing endpoints. Require .NET 10 and OpenAPI 3.0/3.1 YAML or JSON.
 2. Use the **single** `MinimalOpenAPI` NuGet package. For new projects select an appropriate current stable version; do not mechanically install an example's historical version. Preserve the chosen version when editing an existing application unless an upgrade is requested.
 3. Edit the authored OpenAPI contract first. Give each operation a unique `operationId`, then register the document using an `<OpenApi Include="..." />` MSBuild item.
 4. Model **shared business-level concepts** in `components/schemas`; keep **transport-only request/response shapes inline** within the operation, including nested objects and inline array item objects. Identical wire shapes alone do not justify sharing: endpoints should be able to evolve independently; see [generated types](references/generated-types.md).
@@ -27,7 +27,8 @@ Use this skill when a project references `MinimalOpenAPI` or asks to implement a
 - [Feature support and limitations](references/feature-support.md) — unsupported OpenAPI constructs and partial runtime support.
 - [Response handling](references/response-handling.md) — filtering, middleware ownership, and nested `Results<>`.
 - [Diagnostics](references/diagnostics.md) — troubleshooting MOA001–MOA017.
-- [Migration](references/migration.md) — using 1.1 features and avoiding assumptions from 1.0.
+- [Migration from code-first](references/migration.md) — inventory and preserve externally visible HTTP behavior while adopting MOA incrementally.
+- [Migration between MOA versions](references/version-migration.md) — adopting 1.1 features and avoiding outdated 1.0 assumptions.
 
 ## Hard constraints
 
