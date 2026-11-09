@@ -173,6 +173,56 @@ General rules:
 
 When exact generated source is needed, enable Roslyn generated-file emission as documented in the repository README.
 
+## Prefer inline schemas for endpoint-specific objects
+
+When a request or response object belongs to just one operation, prefer declaring the schema **inline** under the operation's `requestBody` or response media type. You don't need a `components/schemas` entry for every object simply to obtain a generated C# type. Reserve reusable components for genuinely shared shapes or intentionally shared domain contracts.
+
+Nested inline objects and arrays of inline objects are supported for JSON and produce generated typed records. For example:
+
+```yaml
+paths:
+  /orders:
+    post:
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customer]
+              properties:
+                customer:
+                  type: object
+                  required: [name]
+                  properties:
+                    name:
+                      type: string
+                lines:
+                  type: array
+                  items:
+                    type: object
+                    required: [sku]
+                    properties:
+                      sku:
+                        type: string
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orderId:
+                    type: string
+                    format: uuid
+```
+
+MinimalOpenAPI generates operation-scoped request/response records and nested types from supported inline shapes. Build and inspect the emitted names before implementing handlers; never invent nested C# symbols. This advice applies to JSON payloads: **multipart form arrays of objects and dictionaries are not supported**, even though JSON inline array item objects are.
+
+See the [generated-types reference](../skills/minimalopenapi/references/generated-types.md) and [feature matrix](schema-feature-roadmap.md).
+
 ## `readOnly` and `writeOnly`
 
 The default mode is `Auto`:
@@ -287,14 +337,29 @@ MinimalOpenAPI 1.1 supports:
 
 Before adding manual models or endpoints, check the repository README, samples, and feature support matrix.
 
-## Current limitations
+## Unsupported or partially supported OpenAPI constructs
 
-- `oneOf` and `anyOf` are not supported.
+The following are limitations of MinimalOpenAPI's generator, **not** invalid OpenAPI syntax. Do not silently delete semantics or substitute a different construct to make generation succeed.
+
+- **`oneOf` and `anyOf`:** polymorphic/union models are not supported. Do not replace either with `allOf`: the semantics differ. Object `allOf` flattening is supported, subject to incompatible-property diagnostics/fallback.
+- **OpenAPI 2.0:** not supported; use OpenAPI 3.0 or 3.1.
+- **Request media types:** JSON and multipart are supported; other media types are deferred. Multiple request media types are limited, with JSON preferred where JSON and multipart coexist.
+- **Response media types:** non-JSON text, binary/file, and multiple response media types are not generated.
+- **Multipart form shapes:** arrays of objects and dictionaries are unsupported (MOA011), unlike JSON inline object arrays.
+- **Parameter serialization:** `style` and `explode` configuration is not generated.
+- **Response headers:** not generated as typed response contracts.
+- **DTO property `default`:** not generated; supported operation parameter defaults are generated.
+- **`deprecated` mapping:** generation of corresponding C# obsolete metadata is deferred.
+- **`example` / `examples`:** retained in authored documentation but not emitted as generated C# metadata.
+
+See the [feature support reference](../skills/minimalopenapi/references/feature-support.md) and the detailed [feature roadmap](schema-feature-roadmap.md).
+
+## Other runtime limitations
+
 - Runtime `DataAnnotations` validation is not automatically executed by ASP.NET Core Minimal APIs.
 - Cookie parameters require application-specific binding or `HttpContext` access.
 - Multipart arrays of objects and dictionaries are not supported.
 - Non-JSON text and binary response families are not yet generated.
-- OpenAPI 2.0 is not supported.
 
 ## Troubleshooting
 
