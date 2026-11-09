@@ -14,6 +14,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout for consumer skill validation
+        uses: actions/checkout@v6
+
       - name: Check consumer agent skill and references
         run: python3 scripts/check-consumer-skill.py
 
