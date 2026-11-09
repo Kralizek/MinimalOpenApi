@@ -17,6 +17,6 @@ Run `dotnet build` after modifying the OpenAPI contract or MSBuild metadata. Do 
 | MOA016 | Duplicate `operationId`: assign unique operation IDs in the contract. |
 | MOA017 | Unresolved/unsupported schema `$ref`: use supported local component references and fix the contract. |
 
-Other MOA diagnostics are documented in the [architecture guide](../../../docs/architecture.md); this quick table intentionally focuses on consumer actions rather than guessing remaining codes. Missing types often mean a failed generator run, a wrong document path or namespace, or a signature changed after regeneration.
+Other MOA diagnostics are documented in the [architecture guide](https://github.com/Kralizek/MinimalOpenApi/blob/master/docs/architecture.md); this quick table intentionally focuses on consumer actions rather than guessing remaining codes. Missing types often mean a failed generator run, a wrong document path or namespace, or a signature changed after regeneration.
 
 Validate with `dotnet build --warnaserror`, application tests and endpoint smoke tests. Verify response status and body as well as the generated C# signature.
