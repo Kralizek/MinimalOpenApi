@@ -17,12 +17,13 @@ Use this skill when a project references `MinimalOpenAPI`, asks to implement a c
 6. Build to inspect generated types and `HandleAsync` signatures. Do not guess names or signatures and never edit generated C#.
 7. Implement one concrete `<OperationId>EndpointBase` per operation. Register `builder.Services.AddMinimalOpenApi()` and `app.MapMinimalOpenApiEndpoints()` once; do not duplicate routes or register generated handlers manually.
 8. Separate contract responses (every HTTP status a caller may observe) from **handler-owned** responses. Before filtering, identify which layer actually produces each status; see [response handling](references/response-handling.md).
-9. Use generated `<OperationId>EndpointConfigurationBase` for endpoint policies such as authorization and antiforgery. Rebuild and address all generator diagnostics before considering work complete.
+9. Use generated `<OperationId>EndpointConfigurationBase` for operation-specific routing policies and the `RouteGroupBuilder` returned by `MapMinimalOpenApiEndpoints()` only for policies intended for **all** generated operations. Check configuration lifetime, mapping-time execution, and necessary application services in [endpoint configuration](references/endpoint-configuration.md). Rebuild and address all generator diagnostics before considering work complete.
 10. Validate the built application and exercise affected endpoints. See the [repository samples](https://github.com/Kralizek/MinimalOpenApi/blob/master/sample/README.md) for additional concrete shapes (optional; bundled references contain the essential guidance).
 
 ## Load only what is needed
 
 - [Configuration and installation](references/configuration.md) — MSBuild metadata, multiple documents, publishing, and wiring.
+- [Endpoint configuration](references/endpoint-configuration.md) — per-operation hooks, global route-group policies, mapping-time behavior, lifetimes and middleware responsibilities.
 - [Generated types](references/generated-types.md) — inline and nested schemas, binding, responses, forms, directional schemas, namespaces.
 - [Feature support and limitations](references/feature-support.md) — unsupported OpenAPI constructs and partial runtime support.
 - [Response handling](references/response-handling.md) — filtering, middleware ownership, and nested `Results<>`.
