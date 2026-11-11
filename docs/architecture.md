@@ -147,7 +147,7 @@ six public methods (in namespace `MinimalOpenAPI`):
   maps routes onto the shared `RouteGroupBuilder` created by `MapMinimalOpenApiEndpoints`.
 - **`AddMinimalOpenApi(IServiceCollection)`** — called by the application in
   `Program.cs`.  Invokes all registered `RegisterGeneratedServices` callbacks.
-- **`MapMinimalOpenApiEndpoints(IEndpointRouteBuilder, string?)`** — called by
+- **`MapMinimalOpenApiEndpoints(IEndpointRouteBuilder)`** — called by
   the application in `Program.cs`.  Creates a single `RouteGroupBuilder` and invokes
   all registered `RegisterEndpointMapping` callbacks with it.  Falls back gracefully
   if no generator has run.
