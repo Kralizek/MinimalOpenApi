@@ -40,7 +40,7 @@ The above is illustrative, **not a default**: reinclude 403 only if that handler
 
 Install the single `MinimalOpenAPI` NuGet package, retaining existing application versions unless an upgrade was authorized; target .NET 10. Build after adding the OpenAPI document. Inspect actual generated namespaces, contract types and `HandleAsync` signatures before implementing one concrete `<OperationId>EndpointBase` per operation. Do not edit generated source or invent generated type names.
 
-Register `builder.Services.AddMinimalOpenApi()` and `app.MapMinimalOpenApiEndpoints()` once. Transfer endpoint-specific policies into `<OperationId>EndpointConfigurationBase` when appropriate; preserve app-wide middleware and services. Do not assume declarative security metadata sets up authentication, or that generated data annotations automatically execute validation.
+Register `builder.Services.AddMinimalOpenApi()` and `app.MapMinimalOpenApiEndpoints()` once. Transfer endpoint-specific policies into `<OperationId>EndpointConfigurationBase` when appropriate; preserve app-wide middleware and services. Inspect the old application's per-route authorization, endpoint filters, rate limits, antiforgery, request limits, and metadata before choosing per-operation versus shared route-group policies. [Endpoint configuration](endpoint-configuration.md) documents registration, singleton lifetime, mapping-time execution, and the global group (shared across all MOA documents). Do not assume declarative security metadata sets up authentication, or that generated data annotations automatically execute validation.
 
 **Avoid duplicate routes.** Plan the cutover so old manual/controller mappings and new generated mappings do not both claim the same method/path. When migrating a portion of an application, ensure the new contract contains only the operations intended to be mapped in that stage, or use a controlled route-switching mechanism. Do not delete the old implementation before verifying replacement behavior.
 
@@ -52,6 +52,7 @@ Compare the existing implementation and MOA implementation using automated HTTP-
 - Successful, not-found, validation, conflict and error responses, including Problem Details where used.
 - Authorized, unauthorized and forbidden requests; middleware-owned response metadata and actual runtime behavior.
 - Headers, caching, filters, rate limiting, antiforgery, exception handling and custom JSON converters as relevant.
+- Endpoint configuration parity: verify real runtime authorization/filter/rate-limit behavior, and ensure group-level policies do not unintentionally affect unrelated operations or documents.
 
 Run build, integration tests and smoke checks. Address generator diagnostics in the contract or application, not by duplicating routes or introducing guessed DTOs. Remove old registrations after the replacement is verified. Migrate one operation or cohesive route group at a time, preserving rollback options.
 
