@@ -8,6 +8,7 @@ For an OpenAPI operation with `operationId: getOrder`, the generator creates an 
 
 ```csharp
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
 
 public sealed class GetOrderEndpointConfiguration
@@ -31,6 +32,8 @@ The generator applies contract-derived metadata (such as operation name, summary
 `RequireAuthorization("Orders.Read")` and `RequireRateLimiting("api")` attach policies to the endpoint; they do not create those policies or set up the required authentication, authorization, and rate-limiting services/middleware. Configure those using normal ASP.NET Core APIs, for example:
 
 ```csharp
+using Microsoft.AspNetCore.RateLimiting;
+
 builder.Services.AddAuthorization(options =>
     options.AddPolicy("Orders.Read", policy => policy.RequireAuthenticatedUser()));
 builder.Services.AddRateLimiter(options =>
@@ -44,8 +47,9 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddMinimalOpenApi();
 
 var app = builder.Build();
-app.UseRateLimiter();
-// Configure the necessary authentication/authorization middleware as appropriate.
+app.UseRouting();
+app.UseRateLimiter(); // After UseRouting for endpoint-specific policies.
+// Configure UseAuthentication / UseAuthorization for the real auth scheme as appropriate.
 app.MapMinimalOpenApiEndpoints();
 app.Run();
 ```
