@@ -24,6 +24,20 @@ Evaluate that the agent:
 
 These assertions require an agent runner and real test application; the static skill workflow only validates documentation integrity.
 
+## Endpoint configuration evaluation
+
+Supply an operation requiring a named authorization policy and a rate-limit policy, alongside a second operation that should remain unaffected. Ask the agent to configure the generated endpoint without adding a manual route.
+
+Evaluate whether the agent:
+- implements exactly one concrete generated `<OperationId>EndpointConfigurationBase` with `Configure(RouteHandlerBuilder)`, without manual registration;
+- configures required application services, authentication/authorization and rate-limiter middleware instead of assuming route metadata alone enforces the policies;
+- distinguishes the per-operation hook from the `RouteGroupBuilder` returned by `MapMinimalOpenApiEndpoints()`, which applies conventions to **every** generated document;
+- avoids capturing scoped services or request state in the singleton configuration and uses per-request filters/middleware for runtime logic;
+- tests permitted and denied requests and rate-limit behavior via actual HTTP requests, not only compilation;
+- treats `MapOpenApiSchemas()` routes as separate from the generated endpoint group and reviews their visibility when publishing is enabled.
+
+This is a manual agent scenario; static CI cannot validate runtime policy enforcement.
+
 ## Acceptance criteria
 
 - Contract is authored first and retains all declared response codes.
@@ -31,6 +45,7 @@ These assertions require an agent runner and real test application; the static s
 - Code uses generated handlers, not manual duplicate route registration or edited generated sources.
 - 401/403 exclusions affect the GET handler signature, not its OpenAPI response metadata.
 - Security middleware is actually configured for the endpoint, not assumed from filtered signatures.
+- Endpoint configurations respect singleton/mapping-time semantics, don't unintentionally apply policies globally, and are covered by HTTP-level policy tests.
 - The seven-response operation compiles using generated nested `Results<...>` type, without arbitrarily filtering handler-owned statuses.
 - New endpoint-specific JSON schemas remain inline when independent evolution is intended; deliberately shared existing business **or transport** schemas retain their named `components/schemas` definitions and `$ref` links; nested objects and inline array item objects use generated types. Unsupported `oneOf`/`anyOf` are explained without unsafe substitution.
 - No MOA001–MOA017 diagnostic remains and `dotnet build`, application tests and endpoint checks succeed.

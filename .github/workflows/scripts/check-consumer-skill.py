@@ -40,7 +40,7 @@ def main() -> None:
                     f"Non-portable link in {doc.relative_to(ROOT)}: {destination}"
                 )
 
-    for name in ["configuration", "generated-types", "response-handling", "diagnostics", "migration", "version-migration", "feature-support"]:
+    for name in ["configuration", "endpoint-configuration", "generated-types", "response-handling", "diagnostics", "migration", "version-migration", "feature-support"]:
         assert f"references/{name}.md" in skill, f"Missing reference in SKILL.md: {name}"
         read(SKILL.parent / "references" / f"{name}.md")
 

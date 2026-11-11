@@ -277,7 +277,9 @@ For operation-specific policies, inherit from the generated abstract `<Operation
 
 MinimalOpenAPI applies contract-derived endpoint metadata before invoking this method, so the application configuration is the final configuration layer. Configure authorization, rate limiting, request limits, antiforgery, OpenAPI metadata, and other endpoint conventions here rather than editing generated mapping code.
 
-Only one concrete configuration may exist per operation; duplicates produce `MOA003`.
+Only one concrete configuration may exist per operation; duplicates produce `MOA003`. Configurations are generated as singleton registrations and run during endpoint mapping, **not per request**. Do not inject scoped services into them. The `RouteGroupBuilder` returned by `app.MapMinimalOpenApiEndpoints()` may be configured for policies shared by **all** generated endpoints across all OpenAPI documents; this is distinct from per-operation configuration. Published schemas from `MapOpenApiSchemas()` are mapped separately and must be secured separately when necessary.
+
+See the [dedicated endpoint-configuration reference](../skills/minimalopenapi/references/endpoint-configuration.md) for examples, policy registration, lifetime and troubleshooting.
 
 ## Publishing the authored document
 
