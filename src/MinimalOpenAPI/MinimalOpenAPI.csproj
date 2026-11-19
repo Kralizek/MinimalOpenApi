@@ -5,9 +5,9 @@
       Multi-targeted intentionally:
         netstandard2.0  — builds the Roslyn generator and its bundled parser assemblies
                           for the compiler host; this TFM is packed under analyzers/dotnet/cs.
-        net10.0         — builds the ASP.NET Core runtime services packed under lib/net10.0.
+        net10.0/net11.0 — ASP.NET Core runtime services, packed under each lib/ TFM.
     -->
-    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net10.0;net11.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>MinimalOpenAPI</PackageId>
@@ -17,13 +17,13 @@
     <PackageTags>openapi;swagger;aspnetcore;source-generator;contract-first;roslyn</PackageTags>
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>15.0</LangVersion>
     <Description>Contract-first OpenAPI framework for ASP.NET Core. Includes the Roslyn source generator and runtime services (AddMinimalOpenApi, MapMinimalOpenApiEndpoints).</Description>
     <!-- Suppress NU5128: expected for Roslyn analyzer packages with no netstandard2.0 lib/ entry -->
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <!--
       Only suppress build output for the analyzer TFM (netstandard2.0).
-      The net10.0 build produces the runtime DLL that lands in lib/net10.0/.
+      The runtime builds produce the assemblies under lib/net10.0/ and lib/net11.0/.
     -->
     <IncludeBuildOutput Condition="'$(TargetFramework)' == 'netstandard2.0'">false</IncludeBuildOutput>
     <IncludeSymbols>true</IncludeSymbols>
@@ -58,17 +58,17 @@
     <ProjectReference Include="../MinimalOpenAPI.Parser.Json/MinimalOpenAPI.Parser.Json.csproj" PrivateAssets="all" />
   </ItemGroup>
 
-  <!-- ── net10.0 only: ASP.NET Core for the runtime extension methods ─────── -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+  <!-- ── ASP.NET Core for both runtime assemblies ───────────────────────── -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' Or '$(TargetFramework)' == 'net11.0'">
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <!--
     RS1035 (banned File/Directory I/O in analyzers) is enforced by EnforceExtendedAnalyzerRules
-    across all TFMs. The runtime code in lib/net10.0/ is not an analyzer, so the restriction
+    across all TFMs. The runtime code under lib/ is not an analyzer, so the restriction
     does not apply there.
   -->
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0' Or '$(TargetFramework)' == 'net11.0'">
     <NoWarn>$(NoWarn);RS1035</NoWarn>
   </PropertyGroup>
 
