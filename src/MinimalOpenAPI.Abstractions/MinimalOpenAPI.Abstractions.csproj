@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>15.0</LangVersion>
     <PackageId>MinimalOpenAPI.Abstractions</PackageId>
     <Title>MinimalOpenAPI Abstractions</Title>
     <IsPackable>false</IsPackable>
