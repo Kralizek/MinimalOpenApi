@@ -18,7 +18,7 @@ The repository publishes one package: `MinimalOpenAPI`.
 
 It contains:
 
-- `lib/net10.0/MinimalOpenAPI.dll` for ASP.NET Core runtime services;
+- `lib/net10.0/MinimalOpenAPI.dll` and `lib/net11.0/MinimalOpenAPI.dll` for ASP.NET Core runtime services;
 - the Roslyn generator and bundled parser assemblies under `analyzers/dotnet/cs/`;
 - `build/` and `buildTransitive/` targets;
 - the NuGet README;
