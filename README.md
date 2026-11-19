@@ -14,7 +14,7 @@ The OpenAPI document remains the source of truth; application code supplies only
 
 ## Requirements
 
-- .NET 10
+- .NET 10 or .NET 11
 - ASP.NET Core
 - An OpenAPI 3.0 or 3.1 document in YAML or JSON
 
