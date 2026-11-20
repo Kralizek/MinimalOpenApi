@@ -18,4 +18,10 @@
     <PackageReference Include="NUnit.Analyzers" />
   </ItemGroup>
 
+  <Import Project="..\..\src\MinimalOpenAPI\buildTransitive\MinimalOpenAPI.targets" />
+
+  <ItemGroup>
+    <OpenApi Include="union-openapi.yaml" Namespace="Generated" />
+  </ItemGroup>
+
 </Project>

@@ -163,4 +163,13 @@ internal static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    /// <summary>A schema union cannot be represented without changing or guessing its wire shape.</summary>
+    public static readonly DiagnosticDescriptor UnsupportedUnionSchema = new(
+        id: "MOA018",
+        title: "Unsupported schema union",
+        messageFormat: "Schema union at '{0}' is not supported: {1}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
 }
