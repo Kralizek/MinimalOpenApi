@@ -574,6 +574,7 @@ The DTO emitter uses System.Text.Json 11 union metadata and either default scala
 | **MOA016** | Error | Two or more operations in one OpenAPI document share an `operationId`; generation is aborted for that document. |
 | **MOA017** | Error | A schema `$ref` is unresolved or unsupported. MinimalOpenAPI currently supports only local `#/components/schemas/{name}` references; generation is aborted for that document. |
 | **MOA018** | Error | A schema union cannot be safely represented or bound. The diagnostic names the schema or operation path and explains the unsupported shape; generation is aborted for that document. |
+| **MOA019** | Error | A document would generate schema unions, but the consumer compilation does not reference the System.Text.Json union API. Generation is aborted for that document. |
 
 ---
 

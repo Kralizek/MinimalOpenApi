@@ -39,6 +39,7 @@ internal static class GeneratorTestHelper
     /// <param name="publishAs">Optional explicit HTTP path metadata.</param>
     /// <param name="displayName">Optional display name metadata.</param>
     /// <param name="displayVersion">Optional display version metadata.</param>
+    /// <param name="includeJsonUnionReference">Whether the consumer compilation references the System.Text.Json union API.</param>
     public static (GeneratorDriverRunResult Result, Compilation OutputCompilation) RunGenerator(
         string userSource,
         IEnumerable<(string FileName, string Content)> additionalFiles,
@@ -51,7 +52,8 @@ internal static class GeneratorTestHelper
         string? displayVersion = null,
         string? readWriteSchemaHandling = null,
         IReadOnlyDictionary<string, string>? globalExclusionsByFile = null,
-        IReadOnlyList<(string? OpenApiFile, string? Include, string? IncludeStatusCodes, string? ExcludeStatusCodes)>? handlers = null)
+        IReadOnlyList<(string? OpenApiFile, string? Include, string? IncludeStatusCodes, string? ExcludeStatusCodes)>? handlers = null,
+        bool includeJsonUnionReference = false)
     {
         // Create a minimal compilation for the generator
         var references = new List<MetadataReference>
@@ -65,6 +67,9 @@ internal static class GeneratorTestHelper
             .FirstOrDefault(a => a.GetName().Name == "System.Runtime");
         if (systemRuntime is not null)
             references.Add(MetadataReference.CreateFromFile(systemRuntime.Location));
+
+        if (includeJsonUnionReference)
+            references.Add(MetadataReference.CreateFromFile(typeof(System.Text.Json.Serialization.JsonUnionAttribute).Assembly.Location));
 
         var compilation = CSharpCompilation.Create(
             assemblyName: rootNamespace,

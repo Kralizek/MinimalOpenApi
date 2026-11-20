@@ -255,7 +255,7 @@ components:
 
 Unions can also be inline in JSON request and response schemas, object properties, and array items. The generated handler can use a schema union as a typed result payload, such as `Results<Ok<Value>, NoContent>`; the outer `Results<>` still represents HTTP statuses.
 
-Use the .NET 11 SDK and C# 15 (`<LangVersion>15.0</LangVersion>` if not already selected). On `net11.0`, use the framework's System.Text.Json 11. On `net10.0`, add an explicit `System.Text.Json` 11 package reference to the application; MinimalOpenAPI supplies the compiler marker types for unions. Applications without schema unions don't need this additional reference.
+Use the .NET 11 SDK and C# 15 (`<LangVersion>15.0</LangVersion>` if not already selected). On `net11.0`, use the framework's System.Text.Json 11. On `net10.0`, add an explicit `System.Text.Json` 11 package reference to the application; MinimalOpenAPI supplies the compiler marker types for unions. If the union API is missing, MOA019 points to the OpenAPI file. Applications without schema unions don't need this additional reference.
 
 - Use scalar alternatives with distinct JSON token types, or object alternatives with distinct required properties. Object alternatives can be inline or local component references. Under ASP.NET Core's web JSON defaults, strings and numbers cannot share a union because quoted numbers may be accepted as numbers.
 - For objects that cannot be distinguished structurally, use an authored string discriminator with explicit mappings for every referenced object case. The property must survive directionality filtering. Missing, unknown, or duplicate discriminator properties and payloads that cannot be classified are rejected during JSON binding (HTTP 400 with default Minimal API error handling).
@@ -365,7 +365,7 @@ See [`docs/schema-feature-roadmap.md`](docs/schema-feature-roadmap.md) for the d
 
 ## Diagnostics
 
-The generator reports stable `MOA001`–`MOA018` diagnostics for missing implementations, duplicate handlers or configurations, parser failures, unsupported configuration, unresolved references, unsupported multipart shapes, generated-name collisions, invalid handler-response configuration, duplicate operation IDs, unsupported schema references, and unsupported schema unions.
+The generator reports stable `MOA001`–`MOA019` diagnostics for missing implementations, duplicate handlers or configurations, parser failures, unsupported configuration, unresolved references, unsupported multipart shapes, generated-name collisions, invalid handler-response configuration, duplicate operation IDs, unsupported schema references or unions, and missing JSON union support.
 
 See [`docs/architecture.md`](docs/architecture.md) for the complete diagnostic table and internal design.
 

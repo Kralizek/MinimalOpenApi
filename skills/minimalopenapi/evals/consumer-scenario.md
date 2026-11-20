@@ -48,7 +48,7 @@ This is a manual agent scenario; static CI cannot validate runtime policy enforc
 - Endpoint configurations respect singleton/mapping-time semantics, don't unintentionally apply policies globally, and are covered by HTTP-level policy tests.
 - The seven-response operation compiles using generated nested `Results<...>` type, without arbitrarily filtering handler-owned statuses.
 - New endpoint-specific JSON schemas remain inline when independent evolution is intended; deliberately shared existing business **or transport** schemas retain their named `components/schemas` definitions and `$ref` links; nested objects and inline array item objects use generated types. Supported `oneOf`/`anyOf` cases use native unions; unsupported shapes are explained without substitution. Case selection is not described as JSON Schema validation.
-- No MOA001–MOA018 diagnostic remains and `dotnet build`, application tests and endpoint checks succeed.
+- No MOA001–MOA019 diagnostic remains and `dotnet build`, application tests and endpoint checks succeed.
 - The agent reports concrete validation evidence, not just a claim of success.
 
 ## Re-running after changes
