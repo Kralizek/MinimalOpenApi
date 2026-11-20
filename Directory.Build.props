@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
+    <LangVersion>15.0</LangVersion>
     <MinVerTagPrefix>v</MinVerTagPrefix>
     <MinVerDefaultPreReleaseIdentifiers>preview</MinVerDefaultPreReleaseIdentifiers>
     <MinVerAutoIncrement>minor</MinVerAutoIncrement>
