@@ -247,6 +247,40 @@ public class AllOfCompositionTests
     }
 
     [Test]
+    public void Different_AllOf_Union_Properties_Are_Not_Treated_As_Equivalent()
+    {
+        const string spec = """
+            openapi: "3.1.0"
+            info: { title: test, version: "1.0.0" }
+            paths: {}
+            components:
+              schemas:
+                Conflicted:
+                  allOf:
+                    - type: object
+                      properties:
+                        value:
+                          oneOf:
+                            - type: string
+                            - type: integer
+                    - type: object
+                      properties:
+                        value:
+                          oneOf:
+                            - type: string
+                            - type: boolean
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator(
+            userSource: "// no handler",
+            additionalFiles: [("openapi.yaml", spec)]);
+
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+        Assert.That(result.Diagnostics.Any(d => d.Id == "MOA007"), Is.True);
+        Assert.That(source, Does.Contain("global::System.Text.Json.JsonElement? Value"));
+    }
+
+    [Test]
     public void Json_Parser_AllOf_Is_Also_Flattened()
     {
         const string spec = """

@@ -45,6 +45,15 @@ public sealed class OpenApiSchema
     /// </summary>
     public List<OpenApiSchema> AllOf { get; init; } = new List<OpenApiSchema>();
 
+    /// <summary>The ordered alternatives from the OpenAPI <c>oneOf</c> composition, or <see langword="null"/> when absent.</summary>
+    public List<OpenApiSchema>? OneOf { get; init; }
+
+    /// <summary>The ordered alternatives from the OpenAPI <c>anyOf</c> composition, or <see langword="null"/> when absent.</summary>
+    public List<OpenApiSchema>? AnyOf { get; init; }
+
+    /// <summary>Discriminator metadata authored on this schema, when present.</summary>
+    public OpenApiDiscriminator? Discriminator { get; init; }
+
     /// <summary>Named properties of an <c>object</c>-typed schema, keyed by property name.</summary>
     public Dictionary<string, OpenApiSchema> Properties { get; init; } = new Dictionary<string, OpenApiSchema>(StringComparer.Ordinal);
 

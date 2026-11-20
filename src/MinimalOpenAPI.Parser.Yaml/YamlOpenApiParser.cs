@@ -128,6 +128,9 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             ReadOnly = GetBool(node, "readOnly"),
             WriteOnly = GetBool(node, "writeOnly"),
             AllOf = ExtractAllOfSchemas(node),
+            OneOf = ExtractCompositionSchemas(node, "oneOf"),
+            AnyOf = ExtractCompositionSchemas(node, "anyOf"),
+            Discriminator = ExtractDiscriminator(node),
             Properties = properties,
             Required = required,
             Items = ExtractItemsSchema(node),
@@ -159,6 +162,48 @@ public sealed class YamlOpenApiParser : IOpenApiParser
         }
 
         return allOf;
+    }
+
+    private static List<OpenApiSchema>? ExtractCompositionSchemas(YamlMappingNode node, string keyword)
+    {
+        if (!node.Children.TryGetValue(new YamlScalarNode(keyword), out var value))
+            return null;
+
+        var schemas = new List<OpenApiSchema>();
+        if (value is not YamlSequenceNode alternatives)
+            return schemas;
+
+        foreach (var alternative in alternatives.Children)
+        {
+            if (alternative is YamlMappingNode schemaNode)
+                schemas.Add(ExtractSchema(schemaNode));
+        }
+
+        return schemas;
+    }
+
+    private static OpenApiDiscriminator? ExtractDiscriminator(YamlMappingNode node)
+    {
+        var discriminatorNode = GetMapping(node, "discriminator");
+        if (discriminatorNode is null)
+            return null;
+
+        var mapping = new Dictionary<string, string>(StringComparer.Ordinal);
+        var mappingNode = GetMapping(discriminatorNode, "mapping");
+        if (mappingNode is not null)
+        {
+            foreach (var entry in mappingNode.Children)
+            {
+                if (entry.Value is YamlScalarNode scalar && scalar.Value is { } reference)
+                    mapping[Scalar(entry.Key)] = reference;
+            }
+        }
+
+        return new OpenApiDiscriminator
+        {
+            PropertyName = GetString(discriminatorNode, "propertyName"),
+            Mapping = mapping
+        };
     }
 
     private static OpenApiSchema? ExtractAdditionalPropertiesSchema(YamlMappingNode node)
