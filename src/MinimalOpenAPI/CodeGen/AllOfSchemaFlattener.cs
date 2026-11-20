@@ -2,7 +2,7 @@ using MinimalOpenAPI.Abstractions.Models;
 
 namespace MinimalOpenAPI.Generator.CodeGen;
 
-internal sealed record AllOfPropertyConflict(string SchemaName, string PropertyName);
+internal sealed record AllOfPropertyConflict(string SchemaName, string PropertyName, bool InvolvesUnion = false);
 
 internal static class AllOfSchemaFlattener
 {
@@ -25,6 +25,11 @@ internal static class AllOfSchemaFlattener
         List<AllOfPropertyConflict> conflicts,
         HashSet<string> expandingReferences)
     {
+        // Union alternatives are flattened separately when analyzing and emitting cases.
+        // Keep union identity stable so all consumers resolve the same declaration.
+        if (TypeMapper.IsUnionSchema(schema))
+            return schema;
+
         var resolvedProperties = new Dictionary<string, OpenApiSchema>(StringComparer.Ordinal);
         foreach (var property in schema.Properties)
             resolvedProperties[property.Key] = ResolveCore(property.Value, allSchemas, ownerSchemaName, conflicts, expandingReferences);
@@ -97,6 +102,7 @@ internal static class AllOfSchemaFlattener
                 targetAdditionalProperties: ref mergedAdditionalProperties,
                 targetAdditionalPropertiesAllowed: ref mergedAdditionalPropertiesAllowed,
                 sourceSchema: resolvedAllOfSchema,
+                allSchemas: allSchemas,
                 ownerSchemaName: ownerSchemaName,
                 conflicts: conflicts,
                 conflictedProperties: conflictedProperties);
@@ -114,6 +120,7 @@ internal static class AllOfSchemaFlattener
                 AdditionalProperties = resolvedAdditionalProperties,
                 AdditionalPropertiesAllowed = schema.AdditionalPropertiesAllowed
             },
+            allSchemas: allSchemas,
             ownerSchemaName: ownerSchemaName,
             conflicts: conflicts,
             conflictedProperties: conflictedProperties);
@@ -193,6 +200,7 @@ internal static class AllOfSchemaFlattener
         ref OpenApiSchema? targetAdditionalProperties,
         ref bool targetAdditionalPropertiesAllowed,
         OpenApiSchema sourceSchema,
+        IReadOnlyDictionary<string, OpenApiSchema> allSchemas,
         string ownerSchemaName,
         List<AllOfPropertyConflict> conflicts,
         HashSet<string> conflictedProperties)
@@ -212,8 +220,9 @@ internal static class AllOfSchemaFlattener
                 continue;
 
             targetProperties[property.Key] = CreateRawJsonFallbackSchema();
-            if (conflictedProperties.Add(property.Key))
-                conflicts.Add(new AllOfPropertyConflict(ownerSchemaName, property.Key));
+            var involvesUnion = ContainsUnion(existing, allSchemas) || ContainsUnion(property.Value, allSchemas);
+            if (conflictedProperties.Add(property.Key) || involvesUnion)
+                conflicts.Add(new AllOfPropertyConflict(ownerSchemaName, property.Key, involvesUnion));
         }
 
         if (sourceSchema.AdditionalPropertiesAllowed)
@@ -230,9 +239,25 @@ internal static class AllOfSchemaFlattener
 
         if (!AreEquivalent(targetAdditionalProperties, sourceSchema.AdditionalProperties))
         {
+            if (ContainsUnion(targetAdditionalProperties, allSchemas) || ContainsUnion(sourceSchema.AdditionalProperties, allSchemas))
+                conflicts.Add(new AllOfPropertyConflict(ownerSchemaName, "additionalProperties", InvolvesUnion: true));
             targetAdditionalProperties = null;
             targetAdditionalPropertiesAllowed = true;
         }
+    }
+
+    internal static bool ContainsUnion(OpenApiSchema schema, IReadOnlyDictionary<string, OpenApiSchema> allSchemas)
+    {
+        var visited = new HashSet<OpenApiSchema>();
+        return Visit(schema);
+
+        bool Visit(OpenApiSchema current)
+            => visited.Add(current) && (TypeMapper.IsUnionSchema(current)
+                || (current.Reference is { } reference && allSchemas.TryGetValue(reference, out var target) && Visit(target))
+                || current.Properties.Values.Any(Visit)
+                || (current.Items is { } item && Visit(item))
+                || (current.AdditionalProperties is { } value && Visit(value))
+                || current.AllOf.Any(Visit));
     }
 
     private static bool AreEquivalent(OpenApiSchema left, OpenApiSchema right)

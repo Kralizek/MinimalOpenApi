@@ -6,8 +6,10 @@ using System.Text.Json.Serialization.Metadata;
 
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 using MinimalOpenAPI.UnionCompatibilityTests.Generated.Contracts;
+using MinimalOpenAPI.UnionCompatibilityTests.Generated.Endpoints;
 
 namespace MinimalOpenAPI.UnionCompatibilityTests;
 
@@ -23,12 +25,14 @@ public sealed class UnionHttpCompatibilityTests
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Services.AddMinimalOpenApi();
         builder.Services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.TypeInfoResolver = JsonTypeInfoResolver.Combine(
                 UnionJsonContext.Default,
                 new DefaultJsonTypeInfoResolver()));
 
         _app = builder.Build();
+        _app.MapMinimalOpenApiEndpoints();
         _app.MapPost("/primitive", static (Primitive payload, HttpContext context) => Echo(context, payload));
         _app.MapPost("/animal", static (Animal payload, HttpContext context) => Echo(context, payload));
         _app.MapPost("/event", static (Event payload, HttpContext context) => Echo(context, payload));
@@ -117,8 +121,27 @@ public sealed class UnionHttpCompatibilityTests
     [TestCase("""{"id":42}""")]
     [TestCase("""{"id":42,"kind":"unknown"}""")]
     [TestCase("""{"kind":"created","kind":"deleted","id":42}""")]
+    [TestCase("""{"kind":"created","Kind":"deleted","id":42}""")]
     public Task GeneratedDiscriminatorUnion_RejectsInvalidDiscriminators(string json)
         => AssertRejectedAsync("/generated-event", json);
+
+    [TestCase("""{"values":[{"name":"Mog","choices":[42,true]}]}""", "\"Mog:42\"")]
+    [TestCase("""{"values":[{"count":1}]}""", "true")]
+    public async Task GeneratedEndpoint_BindsNestedCasesAndReturnsAnInlineUnion(string json, string expected)
+    {
+        using var response = await PostJsonAsync("/generated-echo", json);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public async Task GeneratedEndpoint_PreservesTheOtherHttpResult()
+    {
+        using var response = await PostJsonAsync("/generated-echo", """{"values":[]}""");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+    }
 
     private async Task AssertRoundTripAsync(string route, string json, string expectedCase)
     {
@@ -130,6 +153,22 @@ public sealed class UnionHttpCompatibilityTests
         var actualJson = await response.Content.ReadAsStringAsync();
         Assert.That(JsonNode.DeepEquals(JsonNode.Parse(json), JsonNode.Parse(actualJson)), Is.True);
         Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("application/json"));
+    }
+
+    public sealed class EchoUnionHandler : EchoUnionEndpointBase
+    {
+        public override Task<Results<Ok<EchoUnionEndpointBaseStatus200Union>, NoContent>> HandleAsync(
+            Request request, CancellationToken cancellationToken)
+        {
+            Results<Ok<EchoUnionEndpointBaseStatus200Union>, NoContent> result = request.Values.FirstOrDefault().Value switch
+            {
+                EchoUnionEndpointBaseRequestValuesItemUnionCase1 named =>
+                    TypedResults.Ok<EchoUnionEndpointBaseStatus200Union>($"{named.Name}:{named.Choices?[0].Value}"),
+                EchoUnionEndpointBaseRequestValuesItemUnionCase2 => TypedResults.Ok<EchoUnionEndpointBaseStatus200Union>(true),
+                _ => TypedResults.NoContent()
+            };
+            return Task.FromResult(result);
+        }
     }
 
     private async Task AssertRejectedAsync(string route, string json)

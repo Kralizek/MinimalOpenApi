@@ -9,7 +9,10 @@ internal enum UnionClassifierKind
     Discriminator
 }
 
-internal sealed record UnionCaseDefinition(string TypeName, string? ComponentReference);
+internal sealed record UnionCaseDefinition(string TypeName, string? ComponentReference, OpenApiSchema? InlineObject = null);
+
+internal sealed record InlineUnionDefinition(
+    string Name, SchemaGenerationScope Scope, SchemaUnionDefinition Definition);
 
 internal sealed record UnionDiscriminatorMapping(string Value, int CaseIndex);
 
@@ -23,99 +26,182 @@ internal sealed record UnsupportedUnionSchema(string SchemaPath, string Reason);
 
 internal sealed class SchemaUnionAnalysis
 {
-    private readonly Dictionary<OpenApiSchema, SchemaUnionDefinition> _definitions;
+    private readonly Dictionary<(OpenApiSchema, SchemaGenerationScope), SchemaUnionDefinition> _definitions;
+    private readonly Dictionary<(OpenApiSchema, SchemaGenerationScope), InlineUnionDefinition> _inline;
 
     private SchemaUnionAnalysis(
-        Dictionary<OpenApiSchema, SchemaUnionDefinition> definitions,
+        Dictionary<(OpenApiSchema, SchemaGenerationScope), SchemaUnionDefinition> definitions,
+        Dictionary<(OpenApiSchema, SchemaGenerationScope), InlineUnionDefinition> inline,
         IReadOnlyList<UnsupportedUnionSchema> unsupportedSchemas)
     {
         _definitions = definitions;
+        _inline = inline;
         UnsupportedSchemas = unsupportedSchemas;
     }
 
     public IReadOnlyList<UnsupportedUnionSchema> UnsupportedSchemas { get; }
+    public IEnumerable<InlineUnionDefinition> InlineDefinitions => _inline.Values;
 
-    public bool TryGetDefinition(OpenApiSchema schema, out SchemaUnionDefinition definition)
-        => _definitions.TryGetValue(schema, out definition!);
+    public IEnumerable<(string Reference, string Property, SchemaGenerationScope Scope)> DiscriminatorProperties
+        => _definitions.Select(entry => (Scope: entry.Key.Item2, Definition: entry.Value))
+            .Concat(_inline.Values.Select(entry => (entry.Scope, entry.Definition)))
+            .Where(entry => entry.Definition.DiscriminatorPropertyName is not null)
+            .SelectMany(entry => entry.Definition.Cases.Select(item =>
+                (item.ComponentReference!, entry.Definition.DiscriminatorPropertyName!, entry.Scope)));
+
+    public string? ResolveInline(OpenApiSchema schema, SchemaGenerationScope scope, string? contractsNamespace = null)
+    {
+        if (!_inline.TryGetValue((schema, scope), out var entry)
+            && !_inline.TryGetValue((schema, SchemaGenerationScope.Neutral), out entry))
+            return null;
+
+        return contractsNamespace is null ? entry.Name : $"global::{contractsNamespace}.{entry.Name}";
+    }
+
+    public bool TryGetDefinition(OpenApiSchema schema, SchemaGenerationScope scope, out SchemaUnionDefinition definition)
+        => _definitions.TryGetValue((schema, scope), out definition!);
 
     public static SchemaUnionAnalysis Create(
         OpenApiDocument document,
-        SchemaNameMap schemaNameMap)
+        IReadOnlyList<OpenApiOperation> operations,
+        SchemaNameMap schemaNameMap,
+        SchemaDirectionalityAnalysis directionality)
     {
-        var definitions = new Dictionary<OpenApiSchema, SchemaUnionDefinition>();
+        var definitions = new Dictionary<(OpenApiSchema, SchemaGenerationScope), SchemaUnionDefinition>();
+        var inline = new Dictionary<(OpenApiSchema, SchemaGenerationScope), InlineUnionDefinition>();
         var unsupportedSchemas = new List<UnsupportedUnionSchema>();
-        var visited = new HashSet<OpenApiSchema>();
 
         foreach (var component in document.Schemas)
         {
-            Visit(
-                component.Value,
-                $"components/schemas/{component.Key}",
-                component.Value);
+            var path = $"components/schemas/{component.Key}";
+            foreach (var scope in new[] { SchemaGenerationScope.Neutral, SchemaGenerationScope.Request, SchemaGenerationScope.Response })
+            {
+                if (directionality.ShouldGenerateScope(component.Key, scope))
+                    Visit(component.Value, path, directionality.ResolveSchemaReference(component.Key, scope), scope, componentRoot: true);
+            }
         }
 
-        foreach (var operation in document.Operations)
+        foreach (var operation in operations)
         {
+            var path = $"operations/{operation.OperationId}";
+            var owner = TypeMapper.HandlerClassName(operation.OperationId);
             foreach (var parameter in operation.Parameters)
-                Visit(parameter.Schema, $"operations/{operation.OperationId}/parameters/{parameter.Name}", null);
+                CheckBinding(parameter.Schema, $"{path}/parameters/{parameter.Name}");
 
             if (operation.RequestBody?.Schema is { } requestSchema)
-                Visit(requestSchema, $"operations/{operation.OperationId}/requestBody", null);
+            {
+                if (TypeMapper.ShouldGenerateJsonBody(operation.RequestBody))
+                    VisitBody(requestSchema, $"{path}/requestBody", owner + "Request", SchemaGenerationScope.Request);
+                else
+                    CheckBinding(requestSchema, $"{path}/requestBody");
+            }
 
             foreach (var response in operation.Responses)
             {
                 if (response.Schema is { } responseSchema)
-                    Visit(responseSchema, $"operations/{operation.OperationId}/responses/{response.StatusCode}", null);
+                {
+                    if (response.ContentType is null || string.Equals(response.ContentType, "application/json", StringComparison.OrdinalIgnoreCase))
+                        VisitBody(responseSchema, $"{path}/responses/{response.StatusCode}", owner + "Status" + response.StatusCode, SchemaGenerationScope.Response);
+                    else
+                        CheckBinding(responseSchema, $"{path}/responses/{response.StatusCode}");
+                }
             }
         }
 
-        return new SchemaUnionAnalysis(definitions, unsupportedSchemas);
+        return new SchemaUnionAnalysis(definitions, inline, unsupportedSchemas.Distinct().ToArray());
 
-        void Visit(OpenApiSchema schema, string path, OpenApiSchema? componentRoot)
+        void VisitBody(OpenApiSchema schema, string path, string name, SchemaGenerationScope scope)
         {
-            if (!visited.Add(schema))
-                return;
+            var terminal = schema;
+            while (terminal.Items is not null || (TypeMapper.IsDictionarySchema(terminal) && terminal.AdditionalProperties is not null))
+                terminal = terminal.Items ?? terminal.AdditionalProperties!;
 
-            if (schema.OneOf is not null || schema.AnyOf is not null)
+            if (!ReferenceEquals(terminal, schema) && TypeMapper.IsInlineObject(terminal)
+                && AllOfSchemaFlattener.ContainsUnion(terminal, document.Schemas))
             {
-                if (componentRoot is null || !ReferenceEquals(schema, componentRoot))
-                {
-                    unsupportedSchemas.Add(new UnsupportedUnionSchema(
-                        path,
-                        "inline unions are not supported yet"));
-                }
-                else if (TryAnalyze(schema, document.Schemas, schemaNameMap, out var definition, out var reason))
-                {
-                    definitions.Add(schema, definition);
-                }
-                else
+                unsupportedSchemas.Add(new UnsupportedUnionSchema(path,
+                    "a JSON body container with union-bearing inline object items must reference a named object schema instead"));
+                return;
+            }
+
+            Visit(schema, path, name, scope);
+        }
+
+        void CheckBinding(OpenApiSchema schema, string path)
+        {
+            if (AllOfSchemaFlattener.ContainsUnion(schema, document.Schemas))
+                unsupportedSchemas.Add(new UnsupportedUnionSchema(path, "schema unions are only supported in JSON payloads"));
+        }
+
+        void Visit(OpenApiSchema schema, string path, string name, SchemaGenerationScope scope, bool componentRoot = false)
+        {
+            if (!TypeMapper.IsUnionSchema(schema)
+                && schema.Reference is { } referenceName
+                && document.Schemas.TryGetValue(referenceName, out var referenced)
+                && !TypeMapper.IsInlineObject(referenced)
+                && !TypeMapper.IsUnionSchema(referenced)
+                && AllOfSchemaFlattener.ContainsUnion(referenced, document.Schemas))
+            {
+                unsupportedSchemas.Add(new UnsupportedUnionSchema(path,
+                    $"reference '{referenceName}' does not name a generated union or object type; inline the container or reference its union directly"));
+            }
+
+            if (schema.AllOf.Count > 0)
+            {
+                var conflicts = new List<AllOfPropertyConflict>();
+                AllOfSchemaFlattener.Resolve(schema, document.Schemas, name, conflicts);
+                foreach (var conflict in conflicts.Where(conflict => conflict.InvolvesUnion))
+                    unsupportedSchemas.Add(new UnsupportedUnionSchema($"{path}/properties/{conflict.PropertyName}", "conflicting allOf definitions involve a schema union"));
+            }
+
+            if (TypeMapper.IsUnionSchema(schema))
+            {
+                var unionName = componentRoot ? name : name + "Union";
+                if (!TryAnalyze(schema, document.Schemas, schemaNameMap, unionName, scope, directionality, out var definition, out var reason))
                 {
                     unsupportedSchemas.Add(new UnsupportedUnionSchema(path, reason));
+                    return;
                 }
+
+                if (componentRoot)
+                    definitions[(schema, scope)] = definition;
+                else if (inline.ContainsKey((schema, scope)))
+                    return;
+                else
+                    inline.Add((schema, scope), new InlineUnionDefinition(unionName, scope, definition));
+
+                for (var i = 0; i < definition.Cases.Count; i++)
+                {
+                    var item = definition.Cases[i];
+                    if (item.InlineObject is { } inlineObject)
+                        Visit(inlineObject, $"{path}/alternatives[{i}]", item.TypeName, scope);
+                }
+                return;
             }
 
             foreach (var property in schema.Properties)
-                Visit(property.Value, $"{path}/properties/{property.Key}", null);
-
-            if (schema.Items is { } items)
-                Visit(items, $"{path}/items", null);
-
-            if (schema.AdditionalProperties is { } additionalProperties)
-                Visit(additionalProperties, $"{path}/additionalProperties", null);
-
-            for (var i = 0; i < schema.AllOf.Count; i++)
-                Visit(schema.AllOf[i], $"{path}/allOf[{i}]", null);
-
-            if (schema.OneOf is { } oneOf)
             {
-                for (var i = 0; i < oneOf.Count; i++)
-                    Visit(oneOf[i], $"{path}/oneOf[{i}]", null);
+                if (directionality.ShouldIncludeProperty(property.Value, scope))
+                    Visit(property.Value, $"{path}/properties/{property.Key}", name + TypeMapper.ToPascalCase(property.Key), scope);
             }
-
-            if (schema.AnyOf is { } anyOf)
+            if (schema.Items is { } items)
+                Visit(items, $"{path}/items", name + "Item", scope);
+            if (schema.AdditionalProperties is { } additionalProperties)
             {
-                for (var i = 0; i < anyOf.Count; i++)
-                    Visit(anyOf[i], $"{path}/anyOf[{i}]", null);
+                if (TypeMapper.IsDictionarySchema(schema))
+                    Visit(additionalProperties, $"{path}/additionalProperties", name + "Value", scope);
+                else if (AllOfSchemaFlattener.ContainsUnion(additionalProperties, document.Schemas))
+                    unsupportedSchemas.Add(new UnsupportedUnionSchema($"{path}/additionalProperties",
+                        "schema unions for additional properties require a dictionary without named properties"));
+            }
+            for (var i = 0; i < schema.AllOf.Count; i++)
+            {
+                var branch = schema.AllOf[i];
+                if (TypeMapper.IsUnionSchema(branch)
+                    || (branch.Reference is { } reference && document.Schemas.TryGetValue(reference, out var target) && TypeMapper.IsUnionSchema(target)))
+                    unsupportedSchemas.Add(new UnsupportedUnionSchema($"{path}/allOf[{i}]", "a schema union cannot be an allOf branch"));
+                else
+                    Visit(branch, $"{path}/allOf[{i}]", name + "AllOf" + i, scope);
             }
         }
     }
@@ -124,6 +210,9 @@ internal sealed class SchemaUnionAnalysis
         OpenApiSchema schema,
         IReadOnlyDictionary<string, OpenApiSchema> schemas,
         SchemaNameMap schemaNameMap,
+        string unionName,
+        SchemaGenerationScope scope,
+        SchemaDirectionalityAnalysis directionality,
         out SchemaUnionDefinition definition,
         out string reason)
     {
@@ -136,7 +225,8 @@ internal sealed class SchemaUnionAnalysis
         if (schema.OneOf is not null && schema.AnyOf is not null)
             return Fail("oneOf and anyOf cannot both be declared on the same schema", out reason);
 
-        if (schema.Type is not null
+        if (schema.Reference is not null
+            || schema.Type is not null
             || schema.Enum is not null
             || schema.Properties.Count > 0
             || schema.Items is not null
@@ -144,7 +234,7 @@ internal sealed class SchemaUnionAnalysis
             || schema.AdditionalProperties is not null
             || schema.AdditionalPropertiesAllowed)
         {
-            return Fail("union schemas cannot be combined with type, enum, object, array, dictionary, or allOf siblings", out reason);
+            return Fail("union schemas cannot be combined with $ref, type, enum, object, array, dictionary, or allOf siblings", out reason);
         }
 
         var alternatives = schema.OneOf ?? schema.AnyOf!;
@@ -160,6 +250,8 @@ internal sealed class SchemaUnionAnalysis
         {
             if (alternative.Nullable)
                 return Fail("nullable union alternatives are not supported", out reason);
+            if (TypeMapper.IsUnionSchema(alternative))
+                return Fail("nested union alternatives are not supported", out reason);
 
             if (alternative.Reference is { } reference)
             {
@@ -201,7 +293,13 @@ internal sealed class SchemaUnionAnalysis
                 return Fail("inline enum alternatives are not supported", out reason);
 
             if (TypeMapper.IsInlineObject(alternative))
-                return Fail("inline object alternatives are not supported", out reason);
+            {
+                allScalars = false;
+                var caseName = unionName + "Case" + (cases.Count + 1);
+                objectSchemas.Add(AllOfSchemaFlattener.Resolve(alternative, schemas, caseName, []));
+                cases.Add(new UnionCaseDefinition(caseName, null, alternative));
+                continue;
+            }
 
             if (!IsScalarType(alternative.Type))
                 return Fail("only scalar alternatives and references to component objects are supported", out reason);
@@ -217,7 +315,7 @@ internal sealed class SchemaUnionAnalysis
         {
             if (schema.Discriminator is { } discriminator)
             {
-                if (!TryResolveDiscriminator(discriminator, alternatives, objectSchemas, out var mappings, out reason))
+                if (!TryResolveDiscriminator(discriminator, alternatives, objectSchemas, scope, directionality, out var mappings, out reason))
                     return false;
 
                 definition = new SchemaUnionDefinition(
@@ -228,7 +326,7 @@ internal sealed class SchemaUnionAnalysis
                 return true;
             }
 
-            if (!HasDistinctRequiredProperties(objectSchemas, schemas))
+            if (!HasDistinctRequiredProperties(objectSchemas, directionality, scope))
                 return Fail("object alternatives need distinct required properties or an authored discriminator mapping", out reason);
 
             definition = new SchemaUnionDefinition(
@@ -266,6 +364,8 @@ internal sealed class SchemaUnionAnalysis
         OpenApiDiscriminator discriminator,
         IReadOnlyList<OpenApiSchema> alternatives,
         IReadOnlyList<OpenApiSchema> objectSchemas,
+        SchemaGenerationScope scope,
+        SchemaDirectionalityAnalysis directionality,
         out IReadOnlyList<UnionDiscriminatorMapping> mappings,
         out string reason)
     {
@@ -289,7 +389,9 @@ internal sealed class SchemaUnionAnalysis
 
             var objectSchema = objectSchemas[i];
             if (!objectSchema.Properties.TryGetValue(propertyName, out var property)
-                || !string.Equals(property.Type, "string", StringComparison.OrdinalIgnoreCase))
+                || !string.Equals(property.Type, "string", StringComparison.OrdinalIgnoreCase)
+                || (property.Enum is null && TypeMapper.MapSchema(property) != "string")
+                || !directionality.ShouldIncludeProperty(property, scope))
             {
                 return Fail(
                     $"component '{alternative.Reference}' must declare string discriminator property '{propertyName}'",
@@ -357,16 +459,13 @@ internal sealed class SchemaUnionAnalysis
 
     private static bool HasDistinctRequiredProperties(
         IReadOnlyList<OpenApiSchema> schemas,
-        IReadOnlyDictionary<string, OpenApiSchema> allSchemas)
+        SchemaDirectionalityAnalysis directionality,
+        SchemaGenerationScope scope)
     {
         var requiredProperties = schemas
-            .Select(schema =>
-            {
-                var conflicts = new List<AllOfPropertyConflict>();
-                return new HashSet<string>(
-                    AllOfSchemaFlattener.Resolve(schema, allSchemas, string.Empty, conflicts).Required,
-                    StringComparer.Ordinal);
-            })
+            .Select(schema => new HashSet<string>(schema.Required.Where(name =>
+                schema.Properties.TryGetValue(name, out var property) && directionality.ShouldIncludeProperty(property, scope)),
+                StringComparer.Ordinal))
             .ToArray();
 
         for (var i = 0; i < requiredProperties.Length; i++)
