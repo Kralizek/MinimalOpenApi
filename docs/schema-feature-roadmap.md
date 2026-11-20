@@ -1,6 +1,6 @@
 # OpenAPI Feature Support and Roadmap
 
-This document records the OpenAPI surface supported by MinimalOpenAPI 1.0 and the features intentionally deferred beyond the initial stable release.
+This document records the supported OpenAPI surface and features intentionally deferred. The schema table distinguishes additions since 1.0.
 
 The OpenAPI document is the source of truth. MinimalOpenAPI focuses on features that can be represented predictably in generated C# contracts, ASP.NET Core Minimal API binding, typed results, and endpoint metadata.
 
@@ -17,7 +17,7 @@ The OpenAPI document is the source of truth. MinimalOpenAPI focuses on features 
 
 ## Schema support
 
-| Feature | 1.0 status | Notes |
+| Feature | Status | Notes |
 |---|---|---|
 | Primitive types and formats | Supported | Includes strings, booleans, integers, numbers, `uuid`, `date-time`, and `date`. |
 | Object schemas | Supported | Component and inline object records. |
@@ -27,8 +27,7 @@ The OpenAPI document is the source of truth. MinimalOpenAPI focuses on features 
 | String enums | Supported | Generated C# enums use `JsonStringEnumConverter`. |
 | `additionalProperties` | Supported | Maps to `Dictionary<string, T>`; inline object values generate records. |
 | `allOf` | Supported | Object branches are flattened into one generated shape. Incompatible properties produce `MOA007` and fall back to `JsonElement`. |
-| `oneOf` | Deferred | Requires an explicit polymorphism and discriminator design. |
-| `anyOf` | Deferred | Requires an explicit union representation design. |
+| `oneOf` / `anyOf` | Added after 1.0 | Native C# 15 JSON unions with System.Text.Json 11. Both keywords use the same CLR representation; neither enforces JSON Schema match counts. |
 | `nullable` | Supported | OpenAPI 3.0 nullable and OpenAPI 3.1 type-array forms. |
 | `required` | Supported | Drives required members and nullability. |
 | `readOnly` / `writeOnly` | Supported | Controlled by `ReadWriteSchemaHandling="Ignore|Auto|Split"`. |
@@ -109,14 +108,19 @@ Antiforgery, request-size limits, file validation, and storage remain applicatio
 | Antiforgery | Policy hook | Configure globally or per endpoint. |
 | Request-size limits | Policy hook | Configure through standard ASP.NET Core endpoint conventions. |
 
+## Schema union boundaries
+
+`oneOf` and `anyOf` support compatible scalar alternatives and local or inline object cases with distinguishable required properties. Discriminators need explicit mappings to local referenced object alternatives and a string discriminator property on every case. The union can itself be inline or a component, including in JSON bodies, object properties, and array items. Directional case contracts follow `Ignore`, `Auto`, and `Split`.
+
+MOA019 reports unsafe or unsupported representations: overlapping token categories (including string plus number), mixed scalar/object cases, enum cases, nullable unions/cases, a union used directly as a case, conflicting composition, and uses outside JSON payloads. A `$ref` must name a generated union or object rather than a union-containing array or dictionary alias. In a top-level body array or dictionary, use a named object for union-bearing object items. The generator does not rewrite the authored contract or add wrapper objects. See the [README](../README.md#schema-unions) for .NET 10/11 requirements and JSON metadata limitations.
+
 ## Post-1.0 priorities
 
 The likely next design areas are:
 
-1. `oneOf` and `anyOf` polymorphism, including discriminator rules and generated serialization metadata.
-2. Non-JSON text response families.
-3. Additional request media types where ASP.NET Core has a stable, strongly typed binding model.
-4. `deprecated` metadata mapped consistently to generated C# and endpoint metadata.
-5. Broader parameter serialization support where it can be represented without custom runtime binders.
+1. Non-JSON text response families.
+2. Additional request media types where ASP.NET Core has a stable, strongly typed binding model.
+3. `deprecated` metadata mapped consistently to generated C# and endpoint metadata.
+4. Broader parameter serialization support where it can be represented without custom runtime binders.
 
 Each addition must preserve deterministic generated names, explicit diagnostics for unsupported shapes, and Semantic Versioning compatibility for both public runtime APIs and generated consumer code.

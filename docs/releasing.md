@@ -53,9 +53,10 @@ Every workflow-driven release, including a dry run, performs the important relea
 1. shared restore, format verification, build, and tests;
 2. pack `MinimalOpenAPI` with the calculated release version;
 3. run `scripts/validate-package.sh` against the produced package;
-4. restore `sample/SmokeTest/SmokeTest.csproj` using `sample/SmokeTest/nuget.config`, whose `local-artifacts` source points to `../../artifacts`, and require the exact version calculated for this release;
-5. build and publish the smoke-test application;
-6. verify that an authored OpenAPI schema is present below the publish output's `openapi/schemas/` directory.
+4. run `bash scripts/test-packed-unions.sh` to test generated union endpoints against the exact package on .NET 10 and .NET 11;
+5. restore `sample/SmokeTest/SmokeTest.csproj` using `sample/SmokeTest/nuget.config`, whose `local-artifacts` source points to `../../artifacts`, and require the exact version calculated for this release;
+6. build and publish the smoke-test application;
+7. verify that an authored OpenAPI schema is present below the publish output's `openapi/schemas/` directory.
 
 The package-layout and downstream-consumption checks are MOA-specific release gates. They intentionally remain in this repository rather than in the shared GitHub Actions.
 

@@ -18,7 +18,12 @@
     <PackageReference Include="NUnit.Analyzers" />
   </ItemGroup>
 
-  <Import Project="..\..\src\MinimalOpenAPI\buildTransitive\MinimalOpenAPI.targets" />
+  <ItemGroup Condition="'$(PackedMinimalOpenApiVersion)' != ''">
+    <PackageReference Include="MinimalOpenAPI" VersionOverride="[$(PackedMinimalOpenApiVersion)]" />
+  </ItemGroup>
+
+  <Import Project="..\..\src\MinimalOpenAPI\buildTransitive\MinimalOpenAPI.targets"
+          Condition="'$(PackedMinimalOpenApiVersion)' == ''" />
 
   <ItemGroup>
     <OpenApi Include="union-openapi.yaml" Namespace="Generated" />

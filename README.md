@@ -223,6 +223,7 @@ merely to reduce the union size.
 | Documents | OpenAPI 3.0 and 3.1; YAML and JSON; multiple documents per project. |
 | Object schemas | Component and inline object records, nested inline objects, and inline objects used as array items. |
 | Composition | `allOf` object composition is flattened into one generated contract. |
+| Schema unions | Supported `oneOf` and `anyOf` schemas generate native C# 15 unions for JSON payloads. |
 | Enums | String enums generate C# enums with `JsonStringEnumConverter`. |
 | Dictionaries | `additionalProperties` maps to `Dictionary<string, T>`. |
 | Formats | Includes `uuid`, `date-time`, `date`, numeric formats, `email`, and `uri`. |
@@ -238,6 +239,30 @@ merely to reduce the union size.
 | Endpoint policies | Per-operation endpoint configurations for authorization, rate limiting, antiforgery, request limits, and other metadata. |
 | Schema publishing | Authored documents are copied to build/publish output and can be served at explicit paths. |
 | Schema names | OpenAPI schema keys are normalized deterministically into valid C# identifiers; collisions produce diagnostics. |
+
+## Schema unions
+
+Both `oneOf` and `anyOf` can generate the same native C# union. This component generates `public union Value(int, bool);`:
+
+```yaml
+components:
+  schemas:
+    Value:
+      oneOf:
+        - type: integer
+          format: int32
+        - type: boolean
+```
+
+Unions can also be inline in JSON request and response schemas, object properties, and array items. The generated handler can use a schema union as a typed result payload, such as `Results<Ok<Value>, NoContent>`; the outer `Results<>` still represents HTTP statuses.
+
+Use the .NET 11 SDK and C# 15 (`<LangVersion>15.0</LangVersion>` if not already selected). On `net11.0`, use the framework's System.Text.Json 11. On `net10.0`, add an explicit `System.Text.Json` 11 package reference to the application; MinimalOpenAPI supplies the compiler marker types for unions. Applications without schema unions don't need this additional reference.
+
+- Use scalar alternatives with distinct JSON token types, or object alternatives with distinct required properties. Object alternatives can be inline or local component references. Under ASP.NET Core's web JSON defaults, strings and numbers cannot share a union because quoted numbers may be accepted as numbers.
+- For objects that cannot be distinguished structurally, use an authored string discriminator with explicit mappings for every referenced object case. The property must survive directionality filtering. Missing, unknown, or duplicate discriminator properties and payloads that cannot be classified are rejected during JSON binding (HTTP 400 with default Minimal API error handling).
+- MOA019 reports unsupported shapes, including unions in parameters or multipart bodies, nullable union schemas/cases, a union used directly as another union's case, mixed scalar/object cases, and conflicting composition. See the [schema roadmap](docs/schema-feature-roadmap.md) for boundaries.
+
+Classification selects a CLR case; it is **not JSON Schema validation** and does not enforce `oneOf` exclusivity or `anyOf` match counts. The authored document and JSON wire shape are unchanged. Use reflection-based JSON metadata for generated unions: a `JsonSerializerContext` in the same compilation cannot see generated contracts, and trimming and Native AOT support for these contracts are not established.
 
 ## `readOnly` and `writeOnly`
 
@@ -332,7 +357,7 @@ The repository also includes a BenchmarkDotNet comparison under [`benchmarks/`](
 ## Limitations and non-goals
 
 - MinimalOpenAPI does not generate an OpenAPI document from C# at runtime.
-- `oneOf` and `anyOf` are not currently supported.
+- Schema unions are limited to supported JSON shapes and are not a JSON Schema validator.
 - Generated data annotations are metadata; ASP.NET Core Minimal APIs do not automatically execute `DataAnnotations` validation.
 - Cookie parameters are surfaced in the generated parameter model but require application-specific binding or access through `HttpContext`.
 - OpenAPI 2.0 documents are not supported.
@@ -341,7 +366,7 @@ See [`docs/schema-feature-roadmap.md`](docs/schema-feature-roadmap.md) for the d
 
 ## Diagnostics
 
-The generator reports stable `MOA001`–`MOA018` diagnostics for missing implementations, duplicate handlers or configurations, parser failures, unsupported configuration, unresolved references, unsupported multipart shapes, generated-name collisions, invalid handler-response configuration, duplicate operation IDs, unsupported schema references, and responses whose media types are all unsupported.
+The generator reports stable `MOA001`–`MOA019` diagnostics for missing implementations, duplicate handlers or configurations, parser failures, unsupported configuration, unresolved references, unsupported multipart shapes, generated-name collisions, invalid handler-response configuration, duplicate operation IDs, unsupported schema references, responses whose media types are all unsupported, and unsupported schema unions.
 
 See [`docs/architecture.md`](docs/architecture.md) for the complete diagnostic table and internal design.
 

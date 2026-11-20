@@ -16,7 +16,7 @@ Create an OpenAPI 3.0/3.1 YAML or JSON document and register it with an `<OpenAp
 
 **Preserve established schema contracts:** retain existing named schemas and deliberate cross-operation reuse, including transport DTOs intentionally shared by multiple endpoints. Do not mechanically convert existing components into inline schemas. For new endpoint-specific shapes that should evolve independently, prefer inline request/response schemas; use `components/schemas` when a business concept **or transport contract** is intentionally shared and expected to evolve together. Decide by semantics and coupling, not by whether a schema is labeled business or transport. JSON inline schemas can contain nested objects and arrays of inline objects; MOA generates typed records for them. Inline shapes may also `$ref` shared components.
 
-Before coding, compare every construct to [feature support](feature-support.md). In particular `oneOf`/`anyOf`, binary or text response families, certain media types and multipart arrays of objects are not supported. Do **not** silently change semantics to fit generator capabilities; document and discuss blockers.
+Before coding, compare every construct to [feature support](feature-support.md). Validate that the selected package version and runtime support each `oneOf`/`anyOf` shape. Binary or text response families, certain media types and multipart arrays of objects are not supported. Do **not** silently change semantics to fit generator capabilities; document and discuss blockers.
 
 ## Optional: contracts also consumed by client SDK generators
 

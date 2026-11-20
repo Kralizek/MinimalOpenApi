@@ -26,6 +26,7 @@ public sealed class UnionGenerationTests
         var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
 
         Assert.That(source, Does.Contain("public union Primitive(int, bool);"));
+        Assert.That(source, Does.Contain("[global::System.Text.Json.Serialization.JsonUnion]"));
         Assert.That(source, Does.Not.Contain("JsonUnionTypeStructuralClassifier"));
         Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Id == "MOA019"), Is.False);
         Assert.That(result.GeneratedTrees.Any(source => source.FilePath.EndsWith("UnionPolyfills.g.cs", StringComparison.Ordinal)), Is.True);
