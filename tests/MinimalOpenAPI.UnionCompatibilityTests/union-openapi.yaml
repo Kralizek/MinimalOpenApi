@@ -1,0 +1,44 @@
+openapi: 3.1.0
+components:
+  schemas:
+    GeneratedDog:
+      type: object
+      required: [name, breed]
+      properties:
+        name: { type: string }
+        breed: { type: string }
+    GeneratedCat:
+      type: object
+      required: [name, lives]
+      properties:
+        name: { type: string }
+        lives: { type: integer }
+    GeneratedPet:
+      oneOf:
+        - $ref: '#/components/schemas/GeneratedDog'
+        - $ref: '#/components/schemas/GeneratedCat'
+    GeneratedCreated:
+      type: object
+      required: [kind, id]
+      properties:
+        kind: { type: string, enum: [created] }
+        id: { type: integer }
+    GeneratedDeleted:
+      type: object
+      required: [kind, id]
+      properties:
+        kind: { type: string, enum: [deleted] }
+        id: { type: integer }
+    GeneratedEvent:
+      oneOf:
+        - $ref: '#/components/schemas/GeneratedCreated'
+        - $ref: '#/components/schemas/GeneratedDeleted'
+      discriminator:
+        propertyName: kind
+        mapping:
+          created: '#/components/schemas/GeneratedCreated'
+          deleted: '#/components/schemas/GeneratedDeleted'
+    GeneratedValue:
+      anyOf:
+        - type: integer
+        - type: boolean

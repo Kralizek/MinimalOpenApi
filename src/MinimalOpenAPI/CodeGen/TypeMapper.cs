@@ -107,6 +107,9 @@ internal static class TypeMapper
             && schema.Properties.Count == 0
             && (schema.AdditionalProperties is not null || schema.AdditionalPropertiesAllowed);
 
+    public static bool IsUnionSchema(OpenApiSchema schema)
+        => schema.OneOf is not null || schema.AnyOf is not null;
+
     /// <summary>
     /// Returns <see langword="true"/> when the schema is an inline object definition —
     /// i.e. it declares properties, an explicit <c>object</c> type, or one or more
