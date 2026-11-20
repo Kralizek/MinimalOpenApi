@@ -73,6 +73,92 @@ public sealed class SchemaReferenceTests
             "Missing");
 
     [Test]
+    public void Missing_schema_reference_in_oneOf_branch_reports_MOA017()
+        => AssertReferenceDiagnostic(
+            """
+            {
+              "openapi": "3.1.0",
+              "paths": {"/items": {"get": {"responses": {"200": {
+                "description": "OK",
+                "content": {"application/json": {"schema": {
+                  "oneOf": [{"$ref": "#/components/schemas/Missing"}]
+                }}}
+              }}}}}
+            }
+            """,
+            "openapi.json",
+            "#/components/schemas/Missing");
+
+    [Test]
+    public void Missing_schema_reference_in_anyOf_array_item_reports_MOA017()
+        => AssertReferenceDiagnostic(
+            """
+            {
+              "openapi": "3.1.0",
+              "paths": {"/items": {"get": {"responses": {"200": {
+                "description": "OK",
+                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Wrapper"}}}
+              }}}}},
+              "components": {"schemas": {"Wrapper": {
+                "type": "object",
+                "properties": {"items": {
+                  "type": "array",
+                  "items": {"anyOf": [{"$ref": "#/components/schemas/Missing"}]}
+                }}
+              }}}
+            }
+            """,
+            "openapi.json",
+            "#/components/schemas/Missing");
+
+    [Test]
+    public void Yaml_missing_schema_reference_in_oneOf_branch_reports_MOA017()
+        => AssertReferenceDiagnostic(
+            """
+            openapi: 3.1.0
+            paths:
+              /items:
+                get:
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            oneOf:
+                              - $ref: '#/components/schemas/Missing'
+            """,
+            "openapi.yaml",
+            "#/components/schemas/Missing");
+
+    [Test]
+    public void Yaml_missing_schema_reference_in_anyOf_property_reports_MOA017()
+        => AssertReferenceDiagnostic(
+            """
+            openapi: 3.1.0
+            paths:
+              /items:
+                get:
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Wrapper'
+            components:
+              schemas:
+                Wrapper:
+                  type: object
+                  properties:
+                    value:
+                      anyOf:
+                        - $ref: '#/components/schemas/Missing'
+            """,
+            "openapi.yaml",
+            "#/components/schemas/Missing");
+
+    [Test]
     public async Task Json_local_schema_reference_resolves_to_component_name()
     {
         var content = JsonTemplate.Replace("REFERENCE", "#/components/schemas/Item");

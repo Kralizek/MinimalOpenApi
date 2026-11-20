@@ -47,7 +47,11 @@ internal static class AllOfSchemaFlattener
                 ReadOnly = schema.ReadOnly,
                 WriteOnly = schema.WriteOnly,
                 Reference = schema.Reference,
+                RawReference = schema.RawReference,
                 Items = resolvedItems,
+                OneOf = ResolveCompositionSchemas(schema.OneOf, allSchemas, ownerSchemaName, conflicts, expandingReferences),
+                AnyOf = ResolveCompositionSchemas(schema.AnyOf, allSchemas, ownerSchemaName, conflicts, expandingReferences),
+                Discriminator = CloneDiscriminator(schema.Discriminator),
                 Properties = resolvedProperties,
                 Required = schema.Required.ToList(),
                 Enum = schema.Enum?.ToList(),
@@ -69,6 +73,7 @@ internal static class AllOfSchemaFlattener
         var conflictedProperties = new HashSet<string>(StringComparer.Ordinal);
         var mergedAdditionalProperties = resolvedAdditionalProperties;
         var mergedAdditionalPropertiesAllowed = schema.AdditionalPropertiesAllowed;
+        var resolvedAllOfSchemas = new List<OpenApiSchema>(schema.AllOf.Count);
 
         foreach (var allOfSchema in schema.AllOf)
         {
@@ -85,6 +90,7 @@ internal static class AllOfSchemaFlattener
                     expandingReferences);
             }
 
+            resolvedAllOfSchemas.Add(resolvedAllOfSchema);
             MergeInto(
                 targetProperties: mergedProperties,
                 targetRequired: mergedRequired,
@@ -118,6 +124,12 @@ internal static class AllOfSchemaFlattener
             Nullable = schema.Nullable,
             ReadOnly = schema.ReadOnly,
             WriteOnly = schema.WriteOnly,
+            AllOf = resolvedAllOfSchemas.Any(ContainsComposition)
+                ? resolvedAllOfSchemas
+                : new List<OpenApiSchema>(),
+            OneOf = ResolveCompositionSchemas(schema.OneOf, allSchemas, ownerSchemaName, conflicts, expandingReferences),
+            AnyOf = ResolveCompositionSchemas(schema.AnyOf, allSchemas, ownerSchemaName, conflicts, expandingReferences),
+            Discriminator = CloneDiscriminator(schema.Discriminator),
             Properties = mergedProperties,
             Required = mergedRequired.ToList(),
             AdditionalProperties = mergedAdditionalProperties,
@@ -125,6 +137,30 @@ internal static class AllOfSchemaFlattener
             Default = schema.Default
         };
     }
+
+    private static bool ContainsComposition(OpenApiSchema schema)
+        => schema.OneOf is not null
+            || schema.AnyOf is not null
+            || schema.Discriminator is not null
+            || schema.AllOf.Any(ContainsComposition);
+
+    private static List<OpenApiSchema>? ResolveCompositionSchemas(
+        List<OpenApiSchema>? alternatives,
+        IReadOnlyDictionary<string, OpenApiSchema> allSchemas,
+        string ownerSchemaName,
+        List<AllOfPropertyConflict> conflicts,
+        HashSet<string> expandingReferences)
+        => alternatives?.Select(alternative =>
+            ResolveCore(alternative, allSchemas, ownerSchemaName, conflicts, expandingReferences)).ToList();
+
+    private static OpenApiDiscriminator? CloneDiscriminator(OpenApiDiscriminator? discriminator)
+        => discriminator is null
+            ? null
+            : new OpenApiDiscriminator
+            {
+                PropertyName = discriminator.PropertyName,
+                Mapping = new Dictionary<string, string>(discriminator.Mapping, StringComparer.Ordinal)
+            };
 
     private static OpenApiSchema ResolveReferencedSchema(
         string referenceName,
@@ -228,6 +264,10 @@ internal static class AllOfSchemaFlattener
             return false;
         if (!AreEquivalentNullable(left.AdditionalProperties, right.AdditionalProperties))
             return false;
+        if (!CompositionEqual(left.OneOf, right.OneOf) || !CompositionEqual(left.AnyOf, right.AnyOf))
+            return false;
+        if (!DiscriminatorEqual(left.Discriminator, right.Discriminator))
+            return false;
         if (!DictionaryEqual(left.Properties, right.Properties))
             return false;
         if (left.AllOf.Count != right.AllOf.Count)
@@ -237,6 +277,46 @@ internal static class AllOfSchemaFlattener
         {
             if (!AreEquivalent(left.AllOf[i], right.AllOf[i]))
                 return false;
+        }
+
+        return true;
+    }
+
+    private static bool CompositionEqual(List<OpenApiSchema>? left, List<OpenApiSchema>? right)
+    {
+        if (left is null || right is null)
+            return left is null && right is null;
+
+        if (left.Count != right.Count)
+            return false;
+
+        for (var i = 0; i < left.Count; i++)
+        {
+            if (!AreEquivalent(left[i], right[i]))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool DiscriminatorEqual(OpenApiDiscriminator? left, OpenApiDiscriminator? right)
+    {
+        if (left is null || right is null)
+            return left is null && right is null;
+
+        if (!string.Equals(left.PropertyName, right.PropertyName, StringComparison.Ordinal)
+            || left.Mapping.Count != right.Mapping.Count)
+        {
+            return false;
+        }
+
+        foreach (var mapping in left.Mapping)
+        {
+            if (!right.Mapping.TryGetValue(mapping.Key, out var reference)
+                || !string.Equals(mapping.Value, reference, StringComparison.Ordinal))
+            {
+                return false;
+            }
         }
 
         return true;
