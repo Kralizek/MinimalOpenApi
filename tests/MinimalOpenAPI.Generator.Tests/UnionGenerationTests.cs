@@ -3,6 +3,41 @@ namespace MinimalOpenAPI.Generator.Tests;
 [TestFixture]
 public sealed class UnionGenerationTests
 {
+    [TestCase("oneOf")]
+    [TestCase("anyOf")]
+    public void Missing_json_union_reference_reports_MOA019_only_for_the_union_document(string keyword)
+    {
+        var spec = $$"""
+            openapi: "3.1.0"
+            components:
+              schemas:
+                Value:
+                  {{keyword}}:
+                    - type: integer
+                    - type: boolean
+            """;
+        const string ordinarySpec = """
+            openapi: "3.1.0"
+            components:
+              schemas:
+                Plain:
+                  type: object
+                  properties:
+                    name: { type: string }
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator("", [("unions.yaml", spec), ("ordinary.yaml", ordinarySpec)]);
+
+        var diagnostic = result.Diagnostics.Single();
+        Assert.That(diagnostic.Id, Is.EqualTo("MOA019"));
+        Assert.That(diagnostic.Severity, Is.EqualTo(Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
+        Assert.That(diagnostic.Location.GetLineSpan().Path, Is.EqualTo("unions.yaml"));
+        Assert.That(diagnostic.GetMessage(), Does.Contain("System.Text.Json 11"));
+        Assert.That(GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs"), Does.Contain("record Plain"));
+        Assert.That(result.GeneratedTrees.Select(tree => tree.FilePath),
+            Has.None.Contains("unions").And.None.EndsWith("UnionPolyfills.g.cs"));
+    }
+
     [Test]
     public void Json_primitive_oneOf_emits_a_native_union()
     {
@@ -26,6 +61,7 @@ public sealed class UnionGenerationTests
         var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
 
         Assert.That(source, Does.Contain("public union Primitive(int, bool);"));
+        Assert.That(source, Does.Contain("[global::System.Text.Json.Serialization.JsonUnion]"));
         Assert.That(source, Does.Not.Contain("JsonUnionTypeStructuralClassifier"));
         Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Id == "MOA018"), Is.False);
         Assert.That(result.GeneratedTrees.Any(source => source.FilePath.EndsWith("UnionPolyfills.g.cs", StringComparison.Ordinal)), Is.True);
@@ -227,7 +263,7 @@ public sealed class UnionGenerationTests
                             code: { type: integer }
             """;
 
-        var (result, _) = GeneratorTestHelper.RunGenerator("", [("openapi.yaml", spec)], readWriteSchemaHandling: mode);
+        var (result, _) = GeneratorTestHelper.RunGenerator("", [("openapi.yaml", spec)], readWriteSchemaHandling: mode, includeJsonUnionReference: true);
         var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
         Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error), Is.False);
         foreach (var typeName in new[] { requestType, responseType }.Distinct())
@@ -336,5 +372,5 @@ public sealed class UnionGenerationTests
 
     private static (Microsoft.CodeAnalysis.GeneratorDriverRunResult Result, Microsoft.CodeAnalysis.Compilation OutputCompilation)
         RunGenerator(string spec, string fileName)
-        => GeneratorTestHelper.RunGenerator("// no handler", [(fileName, spec)]);
+        => GeneratorTestHelper.RunGenerator("// no handler", [(fileName, spec)], includeJsonUnionReference: true);
 }

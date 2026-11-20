@@ -141,22 +141,27 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             .Where(c => c is not null)
             .Select((c, _) => c!);
 
-        // 5. Combine parsed docs with discovered classes
+        var hasJsonUnionSupport = context.CompilationProvider.Select(static (compilation, _) =>
+            compilation.GetTypeByMetadataName("System.Text.Json.Serialization.JsonUnionAttribute")
+                ?.ContainingAssembly.Identity.Name == "System.Text.Json");
+
+        // 5. Combine parsed docs with discovered classes and consumer capabilities
         var combined = parsedDocuments.Collect()
             .Combine(classDeclarations.Collect())
             .Combine(duplicateSpecNames)
             .Combine(handlers.Collect());
 
         // 6. Generate source files
-        context.RegisterSourceOutput(combined, (spc, input) =>
+        context.RegisterSourceOutput(combined.Combine(hasJsonUnionSupport), (spc, pair) =>
         {
+            var (input, supportsJsonUnions) = pair;
             var documents = input.Left.Left.Left;
             var classes = input.Left.Left.Right.ToArray();
             var duplicates = input.Left.Right;
             var resolved = ResolveHandlerResponses(spc, documents, input.Right);
             var needsUnionPolyfills = false;
             foreach (var document in documents)
-                needsUnionPolyfills |= GenerateSource(spc, new GeneratorPipelineInput(document, classes, duplicates), resolved);
+                needsUnionPolyfills |= GenerateSource(spc, new GeneratorPipelineInput(document, classes, duplicates), resolved, supportsJsonUnions);
 
             if (needsUnionPolyfills)
             {
@@ -168,7 +173,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     }
 
     private static bool GenerateSource(SourceProductionContext spc, GeneratorPipelineInput input,
-        IReadOnlyDictionary<string, IReadOnlyDictionary<string, List<OpenApiResponse>>> handlerResponses)
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, List<OpenApiResponse>>> handlerResponses,
+        bool supportsJsonUnions)
     {
         if (!TryCreateGenerationInput(spc, input, out var generationInput))
             return false;
@@ -179,7 +185,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             spc,
             generationInput,
             input.Classes.ToArray(),
-            handlerResponses.TryGetValue(generationInput.Path, out var responses) ? responses : new Dictionary<string, List<OpenApiResponse>>());
+            handlerResponses.TryGetValue(generationInput.Path, out var responses) ? responses : new Dictionary<string, List<OpenApiResponse>>(),
+            supportsJsonUnions);
     }
 
     private static bool TryCreateGenerationInput(
@@ -720,7 +727,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         SourceProductionContext spc,
         OpenApiGenerationInput input,
         ClassInfo[] allClasses,
-        IReadOnlyDictionary<string, List<OpenApiResponse>> handlerResponses)
+        IReadOnlyDictionary<string, List<OpenApiResponse>> handlerResponses,
+        bool supportsJsonUnions)
     {
         var doc = input.Document;
         var rootNamespace = input.RootNamespace;
@@ -809,6 +817,14 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
         if (unionAnalysis.UnsupportedSchemas.Count > 0)
             return false;
+
+        if (unionAnalysis.HasUnions && !supportsJsonUnions)
+        {
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.MissingJsonUnionSupport,
+                CreateOpenApiLocation(openApiFilePath)));
+            return false;
+        }
 
         // Generate DTOs
         var hasUnionTypes = false;

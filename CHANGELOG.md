@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Native C# 15 schema unions for supported OpenAPI `oneOf` and `anyOf` JSON payloads on .NET 10 and .NET 11 with System.Text.Json 11. Supports inline and named unions, directional contracts, and authored discriminator mappings without changing the wire shape. Unsupported union representations report MOA018; missing System.Text.Json union support reports MOA019.
+
 ## 1.1.0
 
 ### Added

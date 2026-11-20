@@ -40,6 +40,7 @@ internal sealed class SchemaUnionAnalysis
     }
 
     public IReadOnlyList<UnsupportedUnionSchema> UnsupportedSchemas { get; }
+    public bool HasUnions => _definitions.Count > 0 || _inline.Count > 0;
     public IEnumerable<InlineUnionDefinition> InlineDefinitions => _inline.Values;
 
     public IEnumerable<(string Reference, string Property, SchemaGenerationScope Scope)> DiscriminatorProperties

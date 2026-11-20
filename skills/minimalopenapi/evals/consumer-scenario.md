@@ -8,7 +8,7 @@ This is a **manual agent evaluation fixture**, not an automated AI evaluation. R
 
 ## Additional schema-design probe
 
-In a second evaluation, ask the agent to add an operation-specific JSON request containing a nested object and an array of inline object items, with an inline response object. Give two new endpoints with identical-looking response envelopes but **independent anticipated evolution**; verify the agent keeps these inline instead of extracting a shared component merely for deduplication. Separately, provide an **existing API** where two operations deliberately reuse a named **transport** response schema and are expected to evolve together. The agent must preserve that component and its `$ref` usage during migration rather than automatically inlining it. Also provide a shared business-level entity and verify its references remain intact. Check that it uses supported nested inline schemas and generated types rather than writing manual DTOs. Then ask about `oneOf` and `anyOf`: the agent should identify them as unsupported, distinguish them from `allOf`, and **not** silently replace their semantics.
+In a second evaluation, ask the agent to add an operation-specific JSON request containing a nested object and an array of inline object items, with an inline response object. Give two new endpoints with identical-looking response envelopes but **independent anticipated evolution**; verify the agent keeps these inline instead of extracting a shared component merely for deduplication. Separately, provide an **existing API** where two operations deliberately reuse a named **transport** response schema and are expected to evolve together. The agent must preserve that component and its `$ref` usage during migration rather than automatically inlining it. Also provide a shared business-level entity and verify its references remain intact. Check that it uses supported nested inline schemas and generated types rather than writing manual DTOs. Then give it `oneOf` and `anyOf` examples with distinct JSON token types and an ambiguous object union. It should check the package and serializer prerequisites, use native unions for supported shapes, and explain why the ambiguous shape needs explicit classification rather than replacing it with `allOf`.
 
 ## Code-first migration evaluation
 
@@ -47,8 +47,8 @@ This is a manual agent scenario; static CI cannot validate runtime policy enforc
 - Security middleware is actually configured for the endpoint, not assumed from filtered signatures.
 - Endpoint configurations respect singleton/mapping-time semantics, don't unintentionally apply policies globally, and are covered by HTTP-level policy tests.
 - The seven-response operation compiles using generated nested `Results<...>` type, without arbitrarily filtering handler-owned statuses.
-- New endpoint-specific JSON schemas remain inline when independent evolution is intended; deliberately shared existing business **or transport** schemas retain their named `components/schemas` definitions and `$ref` links; nested objects and inline array item objects use generated types. Unsupported `oneOf`/`anyOf` are explained without unsafe substitution.
-- No MOA001–MOA017 diagnostic remains and `dotnet build`, application tests and endpoint checks succeed.
+- New endpoint-specific JSON schemas remain inline when independent evolution is intended; deliberately shared existing business **or transport** schemas retain their named `components/schemas` definitions and `$ref` links; nested objects and inline array item objects use generated types. Supported `oneOf`/`anyOf` cases use native unions; unsupported shapes are explained without substitution. Case selection is not described as JSON Schema validation.
+- No MOA001–MOA019 diagnostic remains and `dotnet build`, application tests and endpoint checks succeed.
 - The agent reports concrete validation evidence, not just a claim of success.
 
 ## Re-running after changes
