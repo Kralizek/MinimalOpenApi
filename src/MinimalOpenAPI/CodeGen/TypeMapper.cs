@@ -222,6 +222,13 @@ internal static class TypeMapper
             return nullable ? $"{typeName}?" : typeName;
         }
 
+        if (IsUnionSchema(schema))
+        {
+            var unionName = resolveInline?.Invoke(schema)
+                ?? throw new InvalidOperationException("No generated type was registered for an inline schema union.");
+            return nullable ? $"{unionName}?" : unionName;
+        }
+
         if (schema.Type?.ToLowerInvariant() == "array")
         {
             var itemType = schema.Items is not null

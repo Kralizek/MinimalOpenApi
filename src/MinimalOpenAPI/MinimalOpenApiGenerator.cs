@@ -791,7 +791,13 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         if (schemaNameMap.HasUnnormalisableNames || schemaNameMap.HasCollisions)
             return false;
 
-        var unionAnalysis = SchemaUnionAnalysis.Create(doc, schemaNameMap);
+        var directionality = SchemaDirectionalityAnalysis.Create(
+            doc.Schemas,
+            operations,
+            input.ReadWriteSchemaHandling,
+            schemaNameMap);
+
+        var unionAnalysis = SchemaUnionAnalysis.Create(doc, operations, schemaNameMap, directionality);
         foreach (var unsupported in unionAnalysis.UnsupportedSchemas)
         {
             spc.ReportDiagnostic(Diagnostic.Create(
@@ -804,15 +810,9 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         if (unionAnalysis.UnsupportedSchemas.Count > 0)
             return false;
 
-        var directionality = SchemaDirectionalityAnalysis.Create(
-            doc.Schemas,
-            operations,
-            input.ReadWriteSchemaHandling,
-            schemaNameMap);
-
         // Generate DTOs
         var hasUnionTypes = false;
-        if (doc.Schemas.Count > 0)
+        if (doc.Schemas.Count > 0 || unionAnalysis.InlineDefinitions.Any())
         {
             var dtoResult = DtoGenerator.Generate(doc.Schemas, rootNamespace, specName, directionality, schemaNameMap, unionAnalysis);
             hasUnionTypes = dtoResult.HasUnionTypes;
@@ -850,7 +850,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             var handlerConflicts = new List<MinimalOpenAPI.Generator.CodeGen.AllOfPropertyConflict>();
             var handlerMultipartShapes = new List<MinimalOpenAPI.Generator.CodeGen.MultipartUnsupportedShape>();
             var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, directionality, doc.Schemas, handlerConflicts, handlerMultipartShapes,
-                handlerResponses.TryGetValue(op.OperationId, out var filtered) ? filtered : op.Responses);
+                handlerResponses.TryGetValue(op.OperationId, out var filtered) ? filtered : op.Responses, unionAnalysis);
             spc.AddSource(OperationHintName(specName, handlerBase), handlerSource);
 
             foreach (var conflict in handlerConflicts.Distinct())
@@ -945,7 +945,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         spc.AddSource(InfrastructureHintName(specName, "DependencyInjection"), diSource);
 
         // Generate endpoint mapping
-        var mappingSource = EndpointMappingGenerator.Generate(operations, configurations, rootNamespace, specName, directionality);
+        var mappingSource = EndpointMappingGenerator.Generate(operations, configurations, rootNamespace, specName, directionality, unionAnalysis);
         spc.AddSource(InfrastructureHintName(specName, "EndpointMapping"), mappingSource);
 
         return hasUnionTypes;

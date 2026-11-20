@@ -127,10 +127,8 @@ public class ResponseUnionLimitTests
             }
             """;
 
-        var frameworkPath = Path.GetDirectoryName(typeof(Microsoft.AspNetCore.Http.IResult).Assembly.Location)!;
         var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
             .Split(Path.PathSeparator)
-            .Concat(Directory.GetFiles(frameworkPath, "*.dll"))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Select(path => MetadataReference.CreateFromFile(path));
         var compilation = CSharpCompilation.Create("NestedUnionHandlers",
