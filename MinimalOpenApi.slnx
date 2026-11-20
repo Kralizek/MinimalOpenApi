@@ -24,5 +24,6 @@
     <Project Path="tests/MinimalOpenAPI.IntegrationTests/MinimalOpenAPI.IntegrationTests.csproj" />
     <Project Path="tests/MinimalOpenAPI.MultipartNested.IntegrationTests/MinimalOpenAPI.MultipartNested.IntegrationTests.csproj" />
     <Project Path="tests/MinimalOpenAPI.Runtime.Tests/MinimalOpenAPI.Runtime.Tests.csproj" />
+    <Project Path="tests/MinimalOpenAPI.UnionCompatibilityTests/MinimalOpenAPI.UnionCompatibilityTests.csproj" />
   </Folder>
 </Solution>
