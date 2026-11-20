@@ -546,6 +546,12 @@ must remain in the union.
 
 ---
 
+### Schema unions
+
+The JSON and YAML parsers preserve the composition keyword, alternative order and references. `SchemaUnionAnalysis` validates CLR representability and assigns names to inline unions by their component or operation and schema position. The DTO emitter, handler emitter and endpoint mapper resolve the same definitions in each direction. Typical inline names use a `Union` suffix; inline object alternatives are emitted as `Case1`, `Case2`, etc. The `allOf` flattener preserves union schema identity for name resolution and rejects conflicting definitions involving a union rather than dropping the union shape.
+
+The DTO emitter uses System.Text.Json 11 union metadata and either default scalar selection, the structural classifier or an authored-discriminator classifier. The classifier selects a CLR case; it is not a JSON Schema evaluator. HTTP status unions still use ASP.NET Core `Results<>`. The emitter supplies compiler marker polyfills once per consumer compilation when emitting union types for .NET 10; it does not add a runtime JSON package dependency to ordinary consumers.
+
 ## 8. Diagnostics
 
 | Code | Severity | Trigger |
@@ -567,6 +573,7 @@ must remain in the union.
 | **MOA015** | Error | Handler response configuration names an unknown contract, missing operation, undeclared response, or malformed HTTP status code. |
 | **MOA016** | Error | Two or more operations in one OpenAPI document share an `operationId`; generation is aborted for that document. |
 | **MOA017** | Error | A schema `$ref` is unresolved or unsupported. MinimalOpenAPI currently supports only local `#/components/schemas/{name}` references; generation is aborted for that document. |
+| **MOA018** | Error | A schema union cannot be safely represented or bound. The diagnostic names the schema or operation path and explains the unsupported shape; generation is aborted for that document. |
 
 ---
 

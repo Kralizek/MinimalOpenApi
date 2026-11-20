@@ -241,6 +241,10 @@ internal static class DtoGenerator
         {
             sb.AppendLine($"[global::System.Text.Json.Serialization.JsonUnion(TypeClassifier = typeof({name}JsonClassifier))]");
         }
+        else
+        {
+            sb.AppendLine("[global::System.Text.Json.Serialization.JsonUnion]");
+        }
 
         TypeMapper.AppendGeneratedAttributes(sb);
         sb.AppendLine($"public union {name}({string.Join(", ", caseTypes)});");

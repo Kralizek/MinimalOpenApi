@@ -337,7 +337,7 @@ MinimalOpenAPI 1.1 supports:
 - schema publishing and viewer integration;
 - deterministic component-name normalization;
 - handler response ownership/filtering and nested result unions;
-- MOA015–MOA017 diagnostics.
+- native C# 15 unions for supported JSON `oneOf` and `anyOf` schemas.
 
 Before adding manual models or endpoints, check the repository README, samples, and feature support matrix.
 
@@ -345,7 +345,7 @@ Before adding manual models or endpoints, check the repository README, samples, 
 
 The following are limitations of MinimalOpenAPI's generator, **not** invalid OpenAPI syntax. Do not silently delete semantics or substitute a different construct to make generation succeed.
 
-- **`oneOf` and `anyOf`:** polymorphic/union models are not supported. Do not replace either with `allOf`: the semantics differ. Object `allOf` flattening is supported, subject to incompatible-property diagnostics/fallback.
+- **`oneOf` and `anyOf`:** use native unions for supported JSON shapes on a package version that implements them. Use the .NET 11 SDK, C# 15, and System.Text.Json 11 (explicit package reference on `net10.0`). See [schema unions](../README.md#schema-unions) for case selection, diagnostics, and metadata limitations. Neither keyword is equivalent to `allOf`, and mapping to a CLR union does not validate JSON Schema match counts.
 - **OpenAPI 2.0:** not supported; use OpenAPI 3.0 or 3.1.
 - **Request media types:** JSON and multipart are supported; other media types are deferred. Multiple request media types are limited, with JSON preferred where JSON and multipart coexist.
 - **Response media types:** non-JSON text, binary/file, and multiple response media types are not generated.
@@ -382,6 +382,7 @@ See the [feature support reference](../skills/minimalopenapi/references/feature-
 | `MOA015` | Invalid handler-response configuration | Verify document selector, operation ID, declared statuses and filter precedence. |
 | `MOA016` | Duplicate operation ID | Give each operation a unique `operationId`. |
 | `MOA017` | Unsupported/unresolved schema `$ref` | Correct the contract to use supported local schema references. |
+| `MOA018` | Unsupported schema union | Check the reported schema path and use a supported JSON shape with distinguishable cases. |
 | `NotImplementedException` at runtime | Missing override or call to base implementation | Override `HandleAsync` and remove the base call. |
 | Duplicate route at startup | Manual and generated mapping both register the operation | Remove the manual mapping. |
 

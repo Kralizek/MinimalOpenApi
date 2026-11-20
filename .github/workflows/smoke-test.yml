@@ -24,7 +24,9 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: |
+            10.0.x
+            11.0.x
 
       - name: Restore solution
         run: dotnet restore
@@ -41,6 +43,9 @@ jobs:
 
       - name: Validate package contents
         run: bash scripts/validate-package.sh artifacts
+
+      - name: Test generated union endpoints against the packed package
+        run: bash scripts/test-packed-unions.sh
 
       - name: Restore smoke-test consumer
         run: dotnet restore sample/SmokeTest/SmokeTest.csproj --force --no-cache
@@ -61,5 +66,11 @@ jobs:
 
       - name: Verify OpenAPI spec is in publish output
         run: |
-          find /tmp/smoketest-publish/openapi/schemas -name 'openapi.yaml' \
-            | grep -q .
+          mapfile -t specs < <(find /tmp/smoketest-publish/openapi/schemas -name 'openapi.yaml')
+          test "${#specs[@]}" -eq 1
+          cmp sample/SmokeTest/openapi.yaml "${specs[0]}"
+
+      - name: Verify the non-union consumer does not depend on System.Text.Json 11
+        run: |
+          jq -e 'all(.libraries | keys[]; startswith("System.Text.Json/11.") | not)' \
+            sample/SmokeTest/obj/project.assets.json

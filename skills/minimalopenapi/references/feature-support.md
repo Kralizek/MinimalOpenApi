@@ -6,8 +6,6 @@ Check the [repository feature matrix](https://github.com/Kralizek/MinimalOpenApi
 
 | Construct | Guidance for consumers |
 | --- | --- |
-| `oneOf` | Not implemented. Do not assume discriminator-based polymorphic C# contracts will be generated. Redesign the contract with an explicitly modeled supported shape if the API semantics permit; otherwise discuss an alternative rather than silently changing semantics. |
-| `anyOf` | Not implemented. Do not assume union semantics are generated; avoid replacing it with `allOf` (which means something different). |
 | OpenAPI 2.0 / Swagger 2.0 | Not supported. Use an OpenAPI 3.0/3.1 contract. |
 | Multipart form arrays of objects or dictionaries | Not supported; MOA011. Nested form objects and file arrays **are** supported. |
 | Non-JSON text or binary/file responses | Generated response families are deferred; do not assume a `text/plain`, streaming, or file result is generated correctly. |
@@ -21,6 +19,7 @@ Check the [repository feature matrix](https://github.com/Kralizek/MinimalOpenApi
 
 ## Partial support and runtime caveats
 
+- On a package version that supports schema unions, `oneOf` and `anyOf` generate native C# 15 unions for JSON. Use the .NET 11 SDK, C# 15, and System.Text.Json 11 (reference it explicitly on `net10.0`). Cases must have distinguishable JSON tokens or distinct required object properties, or be referenced objects with an explicit string discriminator mapping. MOA018 identifies unsupported shapes. Use reflection-based JSON metadata; a `JsonSerializerContext` in the same compilation cannot see generated contracts, and trimming and Native AOT support are not established. This feature selects one CLR case; it does not validate composition match counts or change the authored OpenAPI document.
 - Cookie parameters appear in generated parameter models, but ASP.NET Core doesn't automatically bind them; access `HttpContext` or supply application binding.
 - Generated `DataAnnotations` attributes do **not** execute validation automatically in ASP.NET Core Minimal APIs; configure validation.
 - `allOf` object flattening is supported, but incompatible properties can trigger MOA007 with a `JsonElement` fallback. This is not general union support.
