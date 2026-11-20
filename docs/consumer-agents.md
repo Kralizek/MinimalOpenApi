@@ -385,6 +385,7 @@ See the [feature support reference](../skills/minimalopenapi/references/feature-
 | `MOA017` | Unsupported/unresolved schema `$ref` | Correct the contract to use supported local schema references. |
 | `MOA018` | Response declares only unsupported media types | Use JSON, problem details or a binary/file media type, or accept a body-less generated result. |
 | `MOA019` | Unsupported schema union | Check the reported schema path and use a supported JSON shape with distinguishable cases. |
+| `MOA020` | Missing System.Text.Json union API | Reference System.Text.Json 11 or later on .NET 10, or target .NET 11 or later. |
 | `NotImplementedException` at runtime | Missing override or call to base implementation | Override `HandleAsync` and remove the base call. |
 | Duplicate route at startup | Manual and generated mapping both register the operation | Remove the manual mapping. |
 

@@ -593,6 +593,7 @@ The DTO emitter uses System.Text.Json 11 union metadata and either default scala
 | **MOA017** | Error | A schema `$ref` is unresolved or unsupported. MinimalOpenAPI currently supports only local `#/components/schemas/{name}` references; generation is aborted for that document. |
 | **MOA018** | Warning | A response declares content, but none of its media types is supported (for example `text/plain`, `text/csv` without a binary schema, or `application/xml`). The generated handler result and endpoint metadata describe the response without a body. |
 | **MOA019** | Error | A schema union cannot be safely represented or bound. The diagnostic names the schema or operation path and explains the unsupported shape; generation is aborted for that document. |
+| **MOA020** | Error | A document would generate schema unions, but the consumer compilation does not reference the System.Text.Json union API. Generation is aborted for that document. |
 
 ---
 

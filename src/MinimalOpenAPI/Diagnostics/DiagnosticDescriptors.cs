@@ -184,4 +184,13 @@ internal static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    /// <summary>The consumer cannot compile generated JSON union contracts.</summary>
+    public static readonly DiagnosticDescriptor MissingJsonUnionSupport = new(
+        id: "MOA020",
+        title: "Schema unions require System.Text.Json 11",
+        messageFormat: "This OpenAPI document uses schema unions, which require System.Text.Json 11 or later. Add a System.Text.Json 11 or later package reference to the consuming project on .NET 10, or target .NET 11 or later.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
 }

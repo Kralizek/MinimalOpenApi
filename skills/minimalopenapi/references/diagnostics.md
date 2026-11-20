@@ -18,6 +18,7 @@ Run `dotnet build` after modifying the OpenAPI contract or MSBuild metadata. Do 
 | MOA017 | Unresolved/unsupported schema `$ref`: use supported local component references and fix the contract. |
 | MOA018 | Response declares only unsupported media types (for example `text/plain` or `application/xml`): the generated result has no body. Do not drop the response from the contract; use a supported media type or accept the body-less result. |
 | MOA019 | Unsupported schema union: check the schema/operation path, case classification, and whether the union is used in a supported JSON payload. |
+| MOA020 | Missing System.Text.Json union API: add a System.Text.Json 11 or later package reference on .NET 10, or target .NET 11 or later. |
 
 Other MOA diagnostics are documented in the [architecture guide](https://github.com/Kralizek/MinimalOpenApi/blob/master/docs/architecture.md); this quick table intentionally focuses on consumer actions rather than guessing remaining codes. Missing types often mean a failed generator run, a wrong document path or namespace, or a signature changed after regeneration.
 

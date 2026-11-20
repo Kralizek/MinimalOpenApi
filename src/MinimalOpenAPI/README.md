@@ -60,7 +60,7 @@ Parser and abstraction assemblies are bundled as implementation details. For sch
 - typed results, `application/problem+json` wrappers, and binary/file response wrappers
 - handler response filtering through `ExcludeStatusCodesFromHandlers` and per-operation `MinimalOpenApiHandler` include/exclude overrides
 - recursively nested ASP.NET Core `Results<>` unions for more than six distinct effective handler result types
-- diagnostics MOA015–MOA019 for invalid handler responses, duplicate operation IDs, unsupported references, unsupported response media types, and unsupported schema unions
+- diagnostics MOA015–MOA020 for invalid handler responses, duplicate operation IDs, unsupported references, unsupported response media types, unsupported schema unions, and missing System.Text.Json union support
 - `multipart/form-data`, `IFormFile`, multiple files, and nested form objects
 - deterministic schema-name normalization with compile-time collision diagnostics
 - explicit schema publication through `PublishAs` and `MapOpenApiSchemas()`
