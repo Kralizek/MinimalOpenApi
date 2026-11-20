@@ -67,6 +67,18 @@ internal static class SchemaReferenceValidator
         foreach (var part in schema.AllOf)
             Visit(part, components, unresolved, visited);
 
+        if (schema.OneOf is { } oneOf)
+        {
+            foreach (var part in oneOf)
+                Visit(part, components, unresolved, visited);
+        }
+
+        if (schema.AnyOf is { } anyOf)
+        {
+            foreach (var part in anyOf)
+                Visit(part, components, unresolved, visited);
+        }
+
         if (schema.Items is { } items)
             Visit(items, components, unresolved, visited);
 

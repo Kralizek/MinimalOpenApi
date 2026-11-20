@@ -331,6 +331,18 @@ internal sealed class SchemaDirectionalityAnalysis
 
         foreach (var allOfSchema in schema.AllOf)
             yield return allOfSchema;
+
+        if (schema.OneOf is { } oneOf)
+        {
+            foreach (var alternative in oneOf)
+                yield return alternative;
+        }
+
+        if (schema.AnyOf is { } anyOf)
+        {
+            foreach (var alternative in anyOf)
+                yield return alternative;
+        }
     }
 
     private sealed class ReferenceEqualityComparer : IEqualityComparer<OpenApiSchema>

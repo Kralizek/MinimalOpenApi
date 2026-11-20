@@ -135,6 +135,9 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             ReadOnly = GetBool(node, "readOnly"),
             WriteOnly = GetBool(node, "writeOnly"),
             AllOf = ExtractAllOfSchemas(node),
+            OneOf = ExtractCompositionSchemas(node, "oneOf"),
+            AnyOf = ExtractCompositionSchemas(node, "anyOf"),
+            Discriminator = ExtractDiscriminator(node),
             Properties = properties,
             Required = required,
             Items = ExtractItemsSchema(node),
@@ -166,6 +169,48 @@ public sealed class JsonOpenApiParser : IOpenApiParser
         }
 
         return allOf;
+    }
+
+    private static List<OpenApiSchema>? ExtractCompositionSchemas(JsonObject node, string keyword)
+    {
+        if (!node.TryGetPropertyValue(keyword, out var value))
+            return null;
+
+        var schemas = new List<OpenApiSchema>();
+        if (value is not JsonArray alternatives)
+            return schemas;
+
+        foreach (var alternative in alternatives)
+        {
+            if (alternative?.AsObject() is { } schemaObject)
+                schemas.Add(ExtractSchema(schemaObject));
+        }
+
+        return schemas;
+    }
+
+    private static OpenApiDiscriminator? ExtractDiscriminator(JsonObject node)
+    {
+        var discriminatorNode = GetObject(node, "discriminator");
+        if (discriminatorNode is null)
+            return null;
+
+        var mapping = new Dictionary<string, string>(StringComparer.Ordinal);
+        var mappingNode = GetObject(discriminatorNode, "mapping");
+        if (mappingNode is not null)
+        {
+            foreach (var entry in mappingNode)
+            {
+                if (entry.Value is JsonValue value && value.TryGetValue<string>(out var reference))
+                    mapping[entry.Key] = reference;
+            }
+        }
+
+        return new OpenApiDiscriminator
+        {
+            PropertyName = GetString(discriminatorNode, "propertyName"),
+            Mapping = mapping
+        };
     }
 
     private static OpenApiSchema? ExtractAdditionalPropertiesSchema(JsonObject node)
