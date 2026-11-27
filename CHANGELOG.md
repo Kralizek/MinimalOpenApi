@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Responses declared with `$ref: '#/components/responses/{name}'`, including chains of references, now generate the same handler result types and endpoint metadata as the same response written inline. Previously they lost their payload type, problem-details wrapper and media type.
 
+### Fixed
+
+- Generated sources no longer depend on the consuming project's implicit usings or namespace layout. They now compile in `Microsoft.NET.Sdk` class libraries, in web projects with `ImplicitUsings` disabled, and when the root namespace or a handler namespace collides with a generated namespace (for example `RootNamespace=Contracts`, or a root namespace equal to the `OpenApi` `Namespace`).
+
 ## 1.1.0
 
 ### Added

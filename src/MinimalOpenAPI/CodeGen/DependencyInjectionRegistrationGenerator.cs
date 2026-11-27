@@ -45,20 +45,20 @@ internal static class DependencyInjectionRegistrationGenerator
             if (handlerImpl is not null)
             {
                 // Register concrete implementation
-                sb.AppendLine($"        services.AddScoped<{rootNamespace}.{specName}.Endpoints.{handlerBase}, {handlerImpl.FullName}>();");
+                sb.AppendLine($"        services.AddScoped<global::{rootNamespace}.{specName}.Endpoints.{handlerBase}, global::{handlerImpl.FullName}>();");
             }
             else
             {
                 // No implementation found — register the base class so the endpoint resolves at runtime
                 // (it will throw NotImplementedException when invoked, matching the MOA001 warning)
-                sb.AppendLine($"        services.AddScoped<{rootNamespace}.{specName}.Endpoints.{handlerBase}>();");
+                sb.AppendLine($"        services.AddScoped<global::{rootNamespace}.{specName}.Endpoints.{handlerBase}>();");
             }
 
             var configurationBase = TypeMapper.EndpointConfigurationBaseClassName(op.OperationId);
             var configurationImpl = configurations.FirstOrDefault(c => c.BaseName == configurationBase);
             if (configurationImpl is not null)
             {
-                sb.AppendLine($"        services.AddSingleton<{rootNamespace}.{specName}.Endpoints.{configurationBase}, {configurationImpl.FullName}>();");
+                sb.AppendLine($"        services.AddSingleton<global::{rootNamespace}.{specName}.Endpoints.{configurationBase}, global::{configurationImpl.FullName}>();");
             }
         }
 
