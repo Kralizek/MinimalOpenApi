@@ -1,4 +1,44 @@
 openapi: 3.1.0
+paths:
+  /generated-echo:
+    post:
+      operationId: echoUnion
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [values]
+              properties:
+                values:
+                  type: array
+                  items:
+                    oneOf:
+                      - type: object
+                        required: [name]
+                        properties:
+                          name: { type: string }
+                          choices:
+                            type: array
+                            items:
+                              anyOf:
+                                - type: integer
+                                - type: boolean
+                      - type: object
+                        required: [count]
+                        properties:
+                          count: { type: integer }
+      responses:
+        '200':
+          description: The echoed value
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - type: string
+                  - type: boolean
+        '204':
+          description: No values
 components:
   schemas:
     GeneratedDog:

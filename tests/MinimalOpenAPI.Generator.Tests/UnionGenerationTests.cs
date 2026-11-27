@@ -107,7 +107,7 @@ public sealed class UnionGenerationTests
     }
 
     [Test]
-    public void Inline_union_reports_MOA019_instead_of_falling_back_to_object()
+    public void Inline_union_inside_array_property_generates_a_named_type()
     {
         const string spec = """
             openapi: "3.1.0"
@@ -117,16 +117,126 @@ public sealed class UnionGenerationTests
                   type: object
                   properties:
                     value:
-                      oneOf:
-                        - type: string
-                        - type: integer
+                      type: array
+                      items:
+                        oneOf:
+                          - type: boolean
+                          - type: integer
             """;
 
         var (result, _) = RunGenerator(spec, "openapi.yaml");
 
-        var diagnostic = result.Diagnostics.Single(diagnostic => diagnostic.Id == "MOA019");
-        Assert.That(diagnostic.GetMessage(), Does.Contain("components/schemas/Container/properties/value"));
-        Assert.That(result.GeneratedTrees.Any(source => source.FilePath.EndsWith("Dtos.g.cs", StringComparison.Ordinal)), Is.False);
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+        Assert.That(result.Diagnostics, Is.Empty);
+        Assert.That(source, Does.Contain("public union ContainerValueItemUnion(bool, int);"));
+        Assert.That(source, Does.Contain("ContainerValueItemUnion[]? Value"));
+    }
+
+    [Test]
+    public void Parameter_reference_to_union_reports_binding_diagnostic()
+    {
+        const string spec = """
+            openapi: 3.1.0
+            paths:
+              /search:
+                get:
+                  operationId: search
+                  parameters:
+                    - $ref: '#/components/parameters/Term'
+                  responses:
+                    '204': { description: OK }
+            components:
+              parameters:
+                Term:
+                  name: term
+                  in: query
+                  schema:
+                    $ref: '#/components/schemas/Value'
+              schemas:
+                Value:
+                  oneOf:
+                    - type: boolean
+                    - type: integer
+            """;
+
+        var (result, _) = RunGenerator(spec, "openapi.yaml");
+        var message = result.Diagnostics.Single(diagnostic => diagnostic.Id == "MOA019").GetMessage();
+        Assert.That(message, Does.Contain("operations/search/parameters/term").And.Contain("only supported in JSON payloads"));
+    }
+
+    [TestCase("openapi.yaml")]
+    [TestCase("openapi.json")]
+    public void Union_alongside_reference_is_not_discarded(string fileName)
+    {
+        const string spec = """
+            {
+              "openapi": "3.1.0",
+              "components": {
+                "schemas": {
+                  "Target": {"type": "object"},
+                  "Value": {
+                    "$ref": "#/components/schemas/Target",
+                    "oneOf": [{"type": "integer"}, {"type": "boolean"}]
+                  }
+                }
+              }
+            }
+            """;
+
+        var (result, _) = RunGenerator(spec, fileName);
+        var message = result.Diagnostics.Single(diagnostic => diagnostic.Id == "MOA019").GetMessage();
+        Assert.That(message, Does.Contain("$ref").And.Contain("components/schemas/Value"));
+    }
+
+    [TestCase("Ignore", "EnvelopeValueUnion", "EnvelopeValueUnion")]
+    [TestCase("Auto", "EnvelopeRequestValueUnion", "EnvelopeResponseValueUnion")]
+    [TestCase("Split", "EnvelopeRequestValueUnion", "EnvelopeResponseValueUnion")]
+    public void Inline_union_uses_directional_case_records(string mode, string requestType, string responseType)
+    {
+        const string spec = """
+            openapi: 3.1.0
+            paths:
+              /echo:
+                post:
+                  operationId: echo
+                  requestBody:
+                    content:
+                      application/json:
+                        schema: { $ref: '#/components/schemas/Envelope' }
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema: { $ref: '#/components/schemas/Envelope' }
+            components:
+              schemas:
+                Envelope:
+                  type: object
+                  properties:
+                    value:
+                      oneOf:
+                        - type: object
+                          required: [name]
+                          properties:
+                            name: { type: string }
+                            id: { type: integer, readOnly: true }
+                        - type: object
+                          required: [code]
+                          properties:
+                            code: { type: integer }
+            """;
+
+        var (result, _) = GeneratorTestHelper.RunGenerator("", [("openapi.yaml", spec)], readWriteSchemaHandling: mode);
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
+        Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error), Is.False);
+        foreach (var typeName in new[] { requestType, responseType }.Distinct())
+            Assert.That(source, Does.Contain($"public union {typeName}({typeName}Case1, {typeName}Case2);"));
+
+        var requestCase = source.Split($"public sealed record {requestType}Case1", StringSplitOptions.None)[1].Split('}')[0..2];
+        var responseCase = source.Split($"public sealed record {responseType}Case1", StringSplitOptions.None)[1].Split('}')[0..2];
+        Assert.That(requestCase[1].Contains("Id", StringComparison.Ordinal), Is.EqualTo(mode == "Ignore"));
+        Assert.That(responseCase[1], Does.Contain("Id"));
     }
 
     [Test]

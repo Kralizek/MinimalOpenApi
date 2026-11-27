@@ -87,7 +87,9 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             return new OpenApiSchema
             {
                 Reference = ResolveRef(refValue),
-                RawReference = refValue
+                RawReference = refValue,
+                OneOf = ExtractCompositionSchemas(node, "oneOf"),
+                AnyOf = ExtractCompositionSchemas(node, "anyOf")
             };
 
         var properties = new Dictionary<string, OpenApiSchema>(StringComparer.Ordinal);

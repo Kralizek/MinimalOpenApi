@@ -261,7 +261,7 @@ public class AllOfCompositionTests
                       properties:
                         value:
                           oneOf:
-                            - type: string
+                            - type: boolean
                             - type: integer
                     - type: object
                       properties:
@@ -275,11 +275,8 @@ public class AllOfCompositionTests
             userSource: "// no handler",
             additionalFiles: [("openapi.yaml", spec)]);
 
-        var unionDiagnostics = result.Diagnostics.Where(diagnostic => diagnostic.Id == "MOA019").ToArray();
-        Assert.That(unionDiagnostics, Has.Length.EqualTo(2));
-        Assert.That(unionDiagnostics.All(diagnostic =>
-                diagnostic.GetMessage().Contains("inline unions are not supported yet", StringComparison.Ordinal)),
-            Is.True);
+        Assert.That(result.Diagnostics.Single(diagnostic => diagnostic.Id == "MOA019").GetMessage(),
+            Does.Contain("conflicting allOf definitions involve a schema union"));
         Assert.That(result.GeneratedTrees.Any(source => source.FilePath.EndsWith("Dtos.g.cs", StringComparison.Ordinal)), Is.False);
     }
 
