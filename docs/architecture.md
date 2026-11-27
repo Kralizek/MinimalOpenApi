@@ -507,8 +507,11 @@ Value records are always emitted *before* the record that references them so tha
 the generated file is a valid single-pass compilation unit.
 
 **Nullability**: a type is made nullable (`?`) when the OpenAPI schema has
-`nullable: true` or when the property is not listed in the parent schema's
-`required` array.
+`nullable: true` (or an OpenAPI 3.1 `"null"` type) or when the property is not listed in
+the parent schema's `required` array. For a `$ref` property, the referenced component's
+nullability counts too, following chains of references, so a required property that
+references a `nullable: true` component is nullable and not `required` in C#. Nullable
+properties are never emitted with the C# `required` modifier.
 
 **Route constraints**: path parameters are given inline ASP.NET Core type
 constraints (e.g. `{id:guid}`, `{page:int}`) to ensure proper route matching

@@ -130,6 +130,12 @@ internal sealed class SchemaDirectionalityAnalysis
     };
 
     /// <summary>
+    /// Whether values of <paramref name="schema"/> may be <c>null</c>, following <c>$ref</c>s to the
+    /// document's component schemas (see <see cref="TypeMapper.IsNullableSchema"/>).
+    /// </summary>
+    public bool IsNullable(OpenApiSchema schema) => TypeMapper.IsNullableSchema(schema, _schemas);
+
+    /// <summary>
     /// Resolves a <c>$ref</c> schema name to the C# type name that will be emitted for
     /// <paramref name="scope"/>.  The returned name is always a valid normalised C# identifier
     /// (e.g. <c>BillingInvoiceStatus</c> rather than the raw OpenAPI key
