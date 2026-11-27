@@ -13,7 +13,9 @@ Each sample demonstrates one clear capability area so you can find exactly what 
 | [SchemaShapes](SchemaShapes/README.md) | DTO generation from schema shapes: enums, `allOf`, `readOnly`/`writeOnly`, `additionalProperties`, `DateOnly`. |
 | [ResponseResults](ResponseResults/README.md) | Typed result unions (`Created<T>`, `Ok<T>`, `NoContent`), `application/problem+json` wrappers, and file response wrappers. |
 | [GeneratedFiles](GeneratedFiles/README.md) | `EmitCompilerGeneratedFiles` — how to see and inspect the C# source that MinimalOpenAPI generates. |
+| [ClassLibrary](ClassLibrary/README.md) | Contracts and handlers in class libraries (`Microsoft.NET.Sdk`) consumed by a separate web host. |
 | [SmokeTest](SmokeTest/README.md) | CI/package-consumption validation via `PackageReference`. Not the recommended learning sample. |
+| [ClassLibrarySmokeTest](ClassLibrarySmokeTest/README.md) | CI/package-consumption validation of the class-library layout; the published host is run and exercised over HTTP. |
 
 ## Where to start
 

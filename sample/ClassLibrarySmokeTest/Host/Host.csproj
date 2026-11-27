@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MinimalOpenAPI.Samples.ClassLibrary.Host</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    No PackageReference to MinimalOpenAPI here: the package (runtime, source generator and
+    buildTransitive targets) flows from the referenced libraries, as in a typical layered app.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../Catalog/Catalog.csproj" />
+    <ProjectReference Include="../Billing/Billing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../../ClassLibrary/Host/*.cs" />
+    <OpenApi Include="../../ClassLibrary/Host/openapi.yaml" Namespace="Health" />
+  </ItemGroup>
+
+</Project>

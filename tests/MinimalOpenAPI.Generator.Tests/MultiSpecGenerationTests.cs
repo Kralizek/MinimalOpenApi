@@ -184,8 +184,8 @@ public class MultiSpecGenerationTests
             userSource: PaymentHandlerImpl + ShipmentHandlerImpl,
             additionalFiles: additionalFiles);
 
-        var paymentDi = GeneratorTestHelper.GetGeneratedSource(result, "PaymentApi.DependencyInjection.g.cs");
-        var shippingDi = GeneratorTestHelper.GetGeneratedSource(result, "ShippingApi.DependencyInjection.g.cs");
+        var paymentDi = GeneratorTestHelper.GetGeneratedSource(result, "PaymentApi.EntryPoint.g.cs");
+        var shippingDi = GeneratorTestHelper.GetGeneratedSource(result, "ShippingApi.EntryPoint.g.cs");
 
         // Verify the new (builder, group) => delegate signature is used
         Assert.That(paymentDi, Does.Contain("(builder, group) =>"));

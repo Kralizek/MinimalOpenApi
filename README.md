@@ -142,6 +142,34 @@ Use the `Namespace` item metadata when two documents would otherwise resolve to 
 </ItemGroup>
 ```
 
+## Contracts in class libraries
+
+The OpenAPI document and its handlers can live in a class library that a separate host references:
+
+```xml
+<!-- Contracts.csproj -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="MinimalOpenAPI" Version="..." />
+    <OpenApi Include="openapi.yaml" Namespace="Petstore" />
+  </ItemGroup>
+</Project>
+```
+
+The host references the library and calls only `AddMinimalOpenApi()` and `MapMinimalOpenApiEndpoints()`. It does not need its own `MinimalOpenAPI` package reference, because the package flows from the library, and it may declare `<OpenApi>` documents of its own.
+
+Each document generates a public entry point, `{RootNamespace}.{SpecName}.{SpecName}MinimalOpenApi`, and marks its assembly with it. When the generator runs in the host, it finds the entry points of every referenced library at build time and registers them before `Main` runs. Registration therefore never depends on a library type having been used first, and no assembly scanning happens at runtime.
+
+If the generator cannot run in the host (for example when the package is referenced with `PrivateAssets="analyzers"`), call each document's entry point before `AddMinimalOpenApi()`:
+
+```csharp
+Contracts.Petstore.PetstoreMinimalOpenApi.Register();
+builder.Services.AddMinimalOpenApi();
+```
+
+`MapMinimalOpenApiEndpoints()` logs a warning when no document is registered at all. See [`sample/ClassLibrary`](sample/ClassLibrary).
+
 ## OpenAPI item metadata
 
 | Metadata | Purpose |
@@ -327,7 +355,9 @@ MinimalOpenAPI organizes emitted files beneath `MinimalOpenApi/{SpecName}/`, spl
 | [`SchemaPublishing`](sample/SchemaPublishing) | `PublishAs`, `MapOpenApiSchemas()`, and Swagger UI integration. |
 | [`GeneratedFiles`](sample/GeneratedFiles) | Inspecting compiler-generated files. |
 | [`MultipartNested`](sample/MultipartNested) | File uploads and nested form objects. |
+| [`ClassLibrary`](sample/ClassLibrary) | Contracts and handlers in class libraries consumed by a separate host. |
 | [`SmokeTest`](sample/SmokeTest) | Clean downstream consumption of the packed NuGet artifact. |
+| [`ClassLibrarySmokeTest`](sample/ClassLibrarySmokeTest) | The class-library layout consuming the packed NuGet artifact, published and run in CI. |
 
 The repository also includes a BenchmarkDotNet comparison under [`benchmarks/`](benchmarks/).
 

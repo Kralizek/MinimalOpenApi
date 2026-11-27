@@ -133,6 +133,12 @@ Two through six distinct effective handler result types use flat `Results<...>`;
 
 See [response-handling reference](../skills/minimalopenapi/references/response-handling.md) and [ResponseResults sample](../sample/ResponseResults/README.md).
 
+## Contracts in class libraries
+
+An OpenAPI document and its handlers may be declared in a class library (`Microsoft.NET.Sdk` plus `<FrameworkReference Include="Microsoft.AspNetCore.App" />` and the `MinimalOpenAPI` package) that a separate host references. The host calls only `AddMinimalOpenApi()` and `MapMinimalOpenApiEndpoints()`; it needs no own package reference, because the package flows from the library, and may declare its own documents.
+
+The generator running in the host registers every referenced library's document at build time, through the generated `{RootNamespace}.{SpecName}.{SpecName}MinimalOpenApi` entry points. Do **not** add workarounds such as `RuntimeHelpers.RunModuleConstructor` or touching a library type before `AddMinimalOpenApi()`. Only when the generator cannot run in the host, call `<SpecName>MinimalOpenApi.Register()` before `AddMinimalOpenApi()`.
+
 ## Generated namespaces
 
 Each OpenAPI document gets a namespace segment derived from the file name:
@@ -389,6 +395,7 @@ See the [feature support reference](../skills/minimalopenapi/references/feature-
 | `MOA019` | Unsupported/unresolved response `$ref` | Reference a response declared under `components/responses` in the same document. |
 | `NotImplementedException` at runtime | Missing override or call to base implementation | Override `HandleAsync` and remove the base call. |
 | Duplicate route at startup | Manual and generated mapping both register the operation | Remove the manual mapping. |
+| Library endpoints return 404, or the log warns that `MapMinimalOpenApiEndpoints()` mapped no endpoints | The MinimalOpenAPI generator does not run in the host | Let the package flow to the host (no `PrivateAssets` on its analyzers), or call each document's `<SpecName>MinimalOpenApi.Register()` before `AddMinimalOpenApi()`. |
 
 ## Migrating existing code-first applications
 

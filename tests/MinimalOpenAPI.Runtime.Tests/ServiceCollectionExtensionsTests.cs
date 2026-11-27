@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging;
 
 using MinimalOpenAPI;
 
@@ -43,6 +44,60 @@ public class ServiceCollectionExtensionsTests
 
         Assert.That(invoked, Is.True);
         Assert.That(group, Is.Not.Null);
+    }
+
+    [Test]
+    public void MapMinimalOpenApiEndpoints_WhenNothingRegistered_LogsWarning()
+    {
+        var logger = new CollectingLoggerProvider();
+        var builder = WebApplication.CreateBuilder();
+        builder.Logging.ClearProviders().AddProvider(logger);
+        var app = builder.Build();
+
+        app.MapMinimalOpenApiEndpoints();
+
+        Assert.That(logger.Entries, Has.Exactly(1).Matches<(string Category, LogLevel Level, string Message)>(e =>
+            e.Category == "MinimalOpenAPI"
+            && e.Level == LogLevel.Warning
+            && e.Message.Contains("mapped no endpoints", StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void MapMinimalOpenApiEndpoints_WhenCallbackRegistered_DoesNotWarn()
+    {
+        var logger = new CollectingLoggerProvider();
+        var builder = WebApplication.CreateBuilder();
+        builder.Logging.ClearProviders().AddProvider(logger);
+        var app = builder.Build();
+        ServiceCollectionExtensions.RegisterEndpointMapping((_, _) => { });
+
+        app.MapMinimalOpenApiEndpoints();
+
+        Assert.That(logger.Entries.Where(e => e.Category == "MinimalOpenAPI"), Is.Empty);
+    }
+
+    private sealed class CollectingLoggerProvider : ILoggerProvider
+    {
+        public List<(string Category, LogLevel Level, string Message)> Entries { get; } = [];
+
+        public ILogger CreateLogger(string categoryName) => new CollectingLogger(categoryName, Entries);
+
+        public void Dispose()
+        {
+        }
+
+        private sealed class CollectingLogger(string category, List<(string, LogLevel, string)> entries) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+            {
+                lock (entries)
+                    entries.Add((category, logLevel, formatter(state, exception)));
+            }
+        }
     }
 
     [Test]

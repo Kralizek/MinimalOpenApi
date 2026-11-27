@@ -51,7 +51,8 @@ internal static class GeneratorTestHelper
         string? displayVersion = null,
         string? readWriteSchemaHandling = null,
         IReadOnlyDictionary<string, string>? globalExclusionsByFile = null,
-        IReadOnlyList<(string? OpenApiFile, string? Include, string? IncludeStatusCodes, string? ExcludeStatusCodes)>? handlers = null)
+        IReadOnlyList<(string? OpenApiFile, string? Include, string? IncludeStatusCodes, string? ExcludeStatusCodes)>? handlers = null,
+        IEnumerable<MetadataReference>? additionalReferences = null)
     {
         // Create a minimal compilation for the generator
         var references = new List<MetadataReference>
@@ -65,6 +66,9 @@ internal static class GeneratorTestHelper
             .FirstOrDefault(a => a.GetName().Name == "System.Runtime");
         if (systemRuntime is not null)
             references.Add(MetadataReference.CreateFromFile(systemRuntime.Location));
+
+        if (additionalReferences is not null)
+            references.AddRange(additionalReferences);
 
         var compilation = CSharpCompilation.Create(
             assemblyName: rootNamespace,

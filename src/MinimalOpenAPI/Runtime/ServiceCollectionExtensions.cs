@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace MinimalOpenAPI;
 
@@ -93,6 +94,11 @@ public static class ServiceCollectionExtensions
     /// (e.g. <c>.RequireAuthorization()</c> to protect all endpoints at once).
     /// When multiple OpenAPI spec files are registered, all of their endpoints are
     /// mapped onto the same group.
+    /// <para>
+    /// Documents declared in referenced class libraries are included automatically when the
+    /// MinimalOpenAPI source generator runs in the calling project. When no generated document is
+    /// registered at all, a warning is logged instead of silently mapping nothing.
+    /// </para>
     /// </summary>
     /// <param name="builder">The endpoint route builder.</param>
     public static RouteGroupBuilder MapMinimalOpenApiEndpoints(
@@ -103,6 +109,17 @@ public static class ServiceCollectionExtensions
         List<Action<IEndpointRouteBuilder, RouteGroupBuilder>> mappings;
         lock (_registrationLock)
             mappings = new List<Action<IEndpointRouteBuilder, RouteGroupBuilder>>(_generatedEndpointMappings);
+
+        if (mappings.Count == 0)
+        {
+            builder.ServiceProvider.GetService<ILoggerFactory>()?
+                .CreateLogger("MinimalOpenAPI")
+                .LogWarning(
+                    "MapMinimalOpenApiEndpoints() mapped no endpoints because no MinimalOpenAPI document is registered. " +
+                    "Declare an <OpenApi> item in this project or in a referenced project, and make sure the MinimalOpenAPI " +
+                    "package (and its source generator) flows to this project. If the generator cannot run here, call the " +
+                    "generated <Document>MinimalOpenApi.Register() method of each referenced document before AddMinimalOpenApi().");
+        }
 
         foreach (var mapping in mappings)
             mapping(builder, group);

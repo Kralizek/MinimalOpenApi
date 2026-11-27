@@ -1,0 +1,24 @@
+openapi: "3.0.3"
+info:
+  title: Billing API
+  version: "1.0.0"
+paths:
+  /billing/invoices/{id}:
+    get:
+      operationId: getInvoice
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int32 } }
+      responses:
+        "200":
+          description: The invoice.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Invoice' }
+components:
+  schemas:
+    Invoice:
+      type: object
+      required: [id, total]
+      properties:
+        id: { type: integer, format: int32 }
+        total: { type: number, format: double }

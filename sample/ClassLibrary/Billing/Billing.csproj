@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <!-- The root namespace equals the document Namespace, so generated code lives in Billing.Billing.* (#125). -->
+    <RootNamespace>Billing</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!--
+    In the NuGet scenario a consumer would have:
+      <PackageReference Include="MinimalOpenAPI" />
+    and the build/buildTransitive targets would be imported automatically.
+    In this project-reference dev scenario we import the targets explicitly.
+  -->
+  <Import Project="../../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
+
+  <ItemGroup>
+    <OpenApi Include="openapi.yaml" Namespace="Billing" />
+  </ItemGroup>
+
+</Project>

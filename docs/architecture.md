@@ -91,7 +91,11 @@ MinimalOpenAPI.Generator  (IIncrementalGenerator, runs inside Roslyn)
     ├─ Emits shared source files (one set per spec):
     │   MinimalOpenApi.<SpecName>.Dtos.g.cs                 (DTO records + enums)
     │   MinimalOpenApi.<SpecName>.DependencyInjection.g.cs  (AddGeneratedEndpoints + ModuleInitializer)
+    │   MinimalOpenApi.<SpecName>.EntryPoint.g.cs           (public <SpecName>MinimalOpenApi.Register() + assembly marker)
     │   MinimalOpenApi.<SpecName>.EndpointMapping.g.cs      (MapEndpoints internal helper)
+    │
+    ├─ Emits once per compilation, when referenced assemblies declare documents:
+    │   MinimalOpenApi.ReferencedDocuments.g.cs             (ModuleInitializer calling each referenced Register())
     │
     ▼
 User project: inherit handler base, fill in business logic
@@ -595,13 +599,33 @@ types are all unsupported is generated without a body and reports MOA018.
 
 ## 9. Runtime startup hook (ModuleInitializer)
 
-The generated `MinimalOpenApiModuleInitializer` class uses the
-`[System.Runtime.CompilerServices.ModuleInitializer]` attribute to call two
-methods on `ServiceCollectionExtensions` the instant the consuming assembly is
-loaded by the CLR — before any user code in `Program.cs` runs:
+Every document generates a public entry point, `{RootNamespace}.{SpecName}.{SpecName}MinimalOpenApi`,
+whose idempotent `Register()` calls three methods on `ServiceCollectionExtensions`:
 
 1. `RegisterGeneratedServices` — stores the DI registration callback.
 2. `RegisterEndpointMapping` — stores the endpoint mapping callback.
+3. `RegisterSchemaFile` — stores the copied schema file's path and metadata.
+
+The assembly also carries `[assembly: MinimalOpenApiDocument(typeof(...MinimalOpenApi))]`.
+
+`Register()` is called from two generated `[ModuleInitializer]`s:
+
+- **`MinimalOpenApiModuleInitializer`**, in the declaring assembly. The CLR runs it when the
+  assembly's module is first accessed. For an application that is before `Main`; for a class
+  library it may be *after* the host has already called `AddMinimalOpenApi()`.
+- **`MinimalOpenApiReferencedDocuments`**, in every project that references assemblies carrying
+  `MinimalOpenApiDocument` attributes. The generator reads those attributes from the compilation's
+  metadata references (only assemblies that reference the MinimalOpenAPI runtime are inspected) and
+  emits direct calls to each referenced entry point. A host's initializer runs before `Main` (and
+  before `WebApplicationFactory<Program>` uses `Program`), and each direct call loads the library, so
+  library documents are registered deterministically.
+
+Discovery happens at compile time; nothing scans assemblies at runtime, which keeps the mechanism
+trim/AOT-safe. Because `Register()` is idempotent, a document reached through several paths (its own
+initializer, a library that references it, and the host) is registered once. When the generator
+cannot run in a host, the host can call `{SpecName}MinimalOpenApi.Register()` itself before
+`AddMinimalOpenApi()`. `MapMinimalOpenApiEndpoints()` logs a warning when no document is registered
+at all.
 
 This lets the user call only:
 
@@ -698,6 +722,9 @@ explicitly, leaking generated type names (and their namespaces) into user code.
 The module initializer + callback pattern keeps the public API surface to two
 calls — `AddMinimalOpenApi()` and `MapMinimalOpenApiEndpoints()` — both in the
 `MinimalOpenAPI` namespace, with no `using {RootNamespace}.Generated;` required.
+Generating same-named methods in the host instead would make every call ambiguous with the
+runtime's, so referenced documents are wired in behind those methods by the consuming project's
+generated module initializer (§9) rather than through new public methods.
 
 **Configuration as singleton, handler as scoped**: Handlers may hold scoped
 dependencies (e.g. `DbContext`).  Configurations configure route metadata at
