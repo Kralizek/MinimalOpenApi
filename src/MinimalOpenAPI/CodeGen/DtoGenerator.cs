@@ -358,7 +358,7 @@ internal static class DtoGenerator
             if (!directionality.ShouldIncludeProperty(propSchema, scope))
                 continue;
             var isRequired = schema.Required.Contains(propName, StringComparer.OrdinalIgnoreCase);
-            var nullable = propSchema.Nullable || !isRequired;
+            var nullable = directionality.IsNullable(propSchema) || !isRequired;
             var typeName = TypeMapper.MapSchema(
                 propSchema,
                 nullable: nullable,

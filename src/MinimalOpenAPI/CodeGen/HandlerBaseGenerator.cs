@@ -316,7 +316,7 @@ internal static class HandlerBaseGenerator
             if (!directionality.ShouldIncludeProperty(propSchema, scope))
                 continue;
             var isRequired = schema.Required.Contains(propName, StringComparer.OrdinalIgnoreCase);
-            var nullable = propSchema.Nullable || !isRequired;
+            var nullable = directionality.IsNullable(propSchema) || !isRequired;
             var csharpTypeName = TypeMapper.MapSchema(
                 propSchema,
                 nullable: nullable,
@@ -462,7 +462,7 @@ internal static class HandlerBaseGenerator
                 continue;
 
             var isRequired = schema.Required.Contains(propName, StringComparer.OrdinalIgnoreCase);
-            var nullable = propSchema.Nullable || !isRequired;
+            var nullable = directionality.IsNullable(propSchema) || !isRequired;
             var csharpName = TypeMapper.ToPascalCase(propName);
 
             string csharpTypeName;
