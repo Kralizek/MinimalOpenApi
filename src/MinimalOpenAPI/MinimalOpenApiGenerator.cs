@@ -721,6 +721,24 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             return;
         }
 
+        var unresolvedResponseReferences = doc.Operations
+            .SelectMany(op => op.Responses
+                .Where(response => response.Reference is not null)
+                .Select(response => (Operation: op, Response: response)))
+            .ToList();
+        foreach (var (operation, response) in unresolvedResponseReferences)
+        {
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.UnresolvedResponseReference,
+                CreateOpenApiLocation(openApiFilePath),
+                response.Reference,
+                response.StatusCode,
+                operation.OperationId));
+        }
+
+        if (unresolvedResponseReferences.Count > 0)
+            return;
+
         var duplicateOperationIds = doc.Operations
             .GroupBy(o => o.OperationId, StringComparer.Ordinal)
             .Where(group => group.Count() > 1)
