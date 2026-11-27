@@ -175,4 +175,13 @@ internal static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
+    /// <summary>A response <c>$ref</c> does not resolve to a response declared under <c>components/responses</c>.</summary>
+    public static readonly DiagnosticDescriptor UnresolvedResponseReference = new(
+        id: "MOA019",
+        title: "Unresolved response reference",
+        messageFormat: "Response reference '{0}' for response '{1}' of operation '{2}' could not be resolved. Only local references of the form '#/components/responses/{{name}}' are supported, including chains of them; external and cyclic response references are not supported.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
 }
