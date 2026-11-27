@@ -23,4 +23,12 @@ public sealed class OpenApiResponse
 
     /// <summary>The schema of the response body, or <see langword="null"/> if the response has no body.</summary>
     public OpenApiSchema? Schema { get; init; }
+
+    /// <summary>
+    /// The <c>$ref</c> value of a response that parsers could not resolve, for example
+    /// <c>#/components/responses/Missing</c> or an external reference; <see langword="null"/> for inline
+    /// responses and for references that parsers resolved against <c>components/responses</c>.
+    /// The generator reports an unresolved reference instead of generating code from it.
+    /// </summary>
+    public string? Reference { get; init; }
 }

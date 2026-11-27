@@ -384,6 +384,7 @@ See the [feature support reference](../skills/minimalopenapi/references/feature-
 | `MOA016` | Duplicate operation ID | Give each operation a unique `operationId`. |
 | `MOA017` | Unsupported/unresolved schema `$ref` | Correct the contract to use supported local schema references. |
 | `MOA018` | Response declares only unsupported media types | Use JSON, problem details or a binary/file media type, or accept a body-less generated result. |
+| `MOA019` | Unsupported/unresolved response `$ref` | Reference a response declared under `components/responses` in the same document. |
 | `NotImplementedException` at runtime | Missing override or call to base implementation | Override `HandleAsync` and remove the base call. |
 | Duplicate route at startup | Manual and generated mapping both register the operation | Remove the manual mapping. |
 

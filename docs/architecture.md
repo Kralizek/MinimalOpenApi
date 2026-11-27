@@ -586,6 +586,7 @@ types are all unsupported is generated without a body and reports MOA018.
 | **MOA016** | Error | Two or more operations in one OpenAPI document share an `operationId`; generation is aborted for that document. |
 | **MOA017** | Error | A schema `$ref` is unresolved or unsupported. MinimalOpenAPI currently supports only local `#/components/schemas/{name}` references; generation is aborted for that document. |
 | **MOA018** | Warning | A response declares content, but none of its media types is supported (for example `text/plain`, `text/csv` without a binary schema, or `application/xml`). The generated handler result and endpoint metadata describe the response without a body. |
+| **MOA019** | Error | A response `$ref` is unresolved or unsupported. Local `#/components/responses/{name}` references, including chains of them, are resolved by the parsers and generate the same code as the inline response; external, missing and cyclic references abort generation for that document. |
 
 ---
 

@@ -200,6 +200,8 @@ public sealed class JsonOpenApiParser : IOpenApiParser
         var pathsNode = GetObject(root, "paths");
         if (pathsNode is null) return result;
 
+        var componentResponses = GetObject(root, "components", "responses");
+
         foreach (var pathEntry in pathsNode)
         {
             var route = pathEntry.Key;
@@ -211,7 +213,7 @@ public sealed class JsonOpenApiParser : IOpenApiParser
                 var opNode = GetObject(pathItem, method);
                 if (opNode is null) continue;
 
-                result.Add(ExtractOperation(opNode, method.ToUpperInvariant(), route, pathParameters));
+                result.Add(ExtractOperation(opNode, method.ToUpperInvariant(), route, pathParameters, componentResponses));
             }
         }
 
@@ -222,7 +224,8 @@ public sealed class JsonOpenApiParser : IOpenApiParser
         JsonObject opNode,
         string method,
         string route,
-        IReadOnlyList<OpenApiParameter> pathParameters)
+        IReadOnlyList<OpenApiParameter> pathParameters,
+        JsonObject? componentResponses)
     {
         var tags = new List<string>();
         var tagsNode = GetArray(opNode, "tags");
@@ -250,7 +253,7 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             Tags = tags,
             Parameters = parameters,
             RequestBody = ExtractRequestBody(opNode),
-            Responses = ExtractResponses(opNode)
+            Responses = ExtractResponses(opNode, componentResponses)
         };
     }
 
@@ -342,7 +345,7 @@ public sealed class JsonOpenApiParser : IOpenApiParser
         return false;
     }
 
-    private static List<OpenApiResponse> ExtractResponses(JsonObject opNode)
+    private static List<OpenApiResponse> ExtractResponses(JsonObject opNode, JsonObject? componentResponses)
     {
         var result = new List<OpenApiResponse>();
         var responsesNode = GetObject(opNode, "responses");
@@ -351,7 +354,19 @@ public sealed class JsonOpenApiParser : IOpenApiParser
         foreach (var entry in responsesNode)
         {
             if (!int.TryParse(entry.Key, out var statusCode)) continue;
-            if (entry.Value?.AsObject() is not { } responseNode) continue;
+            if (entry.Value?.AsObject() is not { } declaredNode) continue;
+
+            var responseNode = ResolveResponseNode(declaredNode, componentResponses, out var unresolvedReference);
+            if (responseNode is null)
+            {
+                result.Add(new OpenApiResponse
+                {
+                    StatusCode = statusCode,
+                    Description = GetString(declaredNode, "description") ?? string.Empty,
+                    Reference = unresolvedReference
+                });
+                continue;
+            }
 
             var schemaNode = TryGetSupportedResponseContent(responseNode, out var contentType, out var mediaTypeNode)
                 ? GetObject(mediaTypeNode!, "schema")
@@ -359,7 +374,8 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             result.Add(new OpenApiResponse
             {
                 StatusCode = statusCode,
-                Description = GetString(responseNode, "description") ?? string.Empty,
+                // A Reference Object's own description overrides the referenced component's.
+                Description = GetString(declaredNode, "description") ?? GetString(responseNode, "description") ?? string.Empty,
                 ContentType = contentType,
                 DeclaredContentTypes = GetDeclaredContentTypes(responseNode),
                 Schema = schemaNode is not null ? ExtractSchema(schemaNode) : null
@@ -367,6 +383,38 @@ public sealed class JsonOpenApiParser : IOpenApiParser
         }
 
         return result;
+    }
+
+    private const string ComponentResponsesPrefix = "#/components/responses/";
+
+    /// <summary>
+    /// Follows a response's <c>$ref</c> chain to a response declared under <c>components/responses</c>.
+    /// Returns the node itself when it is not a reference, or <see langword="null"/> with the
+    /// offending reference when the chain is external, missing or cyclic.
+    /// </summary>
+    private static JsonObject? ResolveResponseNode(
+        JsonObject node,
+        JsonObject? componentResponses,
+        out string? unresolvedReference)
+    {
+        unresolvedReference = null;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+
+        while (GetString(node, "$ref") is { } refValue)
+        {
+            if (!refValue.StartsWith(ComponentResponsesPrefix, StringComparison.Ordinal)
+                || !visited.Add(refValue)
+                || componentResponses is null
+                || GetObject(componentResponses, refValue.Substring(ComponentResponsesPrefix.Length)) is not { } target)
+            {
+                unresolvedReference = refValue;
+                return null;
+            }
+
+            node = target;
+        }
+
+        return node;
     }
 
     private static List<string> GetDeclaredContentTypes(JsonObject responseNode)

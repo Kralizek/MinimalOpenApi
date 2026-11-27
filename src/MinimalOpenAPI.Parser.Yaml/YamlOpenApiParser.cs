@@ -193,6 +193,8 @@ public sealed class YamlOpenApiParser : IOpenApiParser
         var pathsNode = GetMapping(root, "paths");
         if (pathsNode is null) return result;
 
+        var componentResponses = GetMapping(root, "components", "responses");
+
         foreach (var pathEntry in pathsNode.Children)
         {
             var route = Scalar(pathEntry.Key);
@@ -204,7 +206,7 @@ public sealed class YamlOpenApiParser : IOpenApiParser
                 var opNode = GetMapping(pathItem, method);
                 if (opNode is null) continue;
 
-                result.Add(ExtractOperation(opNode, method.ToUpperInvariant(), route, pathParameters));
+                result.Add(ExtractOperation(opNode, method.ToUpperInvariant(), route, pathParameters, componentResponses));
             }
         }
 
@@ -215,7 +217,8 @@ public sealed class YamlOpenApiParser : IOpenApiParser
         YamlMappingNode opNode,
         string method,
         string route,
-        IReadOnlyList<OpenApiParameter> pathParameters)
+        IReadOnlyList<OpenApiParameter> pathParameters,
+        YamlMappingNode? componentResponses)
     {
         var tagsNode = GetSequence(opNode, "tags");
         var tags = new List<string>();
@@ -240,7 +243,7 @@ public sealed class YamlOpenApiParser : IOpenApiParser
             Tags = tags,
             Parameters = parameters,
             RequestBody = ExtractRequestBody(opNode),
-            Responses = ExtractResponses(opNode)
+            Responses = ExtractResponses(opNode, componentResponses)
         };
     }
 
@@ -332,7 +335,7 @@ public sealed class YamlOpenApiParser : IOpenApiParser
         return false;
     }
 
-    private static List<OpenApiResponse> ExtractResponses(YamlMappingNode opNode)
+    private static List<OpenApiResponse> ExtractResponses(YamlMappingNode opNode, YamlMappingNode? componentResponses)
     {
         var result = new List<OpenApiResponse>();
         var responsesNode = GetMapping(opNode, "responses");
@@ -342,14 +345,27 @@ public sealed class YamlOpenApiParser : IOpenApiParser
         {
             if (!int.TryParse(Scalar(entry.Key), out var statusCode)) continue;
 
-            var responseNode = (YamlMappingNode)entry.Value;
+            var declaredNode = (YamlMappingNode)entry.Value;
+            var responseNode = ResolveResponseNode(declaredNode, componentResponses, out var unresolvedReference);
+            if (responseNode is null)
+            {
+                result.Add(new OpenApiResponse
+                {
+                    StatusCode = statusCode,
+                    Description = GetString(declaredNode, "description") ?? string.Empty,
+                    Reference = unresolvedReference
+                });
+                continue;
+            }
+
             var schemaNode = TryGetSupportedResponseContent(responseNode, out var contentType, out var mediaTypeNode)
                 ? GetMapping(mediaTypeNode!, "schema")
                 : null;
             result.Add(new OpenApiResponse
             {
                 StatusCode = statusCode,
-                Description = GetString(responseNode, "description") ?? string.Empty,
+                // A Reference Object's own description overrides the referenced component's.
+                Description = GetString(declaredNode, "description") ?? GetString(responseNode, "description") ?? string.Empty,
                 ContentType = contentType,
                 DeclaredContentTypes = GetDeclaredContentTypes(responseNode),
                 Schema = schemaNode is not null ? ExtractSchema(schemaNode) : null
@@ -357,6 +373,38 @@ public sealed class YamlOpenApiParser : IOpenApiParser
         }
 
         return result;
+    }
+
+    private const string ComponentResponsesPrefix = "#/components/responses/";
+
+    /// <summary>
+    /// Follows a response's <c>$ref</c> chain to a response declared under <c>components/responses</c>.
+    /// Returns the node itself when it is not a reference, or <see langword="null"/> with the
+    /// offending reference when the chain is external, missing or cyclic.
+    /// </summary>
+    private static YamlMappingNode? ResolveResponseNode(
+        YamlMappingNode node,
+        YamlMappingNode? componentResponses,
+        out string? unresolvedReference)
+    {
+        unresolvedReference = null;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+
+        while (GetString(node, "$ref") is { } refValue)
+        {
+            if (!refValue.StartsWith(ComponentResponsesPrefix, StringComparison.Ordinal)
+                || !visited.Add(refValue)
+                || componentResponses is null
+                || GetMapping(componentResponses, refValue.Substring(ComponentResponsesPrefix.Length)) is not { } target)
+            {
+                unresolvedReference = refValue;
+                return null;
+            }
+
+            node = target;
+        }
+
+        return node;
     }
 
     private static List<string> GetDeclaredContentTypes(YamlMappingNode responseNode)
