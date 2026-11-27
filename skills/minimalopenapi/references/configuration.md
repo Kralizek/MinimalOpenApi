@@ -34,6 +34,8 @@ For multiple documents choose distinct `Namespace` metadata if derived names col
 
 Contracts and handlers may live in a class library referenced by a separate host. The host calls only `AddMinimalOpenApi()` / `MapMinimalOpenApiEndpoints()`; the generator running in the host registers every referenced document at build time through the generated `{RootNamespace}.{SpecName}.{SpecName}MinimalOpenApi` entry points. Do not add module-constructor or "touch a library type" workarounds. Only if the generator cannot run in the host, call `<SpecName>MinimalOpenApi.Register()` before `AddMinimalOpenApi()`. A startup warning that no endpoints were mapped means no document was registered.
 
+Handlers and endpoint configurations may be implemented in the declaring library or in any project referencing it (for example the host) by deriving from the generated base; that project needs no `<OpenApi>` item and must not register them manually. `Generate` metadata splits a document across projects: `Generate="Contracts"` emits only DTOs, `Generate="Endpoints"` emits the bases, mapping and registration on top of the DTOs from a referenced project that generates `Contracts` for the same file; the default is both. Point every item at the same file with the same `ReadWriteSchemaHandling`.
+
 `ReadWriteSchemaHandling`: `Ignore` is neutral, `Auto` creates directional request/response shapes when needed (default), and `Split` always creates directional graphs from body roots.
 
 Inspect [main documentation](https://github.com/Kralizek/MinimalOpenApi/blob/master/README.md) and [getting started](https://github.com/Kralizek/MinimalOpenApi/blob/master/docs/getting-started.md) before adopting optional conventions.

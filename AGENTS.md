@@ -33,7 +33,8 @@ tests/
 sample/
   SmokeTest/           ← CI/package-consumption sample; validates the packed NuGet artifact
   ClassLibrarySmokeTest/ ← CI/package-consumption sample for contracts in class libraries + a separate host
-  ClassLibrary/        ← contracts and handlers in class libraries consumed by a separate web host
+  ClassLibrary/        ← contracts and handlers in class libraries consumed by a separate web host,
+                           including a document split into Contracts / Endpoints libraries with host handlers
   BasicTodo/           ← recommended learning starting point; minimal contract-first Todo API
   SchemaPublishing/    ← demonstrates PublishAs, MapOpenApiSchemas(), and Swagger UI wiring
   Parameters/          ← demonstrates all parameter kinds (path, query, header, cookie, component $ref)
@@ -135,7 +136,7 @@ bash scripts/smoke-test-class-library.sh
 - Cover the change with a new or updated generator test in `MinimalOpenAPI.Generator.Tests`.
 - Also run `MinimalOpenAPI.IntegrationTests` to catch end-to-end regressions.
 - Run the smoke test (pack + build `sample/SmokeTest`) to confirm the packed NuGet artifact still works as a real downstream consumer would experience it.
-- Diagnostics live in `MinimalOpenAPI.Generator`; the codes are `MOA001`–`MOA019` (see `docs/architecture.md` §8).
+- Diagnostics live in `MinimalOpenAPI.Generator`; the codes are `MOA001`–`MOA022` (see `docs/architecture.md` §8).
 
 ### Runtime changes
 - Cover the change with a new or updated test in `MinimalOpenAPI.Runtime.Tests`.

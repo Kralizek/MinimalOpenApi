@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="../Catalog/Catalog.csproj" />
     <ProjectReference Include="../Billing/Billing.csproj" />
+    <ProjectReference Include="../Inventory.Api/Inventory.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>

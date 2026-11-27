@@ -375,12 +375,54 @@ Exactly one handler must exist (zero → **MOA001** warning; two or more →
 error).
 
 A class library (`OutputType=Library`, read through the `OutputType` compiler-visible
-property) does not report MOA001 for its own documents. It lists the handler bases it leaves
-unimplemented on its assembly attribute
-(`[assembly: MinimalOpenApiDocument(typeof(...), UnimplementedHandlers = new[] { typeof(...) })]`),
-and an application that references it (`OutputType` `Exe` or `WinExe`, not a test project, i.e.
-`IsTestProject` is not `true`) reports MOA001 for each listed base, naming the library. Other
-libraries and test projects referencing it do not report it again.
+property) does not report MOA001 for its own documents. Every document lists on its assembly
+attribute the handler bases it leaves unimplemented and the configuration bases it implements
+(`[assembly: MinimalOpenApiDocument(typeof(...), UnimplementedHandlers = ..., ImplementedConfigurations = ...)]`).
+
+#### Implementations in referencing projects
+
+Generated handler and configuration bases carry `[MinimalOpenApiHandlerBase]` /
+`[MinimalOpenApiEndpointConfigurationBase]`. The class-discovery transform sorts each concrete
+class's base chain: bases of this project's own documents are not in the compilation the generator
+sees (they are error types, or types of this assembly) and are matched by name as above; bases that
+are real symbols from another assembly and carry a marker are *referenced bases*.
+
+For referenced bases, `ImplementationsGenerator` emits `MinimalOpenApi.Implementations.g.cs`:
+
+- a public `{RootNamespace}.MinimalOpenApiImplementations` entry point whose idempotent
+  `Register()` first calls every referenced document's `Register()` and then registers a
+  `RegisterGeneratedServices` callback that replaces the document's registration
+  (`RemoveAll<Base>` + `AddScoped<Base, Impl>` / `AddSingleton<ConfigBase, Impl>`); the document
+  registers its fallback handler with `TryAddScoped`, so the order never matters;
+- a module initializer calling it, and
+  `[assembly: MinimalOpenApiImplementations(typeof(...), Handlers = ..., Configurations = ...)]`, so
+  projects referencing this one call the entry point from their `MinimalOpenApiReferencedDocuments`
+  initializer (after the document entry points) and know which bases it implements.
+
+Endpoint mapping always resolves `{Operation}EndpointConfigurationBase` from DI at startup, so a
+configuration implemented anywhere is applied.
+
+The same output checks implementations across assemblies. For every base it counts this project's
+classes, the referenced assemblies listing it in `MinimalOpenApiImplementations`, and the declaring
+assembly when that assembly implements it itself. More than one → MOA002 (handlers) / MOA003
+(configurations), reported by every project that contributes one and by the application. None
+for a base the declaring assembly lists as unimplemented → MOA001, reported only by an
+application (`OutputType` `Exe`/`WinExe`, `IsTestProject` not `true`), naming the declaring
+library. Other libraries and test projects stay silent.
+
+#### Generation layers
+
+The `Generate` item metadata (`MinimalOpenApiGenerate`; `;` is forwarded as `|`) selects
+`Contracts`, `Endpoints` or both (the default). Invalid values → MOA022.
+
+- `Contracts` emits the DTOs and `[assembly: MinimalOpenApiContracts(specName, contractsNamespace, documentHash)]`.
+  The hash covers the document content (line endings normalised) and the effective
+  `ReadWriteSchemaHandling`, the inputs that shape the contract types.
+- `Endpoints` emits everything else. Without `Contracts` it uses the contracts namespace of the
+  referenced `MinimalOpenApiContracts` attribute with the same hash (the spec name breaks ties).
+  None or several → MOA020; none with that hash but one with the same spec name → MOA021. The
+  handler bases and endpoint mapping take the contracts namespace as a parameter, so the generated
+  code refers to the referenced DTOs.
 
 ### 6.4 Generated files
 
@@ -583,9 +625,9 @@ types are all unsupported is generated without a body and reports MOA018.
 
 | Code | Severity | Trigger |
 |------|----------|---------|
-| **MOA001** | Warning | No concrete class inheriting from a generated handler base was found in the project.  The app will compile but `HandleAsync` will throw `NotImplementedException` at runtime. A class library defers it to the application that references it (§6.3). |
-| **MOA002** | Error | Two or more classes inherit from the same generated handler base.  Exactly one implementation is required. |
-| **MOA003** | Error | Two or more classes inherit from the same generated configuration base.  At most one is allowed. |
+| **MOA001** | Warning | No concrete class inheriting from a generated handler base was found in the project.  The app will compile but `HandleAsync` will throw `NotImplementedException` at runtime. A class library defers it to the application that references it, which also counts implementations in other projects (§6.3). |
+| **MOA002** | Error | Two or more classes inherit from the same generated handler base, in this project or across referenced projects (§6.3).  Exactly one implementation is required. |
+| **MOA003** | Error | Two or more classes inherit from the same generated configuration base, in this project or across referenced projects.  At most one is allowed. |
 | **MOA004** | Error | The OpenAPI file could not be parsed (YAML syntax error, etc.). |
 | **MOA005** | Error | The `<OpenApi>` item has a file extension the generator does not recognise (only `.yaml`, `.yml`, and `.json` are supported). |
 | **MOA006** | Warning | The `openapi` version field is absent or contains a value the generator cannot parse as a `System.Version`.  The spec is still processed; generation continues. |
@@ -602,6 +644,9 @@ types are all unsupported is generated without a body and reports MOA018.
 | **MOA017** | Error | A schema `$ref` is unresolved or unsupported. MinimalOpenAPI currently supports only local `#/components/schemas/{name}` references; generation is aborted for that document. |
 | **MOA018** | Warning | A response declares content, but none of its media types is supported (for example `text/plain`, `text/csv` without a binary schema, or `application/xml`). The generated handler result and endpoint metadata describe the response without a body. |
 | **MOA019** | Error | A response `$ref` is unresolved or unsupported. Local `#/components/responses/{name}` references, including chains of them, are resolved by the parsers and generate the same code as the inline response; external, missing and cyclic references abort generation for that document. |
+| **MOA020** | Error | A document generates only `Endpoints`, but no referenced assembly (or more than one) generates its `Contracts`. |
+| **MOA021** | Error | The referenced `Contracts` of the document were generated from a different version of the document or with a different `ReadWriteSchemaHandling`. |
+| **MOA022** | Error | The `Generate` metadata of an `<OpenApi>` item is not `Contracts`, `Endpoints`, or both. |
 
 ---
 
@@ -614,9 +659,11 @@ whose idempotent `Register()` calls three methods on `ServiceCollectionExtension
 2. `RegisterEndpointMapping` — stores the endpoint mapping callback.
 3. `RegisterSchemaFile` — stores the copied schema file's path and metadata.
 
-The assembly also carries `[assembly: MinimalOpenApiDocument(typeof(...MinimalOpenApi))]`. In a class
-library its `UnimplementedHandlers` property lists the handler bases without an implementation, so the
-referencing application can report MOA001 for them (§6.3).
+The assembly also carries `[assembly: MinimalOpenApiDocument(typeof(...MinimalOpenApi))]`, whose
+`UnimplementedHandlers` / `ImplementedConfigurations` properties feed the cross-assembly checks (§6.3).
+Projects implementing bases of referenced documents get a `MinimalOpenApiImplementations` entry point
+and attribute as well (§6.3); `MinimalOpenApiReferencedDocuments` calls the referenced document entry
+points first and the referenced implementation entry points next.
 
 `Register()` is called from two generated `[ModuleInitializer]`s:
 

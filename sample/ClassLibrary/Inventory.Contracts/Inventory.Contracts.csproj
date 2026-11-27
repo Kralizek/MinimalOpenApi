@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Inventory</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!--
+    In the NuGet scenario a consumer would have:
+      <PackageReference Include="MinimalOpenAPI" />
+    and the build/buildTransitive targets would be imported automatically.
+    In this project-reference dev scenario we import the targets explicitly.
+  -->
+  <Import Project="../../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
+
+  <ItemGroup>
+    <!-- Only the DTOs (Inventory.Stock.Contracts.*): shareable with clients of the API. -->
+    <OpenApi Include="inventory.yaml" Namespace="Stock" Generate="Contracts" />
+  </ItemGroup>
+
+</Project>

@@ -33,5 +33,11 @@ public sealed class MinimalOpenApiDocumentAttribute : Attribute
     /// MOA001 for each one at build time.
     /// </summary>
     public Type[] UnimplementedHandlers { get; set; } = [];
+
+    /// <summary>
+    /// The generated endpoint configuration base classes of this document that are implemented in
+    /// this assembly, so referencing projects can report a second implementation (MOA003).
+    /// </summary>
+    public Type[] ImplementedConfigurations { get; set; } = [];
 }
 #endif

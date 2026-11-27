@@ -46,6 +46,7 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
     private readonly IReadOnlyDictionary<string, string> _globalExclusions;
     private readonly IReadOnlyList<(string? OpenApiFile, string? Include, string? IncludeStatusCodes, string? ExcludeStatusCodes)> _handlers;
     private readonly IReadOnlyDictionary<string, string> _globalProperties;
+    private readonly IReadOnlyDictionary<string, string> _itemMetadata;
 
     public TestAnalyzerConfigOptionsProvider(
         AdditionalText[] additionalTexts,
@@ -67,7 +68,8 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         string? readWriteSchemaHandling = null,
         IReadOnlyDictionary<string, string>? globalExclusionsByFile = null,
         IReadOnlyList<(string? OpenApiFile, string? Include, string? IncludeStatusCodes, string? ExcludeStatusCodes)>? handlers = null,
-        IReadOnlyDictionary<string, string>? globalProperties = null)
+        IReadOnlyDictionary<string, string>? globalProperties = null,
+        IReadOnlyDictionary<string, string>? itemMetadata = null)
     {
         _additionalTexts = additionalTexts;
         _rootNamespace = rootNamespace;
@@ -91,6 +93,7 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         _globalExclusions = globalExclusionsByFile ?? new Dictionary<string, string>();
         _handlers = handlers ?? [];
         _globalProperties = globalProperties ?? new Dictionary<string, string>();
+        _itemMetadata = itemMetadata ?? new Dictionary<string, string>();
     }
 
     public override AnalyzerConfigOptions GlobalOptions
@@ -134,6 +137,12 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
             options[_namespaceMetadataKey] = namespaceOverride;
         else if (isOpenApi && _specNameOverride is not null)
             options[_namespaceMetadataKey] = _specNameOverride;
+
+        if (isOpenApi)
+        {
+            foreach (var metadata in _itemMetadata)
+                options[$"build_metadata.AdditionalFiles.{metadata.Key}"] = metadata.Value;
+        }
 
         if (isOpenApi && _schemaIdOverride is not null)
             options[_schemaIdMetadataKey] = _schemaIdOverride;

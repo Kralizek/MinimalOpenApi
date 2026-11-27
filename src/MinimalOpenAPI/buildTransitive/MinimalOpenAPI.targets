@@ -37,6 +37,7 @@
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiDisplayName" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiDisplayVersion" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiReadWriteSchemaHandling" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiGenerate" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiExcludeStatusCodesFromHandlers" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiFileIdentity" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiHandler" />
@@ -91,6 +92,7 @@
                        MinimalOpenApiDisplayName="%(OpenApi.DisplayName)"
                        MinimalOpenApiDisplayVersion="%(OpenApi.DisplayVersion)"
                        MinimalOpenApiReadWriteSchemaHandling="%(OpenApi.ReadWriteSchemaHandling)"
+                       MinimalOpenApiGenerate="$([System.String]::Copy('%(OpenApi.Generate)').Replace('%3B', '|').Replace(';', '|'))"
                        MinimalOpenApiExcludeStatusCodesFromHandlers="$([System.String]::Copy('%(OpenApi.ExcludeStatusCodesFromHandlers)').Replace('%3B', '|'))" />
     </ItemGroup>
     <ItemGroup>

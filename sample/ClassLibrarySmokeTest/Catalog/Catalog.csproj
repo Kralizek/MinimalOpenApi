@@ -12,7 +12,8 @@
 
   <ItemGroup>
     <Compile Include="../../ClassLibrary/Catalog/*.cs" />
-    <OpenApi Include="../../ClassLibrary/Catalog/catalog.yaml" Namespace="Catalog" />
+    <!-- Generate spelled out (it is the default) to exercise the ';'-separated form through the package. -->
+    <OpenApi Include="../../ClassLibrary/Catalog/catalog.yaml" Namespace="Catalog" Generate="Contracts;Endpoints" />
   </ItemGroup>
 
 </Project>

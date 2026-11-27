@@ -39,6 +39,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     private const string HandlerIncludeStatusCodesKey = "build_metadata.AdditionalFiles.MinimalOpenApiHandlerIncludeStatusCodes";
     private const string HandlerExcludeStatusCodesKey = "build_metadata.AdditionalFiles.MinimalOpenApiHandlerExcludeStatusCodes";
     private const string RootNamespaceKey = "build_property.RootNamespace";
+    private const string GenerateMetadataKey = "build_metadata.AdditionalFiles.MinimalOpenApiGenerate";
     private const string OutputTypeKey = "build_property.OutputType";
     private const string IsTestProjectKey = "build_property.IsTestProject";
 
@@ -101,24 +102,11 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         // Independent of this project's own <OpenApi> items, so it also runs in hosts without any.
         var referencedEntryPoints = context.CompilationProvider
             .Select(static (compilation, ct) => ReferencedDocumentsGenerator.Collect(compilation, ct));
-        context.RegisterSourceOutput(referencedEntryPoints.Combine(rootNamespace).Combine(projectKind), static (spc, input) =>
+        context.RegisterSourceOutput(referencedEntryPoints.Combine(rootNamespace), static (spc, input) =>
         {
-            var entryPoints = input.Left.Left;
-            var source = ReferencedDocumentsGenerator.Generate(entryPoints, input.Left.Right);
+            var source = ReferencedDocumentsGenerator.Generate(input.Left, input.Right);
             if (source is not null)
                 spc.AddSource(ReferencedDocumentsGenerator.HintName, source);
-
-            if (input.Right.ReportsReferencedMissingHandlers)
-            {
-                foreach (var missing in entryPoints.UnimplementedHandlers)
-                {
-                    spc.ReportDiagnostic(Diagnostic.Create(
-                        DiagnosticDescriptors.MissingHandlerImplementation,
-                        Location.None,
-                        missing.HandlerBase,
-                        $" in referenced assembly '{missing.AssemblyName}'"));
-                }
-            }
         });
 
         // 3. Parse OpenAPI documents — parser is selected via CanParse (format + optional version check)
@@ -144,45 +132,82 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     if (symbol is null || symbol.IsAbstract) return null;
 
                     var baseTypes = new List<string>();
+                    var referencedBases = new List<ReferencedBase>();
+                    var thisAssembly = ctx.SemanticModel.Compilation.Assembly;
                     var baseType = symbol.BaseType;
                     while (baseType is not null)
                     {
-                        baseTypes.Add(baseType.Name);
+                        // This project's own generated bases are not part of the compilation the generator
+                        // sees, so they appear as error types or types of this assembly and are matched by
+                        // name. Bases generated in referenced assemblies are real symbols carrying a marker.
+                        if (baseType.TypeKind == TypeKind.Error
+                            || SymbolEqualityComparer.Default.Equals(baseType.ContainingAssembly, thisAssembly))
+                        {
+                            baseTypes.Add(baseType.Name);
+                        }
+                        else if (GetGeneratedBaseKind(baseType) is { } isConfiguration)
+                        {
+                            referencedBases.Add(new ReferencedBase(
+                                baseType.ToDisplayString(),
+                                isConfiguration,
+                                baseType.ContainingAssembly?.Name ?? string.Empty));
+                        }
+
                         baseType = baseType.BaseType;
                     }
 
                     return new ClassInfo(
                         FullName: symbol.ToDisplayString(),
                         Name: symbol.Name,
-                        BaseTypeNames: baseTypes);
+                        BaseTypeNames: baseTypes,
+                        ReferencedBases: referencedBases);
                 })
             .Where(c => c is not null)
             .Select((c, _) => c!);
+
+        // 4b. Register this project's implementations of bases generated in referenced assemblies
+        // and check missing / duplicate implementations across assemblies.
+        context.RegisterSourceOutput(
+            classDeclarations.Collect().Combine(referencedEntryPoints).Combine(rootNamespace).Combine(projectKind),
+            static (spc, input) =>
+            {
+                var implementations = input.Left.Left.Left
+                    .SelectMany(c => c.ReferencedBases.Select(b => new ReferencedBaseImplementation(c.FullName, b)))
+                    .ToList();
+                ImplementationsGenerator.Execute(
+                    spc,
+                    implementations,
+                    input.Left.Left.Right,
+                    input.Left.Right,
+                    input.Right.ReportsReferencedMissingHandlers);
+            });
 
         // 5. Combine parsed docs with discovered classes
         var combined = parsedDocuments.Collect()
             .Combine(classDeclarations.Collect())
             .Combine(duplicateSpecNames)
             .Combine(handlers.Collect())
-            .Combine(projectKind);
+            .Combine(projectKind.Combine(referencedEntryPoints));
 
         // 6. Generate source files
         context.RegisterSourceOutput(combined, (spc, input) =>
         {
-            var isLibrary = input.Right.IsLibrary;
+            var isLibrary = input.Right.Left.IsLibrary;
+            var referenced = input.Right.Right;
             var pipeline = input.Left;
             var documents = pipeline.Left.Left.Left;
             var classes = pipeline.Left.Left.Right.ToArray();
             var duplicates = pipeline.Left.Right;
             var resolved = ResolveHandlerResponses(spc, documents, pipeline.Right);
             foreach (var document in documents)
-                GenerateSource(spc, new GeneratorPipelineInput(document, classes, duplicates), resolved, isLibrary);
+                GenerateSource(spc, new GeneratorPipelineInput(document, classes, duplicates), resolved, isLibrary, referenced);
         });
     }
 
     private static void GenerateSource(SourceProductionContext spc, GeneratorPipelineInput input,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, List<OpenApiResponse>>> handlerResponses,
-        bool isLibrary)
+        bool isLibrary,
+        ReferencedMetadata referenced)
     {
         if (!TryCreateGenerationInput(spc, input, out var generationInput))
             return;
@@ -194,7 +219,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             generationInput,
             input.Classes.ToArray(),
             handlerResponses.TryGetValue(generationInput.Path, out var responses) ? responses : new Dictionary<string, List<OpenApiResponse>>(),
-            isLibrary);
+            isLibrary,
+            referenced);
     }
 
     private static bool TryCreateGenerationInput(
@@ -252,7 +278,18 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             return false;
         }
 
-        generationInput = parsed.ToGenerationInput(readWriteSchemaHandling);
+        if (!TryParseGenerationLayers(parsed.Generate, out var layers))
+        {
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.InvalidGenerateValue,
+                CreateOpenApiLocation(parsed.Path),
+                parsed.Path,
+                parsed.Generate?.Replace('|', ';') ?? string.Empty));
+            generationInput = default!;
+            return false;
+        }
+
+        generationInput = parsed.ToGenerationInput(readWriteSchemaHandling, layers);
         return true;
     }
 
@@ -284,6 +321,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         options.TryGetValue(ReadWriteSchemaHandlingMetadataKey, out var readWriteSchemaHandling);
         options.TryGetValue(GlobalExcludeMetadataKey, out var globalExclude);
         options.TryGetValue(OpenApiIdentityMetadataKey, out var itemIdentity);
+        options.TryGetValue(GenerateMetadataKey, out var generate);
         var specName = DeriveSpecName(path, explicitNamespace);
 
         return new OpenApiFileInput(
@@ -296,7 +334,9 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             DisplayName: string.IsNullOrWhiteSpace(displayName) ? null : displayName,
             DisplayVersion: string.IsNullOrWhiteSpace(displayVersion) ? null : displayVersion,
             ReadWriteSchemaHandling: string.IsNullOrWhiteSpace(readWriteSchemaHandling) ? null : readWriteSchemaHandling,
-            GlobalExclude: globalExclude);
+            GlobalExclude: globalExclude,
+            Generate: string.IsNullOrWhiteSpace(generate) ? null : generate,
+            ContentHash: ComputeContentHash(content));
     }
 
     private static ParsedOpenApiFile ParseOpenApiFile(OpenApiFileInput file, string rootNamespace)
@@ -318,7 +358,9 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 ReadWriteSchemaHandling: file.ReadWriteSchemaHandling,
                 GlobalExclude: file.GlobalExclude,
                 ParseError: null,
-                UnsupportedExtension: ext);
+                UnsupportedExtension: ext,
+                Generate: file.Generate,
+                ContentHash: file.ContentHash);
         }
 
         try
@@ -337,7 +379,9 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 ReadWriteSchemaHandling: file.ReadWriteSchemaHandling,
                 GlobalExclude: file.GlobalExclude,
                 ParseError: null,
-                UnsupportedExtension: null);
+                UnsupportedExtension: null,
+                Generate: file.Generate,
+                ContentHash: file.ContentHash);
         }
         catch (Exception ex)
         {
@@ -354,7 +398,9 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 ReadWriteSchemaHandling: file.ReadWriteSchemaHandling,
                 GlobalExclude: file.GlobalExclude,
                 ParseError: ex.Message,
-                UnsupportedExtension: null);
+                UnsupportedExtension: null,
+                Generate: file.Generate,
+                ContentHash: file.ContentHash);
         }
     }
 
@@ -736,7 +782,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         OpenApiGenerationInput input,
         ClassInfo[] allClasses,
         IReadOnlyDictionary<string, List<OpenApiResponse>> handlerResponses,
-        bool isLibrary)
+        bool isLibrary,
+        ReferencedMetadata referenced)
     {
         var doc = input.Document;
         var rootNamespace = input.RootNamespace;
@@ -831,8 +878,20 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             input.ReadWriteSchemaHandling,
             schemaNameMap);
 
+        var contractsNamespace = $"{rootNamespace}.{specName}.Contracts";
+        if (input.Layers.HasFlag(GenerationLayers.Contracts))
+        {
+            spc.AddSource(
+                InfrastructureHintName(specName, "Contracts"),
+                DependencyInjectionRegistrationGenerator.GenerateContractsMarker(specName, contractsNamespace, input.DocumentHash));
+        }
+        else if (!TryResolveReferencedContracts(spc, input, referenced, out contractsNamespace))
+        {
+            return;
+        }
+
         // Generate DTOs
-        if (doc.Schemas.Count > 0)
+        if (input.Layers.HasFlag(GenerationLayers.Contracts) && doc.Schemas.Count > 0)
         {
             var dtoResult = DtoGenerator.Generate(doc.Schemas, rootNamespace, specName, directionality, schemaNameMap);
             if (!string.IsNullOrWhiteSpace(dtoResult.Source))
@@ -855,6 +914,9 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     collision));
             }
         }
+
+        if (!input.Layers.HasFlag(GenerationLayers.Endpoints))
+            return;
 
         // Discover handlers and configurations, emit diagnostics
         var handlers = new List<DiscoveredImplementation>();
@@ -879,7 +941,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             // Generate handler base
             var handlerConflicts = new List<MinimalOpenAPI.Generator.CodeGen.AllOfPropertyConflict>();
             var handlerMultipartShapes = new List<MinimalOpenAPI.Generator.CodeGen.MultipartUnsupportedShape>();
-            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, directionality, doc.Schemas, handlerConflicts, handlerMultipartShapes,
+            var handlerSource = HandlerBaseGenerator.Generate(op, rootNamespace, specName, directionality, doc.Schemas, handlerConflicts, handlerMultipartShapes, contractsNamespace: contractsNamespace, handlerResponses:
                 handlerResponses.TryGetValue(op.OperationId, out var filtered) ? filtered : op.Responses);
             spc.AddSource(OperationHintName(specName, handlerBase), handlerSource);
 
@@ -912,17 +974,18 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
             switch (handlerImpls.Count)
             {
-                case 0 when isLibrary:
-                    // A library may leave the handler to the application that references it; the
-                    // application reports MOA001 from the list recorded on the assembly attribute.
-                    unimplementedHandlers.Add(handlerBase);
-                    break;
                 case 0:
-                    spc.ReportDiagnostic(Diagnostic.Create(
-                        DiagnosticDescriptors.MissingHandlerImplementation,
-                        CreateOpenApiLocation(openApiFilePath),
-                        $"{rootNamespace}.{specName}.Endpoints.{handlerBase}",
-                        ""));
+                    // Recorded on the assembly attribute: a project referencing this one may implement it,
+                    // and the application reports MOA001 if none does. A library therefore stays silent.
+                    unimplementedHandlers.Add(handlerBase);
+                    if (!isLibrary)
+                    {
+                        spc.ReportDiagnostic(Diagnostic.Create(
+                            DiagnosticDescriptors.MissingHandlerImplementation,
+                            CreateOpenApiLocation(openApiFilePath),
+                            $"{rootNamespace}.{specName}.Endpoints.{handlerBase}",
+                            ""));
+                    }
                     break;
                 case 1:
                     handlers.Add(new DiscoveredImplementation
@@ -984,11 +1047,122 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 publishAs,
                 displayName,
                 displayVersion,
-                unimplementedHandlers));
+                unimplementedHandlers,
+                configurations.Select(c => c.BaseName).ToList()));
 
         // Generate endpoint mapping
-        var mappingSource = EndpointMappingGenerator.Generate(operations, configurations, rootNamespace, specName, directionality, doc.Schemas);
+        var mappingSource = EndpointMappingGenerator.Generate(operations, rootNamespace, specName, directionality, doc.Schemas, contractsNamespace);
         spc.AddSource(InfrastructureHintName(specName, "EndpointMapping"), mappingSource);
+    }
+
+    private static bool TryParseGenerationLayers(string? value, out GenerationLayers layers)
+    {
+        layers = GenerationLayers.All;
+        if (string.IsNullOrWhiteSpace(value))
+            return true;
+
+        GenerationLayers parsed = 0;
+        foreach (var token in value!.Split(new[] { '|', ';', ',' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var name = token.Trim();
+            if (name.Length == 0)
+                continue;
+            if (string.Equals(name, "Contracts", StringComparison.OrdinalIgnoreCase))
+                parsed |= GenerationLayers.Contracts;
+            else if (string.Equals(name, "Endpoints", StringComparison.OrdinalIgnoreCase))
+                parsed |= GenerationLayers.Endpoints;
+            else
+                return false;
+        }
+
+        if (parsed == 0)
+            return false;
+
+        layers = parsed;
+        return true;
+    }
+
+    /// <summary>
+    /// Finds the contract types generated for this document in a referenced assembly, for a project that
+    /// generates only <c>Endpoints</c>. Documents are matched by content hash; the spec name breaks ties
+    /// and identifies a referenced assembly built from a different version of the document.
+    /// </summary>
+    private static bool TryResolveReferencedContracts(
+        SourceProductionContext spc,
+        OpenApiGenerationInput input,
+        ReferencedMetadata referenced,
+        out string contractsNamespace)
+    {
+        var matches = referenced.Contracts.Where(c => c.DocumentHash == input.DocumentHash).ToList();
+        if (matches.Count > 1)
+        {
+            var sameName = matches.Where(c => c.SpecName == input.SpecName).ToList();
+            if (sameName.Count > 0)
+                matches = sameName;
+        }
+
+        if (matches.Count == 1)
+        {
+            contractsNamespace = matches[0].ContractsNamespace;
+            return true;
+        }
+
+        contractsNamespace = string.Empty;
+        var location = CreateOpenApiLocation(input.Path);
+        if (matches.Count == 0 && referenced.Contracts.FirstOrDefault(c => c.SpecName == input.SpecName) is { } stale)
+        {
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.ReferencedContractsMismatch,
+                location,
+                input.SpecName,
+                stale.AssemblyName));
+            return false;
+        }
+
+        spc.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.MissingReferencedContracts,
+            location,
+            input.SpecName,
+            matches.Count == 0
+                ? "no referenced assembly generates its Contracts"
+                : $"several referenced assemblies generate its Contracts: {string.Join(", ", matches.Select(m => m.AssemblyName))}"));
+        return false;
+    }
+
+    private static string ComputeContentHash(string content)
+        => Sha256Hex(content.Replace("\r\n", "\n"));
+
+    private static string ComputeDocumentHash(string contentHash, ReadWriteSchemaHandling readWriteSchemaHandling)
+        => Sha256Hex($"{contentHash}|{readWriteSchemaHandling}");
+
+    private static string Sha256Hex(string value)
+    {
+        using var sha = System.Security.Cryptography.SHA256.Create();
+        var bytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(value));
+        var sb = new System.Text.StringBuilder(32);
+        for (var i = 0; i < 16; i++)
+            sb.Append(bytes[i].ToString("x2", System.Globalization.CultureInfo.InvariantCulture));
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Whether <paramref name="type"/> is a handler (<see langword="false"/>) or endpoint configuration
+    /// (<see langword="true"/>) base generated by MinimalOpenAPI, or <see langword="null"/> otherwise.
+    /// </summary>
+    private static bool? GetGeneratedBaseKind(INamedTypeSymbol type)
+    {
+        foreach (var attribute in type.GetAttributes())
+        {
+            switch (attribute.AttributeClass?.ToDisplayString())
+            {
+                case "MinimalOpenAPI.MinimalOpenApiHandlerBaseAttribute":
+                    return false;
+                case "MinimalOpenAPI.MinimalOpenApiEndpointConfigurationBaseAttribute":
+                    return true;
+            }
+        }
+
+        return null;
     }
 
     private static bool TryParseReadWriteSchemaHandling(string? value, out ReadWriteSchemaHandling handling)
@@ -1025,7 +1199,17 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     private sealed record ClassInfo(
         string FullName,
         string Name,
-        List<string> BaseTypeNames);
+        List<string> BaseTypeNames,
+        List<ReferencedBase> ReferencedBases);
+
+    /// <summary>Which parts of a document a project generates (<c>Generate</c> item metadata).</summary>
+    [Flags]
+    private enum GenerationLayers
+    {
+        Contracts = 1,
+        Endpoints = 2,
+        All = Contracts | Endpoints,
+    }
 
     /// <summary>OpenAPI file metadata collected from additional files and item metadata.</summary>
     private sealed record OpenApiFileInput(
@@ -1038,7 +1222,9 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         string? DisplayName,
         string? DisplayVersion,
         string? ReadWriteSchemaHandling,
-        string? GlobalExclude);
+        string? GlobalExclude,
+        string? Generate = null,
+        string ContentHash = "");
 
     /// <summary>Parsed file state, including parser/extension failures used for diagnostics.</summary>
     private sealed record ParsedOpenApiFile(
@@ -1054,14 +1240,16 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         string? ReadWriteSchemaHandling,
         string? GlobalExclude,
         string? ParseError,
-        string? UnsupportedExtension)
+        string? UnsupportedExtension,
+        string? Generate = null,
+        string ContentHash = "")
     {
         public bool CanGenerate =>
             Document is not null &&
             ParseError is null &&
             UnsupportedExtension is null;
 
-        public OpenApiGenerationInput ToGenerationInput(ReadWriteSchemaHandling readWriteSchemaHandling) =>
+        public OpenApiGenerationInput ToGenerationInput(ReadWriteSchemaHandling readWriteSchemaHandling, GenerationLayers layers) =>
             new(
                 Document!,
                 Path,
@@ -1071,7 +1259,9 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 PublishAs,
                 DisplayName,
                 DisplayVersion,
-                readWriteSchemaHandling);
+                readWriteSchemaHandling,
+                layers,
+                ComputeDocumentHash(ContentHash, readWriteSchemaHandling));
     }
 
     /// <summary>Generation-ready non-null OpenAPI input.</summary>
@@ -1084,7 +1274,9 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         string? PublishAs,
         string? DisplayName,
         string? DisplayVersion,
-        ReadWriteSchemaHandling ReadWriteSchemaHandling);
+        ReadWriteSchemaHandling ReadWriteSchemaHandling,
+        GenerationLayers Layers = GenerationLayers.All,
+        string DocumentHash = "");
 
     /// <summary>The MSBuild project kind, as far as MinimalOpenAPI diagnostics are concerned.</summary>
     private sealed record ProjectKind(bool IsLibrary, bool ReportsReferencedMissingHandlers)

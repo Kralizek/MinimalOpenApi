@@ -139,7 +139,9 @@ An OpenAPI document and its handlers may be declared in a class library (`Micros
 
 The generator running in the host registers every referenced library's document at build time, through the generated `{RootNamespace}.{SpecName}.{SpecName}MinimalOpenApi` entry points. Do **not** add workarounds such as `RuntimeHelpers.RunModuleConstructor` or touching a library type before `AddMinimalOpenApi()`. Only when the generator cannot run in the host, call `<SpecName>MinimalOpenApi.Register()` before `AddMinimalOpenApi()`.
 
-A library does not report MOA001 for handlers it leaves unimplemented; the referencing application reports it, naming the library. Implement the handler in that library, inheriting from the generated endpoint base.
+Handlers and endpoint configurations may be implemented in the library or in any project referencing it (for example the host): derive from the generated base class. That project needs no `<OpenApi>` item; its generator registers the implementation. A library does not report MOA001 for handlers it leaves unimplemented; the application reports it when no project implements one, and MOA002/MOA003 when two projects do.
+
+`<OpenApi Generate="...">` selects what an item generates: `Contracts` (DTOs only), `Endpoints` (handler and configuration bases, mapping, registration, entry point; the DTOs come from a referenced project generating `Contracts` for the same document), or both (the default). Point both items at the same file. MOA020 means no referenced project generates the contracts, and MOA021 means they were generated from a different version of the document or with a different `ReadWriteSchemaHandling`.
 
 ## Generated namespaces
 
@@ -381,9 +383,9 @@ See the [feature support reference](../skills/minimalopenapi/references/feature-
 | Symptom | Likely cause | Action |
 |---|---|---|
 | Generated types are missing | Missing or invalid `<OpenApi>` item | Verify the path and rebuild. |
-| `MOA001` | No concrete handler implementation (in an application, also reported for handlers a referenced library leaves unimplemented) | Inherit from the generated endpoint base and override `HandleAsync`, in the project that declares the document. |
-| `MOA002` | Duplicate handlers | Keep one concrete handler for the operation. |
-| `MOA003` | Duplicate endpoint configuration implementations | Keep one concrete configuration. |
+| `MOA001` | No concrete handler implementation (in an application, also reported for handlers a referenced library leaves unimplemented) | Inherit from the generated endpoint base and override `HandleAsync`, in the declaring project or in any project referencing it. |
+| `MOA002` | Duplicate handlers, possibly in different projects | Keep one concrete handler for the operation. |
+| `MOA003` | Duplicate endpoint configuration implementations, possibly in different projects | Keep one concrete configuration. |
 | `MOA004` | YAML/JSON parse failure | Validate and minimize the document. |
 | `MOA008` | Unresolved parameter `$ref` | Correct the reference to `components/parameters`. |
 | `MOA009` | Duplicate resolved document namespace | Add unique `Namespace` metadata. |
@@ -395,6 +397,9 @@ See the [feature support reference](../skills/minimalopenapi/references/feature-
 | `MOA017` | Unsupported/unresolved schema `$ref` | Correct the contract to use supported local schema references. |
 | `MOA018` | Response declares only unsupported media types | Use JSON, problem details or a binary/file media type, or accept a body-less generated result. |
 | `MOA019` | Unsupported/unresolved response `$ref` | Reference a response declared under `components/responses` in the same document. |
+| `MOA020` | `Generate="Endpoints"` but no (or several) referenced projects generate the document's contracts | Reference exactly one project with `Generate="Contracts"` (or the default) for the same file, or add `Contracts`. |
+| `MOA021` | Referenced contracts were generated from a different document version or `ReadWriteSchemaHandling` | Point both items at the same file with the same settings and rebuild. |
+| `MOA022` | Invalid `Generate` value | Use `Contracts`, `Endpoints`, or `Contracts;Endpoints`. |
 | `NotImplementedException` at runtime | Missing override or call to base implementation | Override `HandleAsync` and remove the base call. |
 | Duplicate route at startup | Manual and generated mapping both register the operation | Remove the manual mapping. |
 | Library endpoints return 404, or the log warns that `MapMinimalOpenApiEndpoints()` mapped no endpoints | The MinimalOpenAPI generator does not run in the host | Let the package flow to the host (no `PrivateAssets` on its analyzers), or call each document's `<SpecName>MinimalOpenApi.Register()` before `AddMinimalOpenApi()`. |

@@ -27,7 +27,7 @@ Use this skill when a project references `MinimalOpenAPI`, asks to implement a c
 - [Generated types](references/generated-types.md) — inline and nested schemas, binding, responses, forms, directional schemas, namespaces.
 - [Feature support and limitations](references/feature-support.md) — unsupported OpenAPI constructs and partial runtime support.
 - [Response handling](references/response-handling.md) — filtering, middleware ownership, and nested `Results<>`.
-- [Diagnostics](references/diagnostics.md) — troubleshooting MOA001–MOA019.
+- [Diagnostics](references/diagnostics.md) — troubleshooting MOA001–MOA022.
 - [Migration from code-first](references/migration.md) — inventory and preserve externally visible HTTP behavior while adopting MOA incrementally.
 - [Migration between MOA versions](references/version-migration.md) — adopting 1.1 features and avoiding outdated 1.0 assumptions.
 

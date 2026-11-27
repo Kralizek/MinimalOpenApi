@@ -1,0 +1,26 @@
+openapi: "3.0.3"
+info:
+  title: Inventory API
+  version: "1.0.0"
+paths:
+  /inventory/stock/{sku}:
+    get:
+      operationId: getStock
+      parameters:
+        - { name: sku, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The stock level of the product.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StockLevel' }
+        "404":
+          description: Unknown product.
+components:
+  schemas:
+    StockLevel:
+      type: object
+      required: [sku, quantity]
+      properties:
+        sku: { type: string }
+        quantity: { type: integer, format: int32 }

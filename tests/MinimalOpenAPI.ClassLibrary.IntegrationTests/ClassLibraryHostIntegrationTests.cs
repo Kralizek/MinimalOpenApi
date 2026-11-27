@@ -66,6 +66,29 @@ public class ClassLibraryHostIntegrationTests
     }
 
     [Test]
+    public async Task LayeredDocument_IsServedByHandlerAndConfigurationImplementedInTheHost()
+    {
+        // inventory.yaml: DTOs generated in Inventory.Contracts, endpoints in Inventory.Api,
+        // handler and endpoint configuration implemented in the host.
+        var response = await _client.GetAsync("/inventory/stock/abc");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Headers.TryGetValues("X-Inventory-Configured", out var values), Is.True);
+        Assert.That(values, Is.EqualTo(new[] { "true" }));
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.That(json.RootElement.GetProperty("sku").GetString(), Is.EqualTo("abc"));
+        Assert.That(json.RootElement.GetProperty("quantity").GetInt32(), Is.EqualTo(3));
+    }
+
+    [Test]
+    public async Task LayeredDocument_HostHandlerResultsAreReturned()
+    {
+        var response = await _client.GetAsync("/inventory/stock/unknown");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
     public async Task HostOwnDocumentEndpoint_IsMapped()
     {
         var response = await _client.GetAsync("/health");

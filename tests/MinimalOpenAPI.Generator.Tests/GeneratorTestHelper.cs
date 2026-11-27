@@ -42,6 +42,10 @@ internal static class GeneratorTestHelper
     /// <param name="globalProperties">
     /// MSBuild properties exposed to the generator, keyed by property name (e.g. <c>OutputType</c>).
     /// </param>
+    /// <param name="itemMetadata">
+    /// Compiler-visible metadata applied to every OpenAPI file, keyed by metadata name
+    /// (e.g. <c>MinimalOpenApiGenerate</c>).
+    /// </param>
     public static (GeneratorDriverRunResult Result, Compilation OutputCompilation) RunGenerator(
         string userSource,
         IEnumerable<(string FileName, string Content)> additionalFiles,
@@ -56,7 +60,8 @@ internal static class GeneratorTestHelper
         IReadOnlyDictionary<string, string>? globalExclusionsByFile = null,
         IReadOnlyList<(string? OpenApiFile, string? Include, string? IncludeStatusCodes, string? ExcludeStatusCodes)>? handlers = null,
         IEnumerable<MetadataReference>? additionalReferences = null,
-        IReadOnlyDictionary<string, string>? globalProperties = null)
+        IReadOnlyDictionary<string, string>? globalProperties = null,
+        IReadOnlyDictionary<string, string>? itemMetadata = null)
     {
         // Create a minimal compilation for the generator
         var references = new List<MetadataReference>
@@ -107,7 +112,8 @@ internal static class GeneratorTestHelper
             readWriteSchemaHandling,
             globalExclusionsByFile,
             handlers,
-            globalProperties);
+            globalProperties,
+            itemMetadata);
 
         var driver = CSharpGeneratorDriver
             .Create(generator)
