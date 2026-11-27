@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Binary/file responses (`application/octet-stream`, `application/pdf`, `image/*`, `audio/*`, `video/*`, or a `type: string, format: binary` schema) now generate status-specific file result wrappers such as `OkFile`, instead of a body-less result. Wildcard media types require a concrete, validated content type.
 - MOA018 warning when a response declares only unsupported media types and is generated without a body.
 
+### Fixed
+
+- Generated sources no longer depend on the consuming project's implicit usings or namespace layout. They now compile in `Microsoft.NET.Sdk` class libraries, in web projects with `ImplicitUsings` disabled, and when the root namespace or a handler namespace collides with a generated namespace (for example `RootNamespace=Contracts`, or a root namespace equal to the `OpenApi` `Namespace`).
+
 ## 1.1.0
 
 ### Added
