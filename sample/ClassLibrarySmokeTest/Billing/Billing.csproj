@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Billing</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="MinimalOpenAPI" Version="$(MinimalOpenAPIVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../../ClassLibrary/Billing/*.cs" />
+    <OpenApi Include="../../ClassLibrary/Billing/openapi.yaml" Namespace="Billing" />
+  </ItemGroup>
+
+</Project>

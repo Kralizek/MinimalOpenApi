@@ -63,3 +63,6 @@ jobs:
         run: |
           find /tmp/smoketest-publish/openapi/schemas -name 'openapi.yaml' \
             | grep -q .
+
+      - name: Class-library smoke test (build, publish and run the host)
+        run: bash scripts/smoke-test-class-library.sh

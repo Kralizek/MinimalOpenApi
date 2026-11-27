@@ -181,9 +181,15 @@ public class GetEndpointGenerationTests
         Assert.That(source, Does.Contain("AddGeneratedEndpoints("));
         Assert.That(source, Does.Contain("GetClientEndpointBase"));
         Assert.That(source, Does.Contain("GetClientHandler"));
-        // ModuleInitializer must also register the endpoint mapping delegate.
-        Assert.That(source, Does.Contain("RegisterEndpointMapping("));
-        Assert.That(source, Does.Contain("MapEndpoints("));
+        // The module initializer delegates to the document's public entry point...
+        Assert.That(source, Does.Contain("[global::System.Runtime.CompilerServices.ModuleInitializer]"));
+        Assert.That(source, Does.Contain("internal static void Register() => global::TestProject.Openapi.OpenapiMinimalOpenApi.Register();"));
+
+        // ...which registers the services and the endpoint mapping delegate.
+        var entryPoint = GeneratorTestHelper.GetGeneratedSource(result, "Openapi.EntryPoint.g.cs");
+        Assert.That(entryPoint, Does.Contain("RegisterGeneratedServices("));
+        Assert.That(entryPoint, Does.Contain("RegisterEndpointMapping("));
+        Assert.That(entryPoint, Does.Contain("MapEndpoints("));
     }
 
     [Test]
@@ -194,7 +200,7 @@ public class GetEndpointGenerationTests
             userSource: GetClientHandlerImpl,
             additionalFiles: AdditionalFiles);
 
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "EntryPoint.g.cs");
 
         Assert.That(source, Does.Not.Contain("RegisterSchemaFile("));
     }
@@ -208,7 +214,7 @@ public class GetEndpointGenerationTests
             additionalFiles: AdditionalFiles,
             schemaId: "987654321");
 
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "EntryPoint.g.cs");
 
         Assert.That(source, Does.Contain("RegisterSchemaFile("));
         Assert.That(source, Does.Contain("openapi/schemas/987654321/openapi.yaml"));
@@ -224,7 +230,7 @@ public class GetEndpointGenerationTests
             schemaId: "987654321",
             publishAs: "/contracts/public/v1/openapi.yaml");
 
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "EntryPoint.g.cs");
 
         Assert.That(source, Does.Contain(
             "RegisterSchemaFile(\"openapi/schemas/987654321/openapi.yaml\", \"/contracts/public/v1/openapi.yaml\", null, null)"));
@@ -242,7 +248,7 @@ public class GetEndpointGenerationTests
             displayName: "Todo API",
             displayVersion: "1.0.0");
 
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "DependencyInjection.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "EntryPoint.g.cs");
 
         Assert.That(source, Does.Contain(
             "RegisterSchemaFile(\"openapi/schemas/987654321/openapi.yaml\", \"/openapi/schema.yaml\", \"Todo API\", \"1.0.0\")"));

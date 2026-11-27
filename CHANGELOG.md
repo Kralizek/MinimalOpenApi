@@ -12,12 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Binary/file responses (`application/octet-stream`, `application/pdf`, `image/*`, `audio/*`, `video/*`, or a `type: string, format: binary` schema) now generate status-specific file result wrappers such as `OkFile`, instead of a body-less result. Wildcard media types require a concrete, validated content type.
 - MOA018 warning when a response declares only unsupported media types and is generated without a body.
 - MOA019 error when a response `$ref` cannot be resolved to a response declared under `components/responses`.
+- Every OpenAPI document generates a public entry point, `{RootNamespace}.{SpecName}.{SpecName}MinimalOpenApi`, with an idempotent `Register()` method, and marks its assembly with `[assembly: MinimalOpenApiDocument(...)]`.
+- `MapMinimalOpenApiEndpoints()` logs a warning when no MinimalOpenAPI document is registered.
 
 ### Fixed
 
 - Responses declared with `$ref: '#/components/responses/{name}'`, including chains of references, now generate the same handler result types and endpoint metadata as the same response written inline. Previously they lost their payload type, problem-details wrapper and media type.
 - Generated sources no longer depend on the consuming project's implicit usings or namespace layout. They now compile in `Microsoft.NET.Sdk` class libraries, in web projects with `ImplicitUsings` disabled, and when the root namespace or a handler namespace collides with a generated namespace (for example `RootNamespace=Contracts`, or a root namespace equal to the `OpenApi` `Namespace`).
 - Multipart form request bodies now enforce the schema's `required` list before the handler runs. A form missing a required field or file is rejected with `400 Bad Request`, and handlers never receive a `null` `Request`. Previously a form containing none of the record's fields invoked the handler with `request == null`.
+- OpenAPI documents declared in referenced class libraries are now registered by the consuming host at build time, so their endpoints, handlers, endpoint configurations and schema files are included by `AddMinimalOpenApi()` and `MapMinimalOpenApiEndpoints()`. Previously they were silently missing (404) unless a library type had been used before `AddMinimalOpenApi()`.
 
 ## 1.1.0
 

@@ -86,6 +86,17 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 return ns ?? "MinimalOpenAPI.Generated";
             });
 
+        // 2b. Register documents declared in referenced assemblies (e.g. contract class libraries).
+        // Independent of this project's own <OpenApi> items, so it also runs in hosts without any.
+        var referencedEntryPoints = context.CompilationProvider
+            .Select(static (compilation, ct) => ReferencedDocumentsGenerator.Collect(compilation, ct));
+        context.RegisterSourceOutput(referencedEntryPoints.Combine(rootNamespace), static (spc, input) =>
+        {
+            var source = ReferencedDocumentsGenerator.Generate(input.Left, input.Right);
+            if (source is not null)
+                spc.AddSource(ReferencedDocumentsGenerator.HintName, source);
+        });
+
         // 3. Parse OpenAPI documents — parser is selected via CanParse (format + optional version check)
         var parsedDocuments = openApiFiles
             .Combine(rootNamespace)
@@ -924,13 +935,18 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             handlers,
             configurations,
             rootNamespace,
-            specName,
-            schemaId,
-            System.IO.Path.GetFileName(openApiFilePath),
-            publishAs,
-            displayName,
-            displayVersion);
+            specName);
         spc.AddSource(InfrastructureHintName(specName, "DependencyInjection"), diSource);
+        spc.AddSource(
+            InfrastructureHintName(specName, "EntryPoint"),
+            DependencyInjectionRegistrationGenerator.GenerateEntryPoint(
+                rootNamespace,
+                specName,
+                schemaId,
+                System.IO.Path.GetFileName(openApiFilePath),
+                publishAs,
+                displayName,
+                displayVersion));
 
         // Generate endpoint mapping
         var mappingSource = EndpointMappingGenerator.Generate(operations, configurations, rootNamespace, specName, directionality, doc.Schemas);

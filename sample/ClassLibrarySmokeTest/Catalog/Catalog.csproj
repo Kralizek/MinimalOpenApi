@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>Contracts</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="MinimalOpenAPI" Version="$(MinimalOpenAPIVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../../ClassLibrary/Catalog/*.cs" />
+    <OpenApi Include="../../ClassLibrary/Catalog/catalog.yaml" Namespace="Catalog" />
+  </ItemGroup>
+
+</Project>

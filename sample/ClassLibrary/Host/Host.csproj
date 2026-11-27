@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>MinimalOpenAPI.Samples.ClassLibrary.Host</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    In the NuGet scenario a consumer would have:
+      <PackageReference Include="MinimalOpenAPI" />
+    and the build/buildTransitive targets would be imported automatically.
+    In this project-reference dev scenario we import the targets explicitly.
+  -->
+  <Import Project="../../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
+
+  <ItemGroup>
+    <ProjectReference Include="../Catalog/Catalog.csproj" />
+    <ProjectReference Include="../Billing/Billing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <OpenApi Include="openapi.yaml" Namespace="Health" />
+  </ItemGroup>
+
+</Project>

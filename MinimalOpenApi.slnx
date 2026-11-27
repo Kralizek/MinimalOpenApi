@@ -6,6 +6,9 @@
   </Folder>
   <Folder Name="/sample/">
     <Project Path="sample/BasicTodo/BasicTodo.csproj" />
+    <Project Path="sample/ClassLibrary/Billing/Billing.csproj" />
+    <Project Path="sample/ClassLibrary/Catalog/Catalog.csproj" />
+    <Project Path="sample/ClassLibrary/Host/Host.csproj" />
     <Project Path="sample/GeneratedFiles/GeneratedFiles.csproj" />
     <Project Path="sample/MultipartNested/MultipartNested.csproj" />
     <Project Path="sample/Parameters/Parameters.csproj" />
@@ -20,6 +23,7 @@
     <Project Path="src/MinimalOpenAPI.Parser.Json/MinimalOpenAPI.Parser.Json.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/MinimalOpenAPI.ClassLibrary.IntegrationTests/MinimalOpenAPI.ClassLibrary.IntegrationTests.csproj" />
     <Project Path="tests/MinimalOpenAPI.Generator.Tests/MinimalOpenAPI.Generator.Tests.csproj" />
     <Project Path="tests/MinimalOpenAPI.IntegrationTests/MinimalOpenAPI.IntegrationTests.csproj" />
     <Project Path="tests/MinimalOpenAPI.MultipartNested.IntegrationTests/MinimalOpenAPI.MultipartNested.IntegrationTests.csproj" />

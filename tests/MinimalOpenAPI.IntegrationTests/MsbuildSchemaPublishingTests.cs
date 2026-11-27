@@ -70,11 +70,12 @@ public class MsbuildSchemaPublishingTests
             Assert.That(builtFiles, Contains.Item("openapi.yaml"));
             Assert.That(builtFiles, Contains.Item("billing.json"));
 
-            var generatedDiFiles = Directory.EnumerateFiles(
+            // Schema-file registration lives in each document's generated entry point.
+            var generatedEntryPointFiles = Directory.EnumerateFiles(
                 Path.Combine(projectDir, "obj", "gen"),
-                "*DependencyInjection.g.cs",
+                "*EntryPoint.g.cs",
                 SearchOption.AllDirectories).ToArray();
-            var generatedSource = generatedDiFiles
+            var generatedSource = generatedEntryPointFiles
                 .Select(File.ReadAllText)
                 .First(s => s.Contains("/openapi/schema.yaml", StringComparison.Ordinal));
             Assert.That(generatedSource, Does.Contain("RegisterSchemaFile(\"openapi/schemas/"));

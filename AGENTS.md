@@ -32,6 +32,8 @@ tests/
   MinimalOpenAPI.IntegrationTests/  ← WebApplicationFactory end-to-end tests
 sample/
   SmokeTest/           ← CI/package-consumption sample; validates the packed NuGet artifact
+  ClassLibrarySmokeTest/ ← CI/package-consumption sample for contracts in class libraries + a separate host
+  ClassLibrary/        ← contracts and handlers in class libraries consumed by a separate web host
   BasicTodo/           ← recommended learning starting point; minimal contract-first Todo API
   SchemaPublishing/    ← demonstrates PublishAs, MapOpenApiSchemas(), and Swagger UI wiring
   Parameters/          ← demonstrates all parameter kinds (path, query, header, cookie, component $ref)
@@ -120,6 +122,9 @@ dotnet publish sample/SmokeTest/SmokeTest.csproj --no-restore --configuration Re
 # Verify the spec file was published at the expected path:
 # Verify the spec file was published under the unique schema-id subdirectory:
 find /tmp/smoketest-publish/openapi/schemas -name "openapi.yaml" | grep -q . && echo "OpenAPI spec published OK"
+
+# 4. Class-library layout: build, publish and run the host against the packed package
+bash scripts/smoke-test-class-library.sh
 ```
 
 ---
