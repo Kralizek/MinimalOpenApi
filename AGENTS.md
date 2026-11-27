@@ -130,7 +130,7 @@ find /tmp/smoketest-publish/openapi/schemas -name "openapi.yaml" | grep -q . && 
 - Cover the change with a new or updated generator test in `MinimalOpenAPI.Generator.Tests`.
 - Also run `MinimalOpenAPI.IntegrationTests` to catch end-to-end regressions.
 - Run the smoke test (pack + build `sample/SmokeTest`) to confirm the packed NuGet artifact still works as a real downstream consumer would experience it.
-- Diagnostics live in `MinimalOpenAPI.Generator`; the codes are `MOA001`–`MOA018` (see `docs/architecture.md` §8).
+- Diagnostics live in `MinimalOpenAPI.Generator`; the codes are `MOA001`–`MOA020` (see `docs/architecture.md` §8).
 
 ### Runtime changes
 - Cover the change with a new or updated test in `MinimalOpenAPI.Runtime.Tests`.

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Binary/file responses (`application/octet-stream`, `application/pdf`, `image/*`, `audio/*`, `video/*`, or a `type: string, format: binary` schema) now generate status-specific file result wrappers such as `OkFile`, instead of a body-less result. Wildcard media types require a concrete, validated content type.
 - MOA018 warning when a response declares only unsupported media types and is generated without a body.
+- Native C# 15 schema unions for supported OpenAPI `oneOf` and `anyOf` JSON payloads on .NET 10 and .NET 11 with System.Text.Json 11. Supports inline and named unions, directional contracts, and authored discriminator mappings without changing the wire shape. Unsupported union representations report MOA019; missing System.Text.Json union support reports MOA020.
 
 ## 1.1.0
 

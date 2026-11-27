@@ -69,6 +69,7 @@ fi
 required_entries=(
   'README.md'
   'lib/net10.0/MinimalOpenAPI.dll'
+  'lib/net11.0/MinimalOpenAPI.dll'
   'analyzers/dotnet/cs/MinimalOpenAPI.dll'
   'analyzers/dotnet/cs/MinimalOpenAPI.Abstractions.dll'
   'analyzers/dotnet/cs/MinimalOpenAPI.Parser.Yaml.dll'

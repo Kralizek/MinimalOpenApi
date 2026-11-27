@@ -43,7 +43,7 @@ Implement the generated `<OperationId>EndpointBase` class for each operation. No
 - abstract endpoint configuration base classes applied after contract metadata
 - authored-schema publishing support
 
-`MinimalOpenAPI` is the only package consumers need. Parser and abstraction assemblies are bundled as implementation details.
+Parser and abstraction assemblies are bundled as implementation details. For schema-union projects targeting `net10.0`, add an explicit `System.Text.Json` 11 package reference; `net11.0` uses the framework's System.Text.Json 11.
 
 ## Selected features
 
@@ -53,16 +53,21 @@ Implement the generated `<OperationId>EndpointBase` class for each operation. No
 - component and inline object schemas
 - inline objects used as array items
 - enums, dictionaries, validation metadata, and `allOf` flattening
+- native C# 15 unions for supported JSON `oneOf` and `anyOf` schemas
 - `readOnly` and `writeOnly` request/response contract splitting
 - path, query, header, reusable, and path-level parameters
 - parameter default values
 - typed results, `application/problem+json` wrappers, and binary/file response wrappers
 - handler response filtering through `ExcludeStatusCodesFromHandlers` and per-operation `MinimalOpenApiHandler` include/exclude overrides
 - recursively nested ASP.NET Core `Results<>` unions for more than six distinct effective handler result types
-- diagnostics MOA015–MOA017 for invalid handler responses, duplicate operation IDs, and unresolved or unsupported schema references
+- diagnostics MOA015–MOA020 for invalid handler responses, duplicate operation IDs, unsupported references, unsupported response media types, unsupported schema unions, and missing System.Text.Json union support
 - `multipart/form-data`, `IFormFile`, multiple files, and nested form objects
 - deterministic schema-name normalization with compile-time collision diagnostics
 - explicit schema publication through `PublishAs` and `MapOpenApiSchemas()`
+
+## Schema unions
+
+Use the .NET 11 SDK and C# 15 for union contracts. Supported unions select one scalar or object case without changing the JSON payload or authored OpenAPI document. Cases must be distinguishable by token type, distinct required object properties, or an explicit string discriminator mapping to referenced object cases. This is classification, not validation of composition match counts. See the [schema union guide](https://github.com/Kralizek/MinimalOpenApi#schema-unions) for supported shapes and limitations, including reflection-based JSON metadata and the lack of verified trimming or Native AOT support.
 
 ## Directional contracts
 
