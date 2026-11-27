@@ -1,3 +1,4 @@
+using System.Reflection.PortableExecutable;
 using System.Text;
 
 using Microsoft.CodeAnalysis;
@@ -132,6 +133,7 @@ public class ResponseUnionLimitTests
             .Split(Path.PathSeparator)
             .Concat(Directory.GetFiles(frameworkPath, "*.dll"))
             .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(IsManagedAssembly)
             .Select(path => MetadataReference.CreateFromFile(path));
         var compilation = CSharpCompilation.Create("NestedUnionHandlers",
             [CSharpSyntaxTree.ParseText(handlerSource), CSharpSyntaxTree.ParseText(handler)],
@@ -140,6 +142,15 @@ public class ResponseUnionLimitTests
 
         Assert.That(compilation.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error),
             Is.Empty);
+    }
+
+    // The shared framework folder can contain native libraries (for example the Windows-only
+    // aspnetcorev2_inprocess.dll IIS module) that cannot be used as metadata references.
+    private static bool IsManagedAssembly(string path)
+    {
+        using var stream = File.OpenRead(path);
+        using var reader = new PEReader(stream);
+        return reader.HasMetadata;
     }
 
     private static string HttpResult(string name) => $"global::Microsoft.AspNetCore.Http.HttpResults.{name}";
