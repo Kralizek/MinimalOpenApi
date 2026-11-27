@@ -50,7 +50,7 @@ sample/
   SchemaPublishing/    ← demonstrates PublishAs, MapOpenApiSchemas(), and Swagger UI wiring
   Parameters/          ← demonstrates all parameter kinds (path, query, header, cookie, component $ref)
   SchemaShapes/        ← demonstrates DTO shapes (enums, allOf, readOnly/writeOnly, additionalProperties)
-  ResponseResults/     ← demonstrates typed result and problem wrapper types
+  ResponseResults/     ← demonstrates typed result, problem wrapper and file wrapper types
   GeneratedFiles/      ← demonstrates EmitCompilerGeneratedFiles to inspect generated output
 tests/
   MinimalOpenAPI.Generator.Tests/   ← generator unit tests (Roslyn driver)
@@ -524,6 +524,24 @@ infrastructure-produced responses can reduce the effective handler union without
 altering the declared endpoint response metadata; handler-produced responses
 must remain in the union.
 
+**Response media types**: each response selects one media type: `application/json`
+first, then `application/problem+json`, then the first binary/file media type in
+document order. Binary/file media types are `application/octet-stream`,
+`application/pdf`, `image/*`, `audio/*` and `video/*`, plus any other non-JSON,
+non-multipart media type whose schema is `type: string, format: binary`.
+`application/problem+json` responses generate a nested `<Status>Problem` wrapper;
+binary/file responses generate a nested `<Status>File` wrapper (for example `OkFile`,
+`CreatedFile`, `Status206File`). A file wrapper implements `IResult`,
+`IStatusCodeHttpResult`, `IContentTypeHttpResult` and `IFileHttpResult`, accepts a
+`Stream` or `byte[]` plus an optional download name, `Last-Modified`, `ETag` and range
+processing flag, sets the declared status code and delegates to the built-in
+ASP.NET Core stream or file-content result. A concrete media type is fixed by the
+wrapper; a wildcard media type (`image/*`, `*/*`) requires a concrete `contentType`
+argument that the wrapper validates against the declared pattern. Endpoint metadata
+records the media type of concrete file responses only, because ASP.NET Core
+response metadata rejects wildcard content types. A response whose declared media
+types are all unsupported is generated without a body and reports MOA018.
+
 **Naming conventions**:
 
 - `NormalizeSchemaTypeName` — converts an OpenAPI component schema name to a valid C#
@@ -567,6 +585,7 @@ must remain in the union.
 | **MOA015** | Error | Handler response configuration names an unknown contract, missing operation, undeclared response, or malformed HTTP status code. |
 | **MOA016** | Error | Two or more operations in one OpenAPI document share an `operationId`; generation is aborted for that document. |
 | **MOA017** | Error | A schema `$ref` is unresolved or unsupported. MinimalOpenAPI currently supports only local `#/components/schemas/{name}` references; generation is aborted for that document. |
+| **MOA018** | Warning | A response declares content, but none of its media types is supported (for example `text/plain`, `text/csv` without a binary schema, or `application/xml`). The generated handler result and endpoint metadata describe the response without a body. |
 
 ---
 

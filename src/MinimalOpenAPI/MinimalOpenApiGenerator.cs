@@ -806,6 +806,16 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             var handlerBase = TypeMapper.HandlerClassName(op.OperationId);
             var configurationBase = TypeMapper.EndpointConfigurationBaseClassName(op.OperationId);
 
+            foreach (var response in op.Responses.Where(r => r.ContentType is null && r.DeclaredContentTypes.Count > 0))
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.UnsupportedResponseContentType,
+                    CreateOpenApiLocation(openApiFilePath),
+                    response.StatusCode,
+                    op.OperationId,
+                    string.Join(", ", response.DeclaredContentTypes)));
+            }
+
             // Generate handler base
             var handlerConflicts = new List<MinimalOpenAPI.Generator.CodeGen.AllOfPropertyConflict>();
             var handlerMultipartShapes = new List<MinimalOpenAPI.Generator.CodeGen.MultipartUnsupportedShape>();

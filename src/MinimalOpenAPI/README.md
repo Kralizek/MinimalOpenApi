@@ -56,7 +56,7 @@ Implement the generated `<OperationId>EndpointBase` class for each operation. No
 - `readOnly` and `writeOnly` request/response contract splitting
 - path, query, header, reusable, and path-level parameters
 - parameter default values
-- typed results and `application/problem+json` wrappers
+- typed results, `application/problem+json` wrappers, and binary/file response wrappers
 - handler response filtering through `ExcludeStatusCodesFromHandlers` and per-operation `MinimalOpenApiHandler` include/exclude overrides
 - recursively nested ASP.NET Core `Results<>` unions for more than six distinct effective handler result types
 - diagnostics MOA015–MOA017 for invalid handler responses, duplicate operation IDs, and unresolved or unsupported schema references

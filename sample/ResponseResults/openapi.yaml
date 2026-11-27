@@ -99,6 +99,32 @@ paths:
           description: Not Found
           content:
             application/problem+json: {}
+  /orders/{id}/badge:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getOrderBadge
+      summary: Get order badge
+      description: Demonstrates a binary file response with a wildcard image media type.
+      tags:
+        - orders
+      responses:
+        "200":
+          description: The order badge image.
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Not Found
+          content:
+            application/problem+json: {}
 components:
   schemas:
     Order:

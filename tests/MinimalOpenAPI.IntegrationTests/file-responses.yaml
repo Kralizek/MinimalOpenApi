@@ -1,0 +1,31 @@
+openapi: "3.0.0"
+info:
+  title: File response test
+  version: "1"
+paths:
+  /file-response-test/photos/{photoId}:
+    parameters:
+      - { name: photoId, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getTestPhoto
+      responses:
+        "200":
+          description: The photo content.
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Not found.
+  /file-response-test/reports:
+    post:
+      operationId: createTestReport
+      responses:
+        "201":
+          description: The generated report.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary

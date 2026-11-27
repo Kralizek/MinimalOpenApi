@@ -116,6 +116,19 @@ internal static class EndpointMappingGenerator
         {
             var response = responses[i];
             var sep = i < responses.Count - 1 ? "" : ";";
+
+            if (TypeMapper.IsFileResponse(response))
+            {
+                var statusCode = TypeMapper.GetStatusCodeExpression(response.StatusCode);
+                // ASP.NET Core response metadata rejects wildcard content types (image/*, */*),
+                // so only the status is recorded for them; the authored document keeps the media type.
+                if (response.ContentType!.IndexOf('*') >= 0)
+                    sb.AppendLine($"            .Produces({statusCode}){sep}");
+                else
+                    sb.AppendLine($"            .Produces({statusCode}, contentType: \"{EscapeString(response.ContentType!)}\"){sep}");
+                continue;
+            }
+
             var responseTypeName = GetMetadataResponseTypeName(response, contractsNs, directionality, inlineResolver);
             var statusCodeExpression = TypeMapper.GetStatusCodeExpression(response.StatusCode);
             if (responseTypeName is not null && responseTypeName != "object")

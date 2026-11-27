@@ -233,6 +233,7 @@ merely to reduce the union size.
 | JSON bodies | Component and inline request/response schemas with typed handler signatures. |
 | JSON responses | Body-bearing 200, 201, 202, 400, 404, 409, 422, and 500 responses use status-specific typed results; schema-less 500 uses `InternalServerError`. Combinations without a compatible typed payload result use `IResult` rather than an incorrect `Ok<T>`. |
 | Problem details | `application/problem+json` responses generate status-specific typed wrappers. |
+| File responses | Binary/file responses (`application/octet-stream`, `application/pdf`, `image/*`, `audio/*`, `video/*`, or a `string`/`binary` schema) generate status-specific file wrappers such as `OkFile`. |
 | Multipart forms | Form-bound request records, `IFormFile`, multiple files, and nested object fields. |
 | Endpoint policies | Per-operation endpoint configurations for authorization, rate limiting, antiforgery, request limits, and other metadata. |
 | Schema publishing | Authored documents are copied to build/publish output and can be served at explicit paths. |
@@ -340,7 +341,7 @@ See [`docs/schema-feature-roadmap.md`](docs/schema-feature-roadmap.md) for the d
 
 ## Diagnostics
 
-The generator reports stable `MOA001`–`MOA017` diagnostics for missing implementations, duplicate handlers or configurations, parser failures, unsupported configuration, unresolved references, unsupported multipart shapes, generated-name collisions, invalid handler-response configuration, duplicate operation IDs, and unsupported schema references.
+The generator reports stable `MOA001`–`MOA018` diagnostics for missing implementations, duplicate handlers or configurations, parser failures, unsupported configuration, unresolved references, unsupported multipart shapes, generated-name collisions, invalid handler-response configuration, duplicate operation IDs, unsupported schema references, and responses whose media types are all unsupported.
 
 See [`docs/architecture.md`](docs/architecture.md) for the complete diagnostic table and internal design.
 

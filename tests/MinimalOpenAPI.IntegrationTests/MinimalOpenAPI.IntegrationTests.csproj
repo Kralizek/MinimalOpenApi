@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <OpenApi Include="filtered-responses.yaml" ExcludeStatusCodesFromHandlers="401" />
+    <OpenApi Include="file-responses.yaml" />
     <MinimalOpenApiHandler Include="getFiltered" OpenApiFile="filtered-responses.yaml"
                            IncludeStatusCodes="403" ExcludeStatusCodes="403" />
   </ItemGroup>
