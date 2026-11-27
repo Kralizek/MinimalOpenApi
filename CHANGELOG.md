@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Every OpenAPI document generates a public entry point, `{RootNamespace}.{SpecName}.{SpecName}MinimalOpenApi`, with an idempotent `Register()` method, and marks its assembly with `[assembly: MinimalOpenApiDocument(...)]`.
 - `MapMinimalOpenApiEndpoints()` logs a warning when no MinimalOpenAPI document is registered.
 
+### Changed
+
+- Class libraries (`OutputType=Library`) no longer report MOA001 for handlers they do not implement. The application that references the library reports MOA001 for them instead, naming the library; other libraries and test projects do not.
+
 ### Fixed
 
 - Responses declared with `$ref: '#/components/responses/{name}'`, including chains of references, now generate the same handler result types and endpoint metadata as the same response written inline. Previously they lost their payload type, problem-details wrapper and media type.

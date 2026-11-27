@@ -4,7 +4,7 @@ Run `dotnet build` after modifying the OpenAPI contract or MSBuild metadata. Do 
 
 | Diagnostic | Meaning / next check |
 | --- | --- |
-| MOA001 | Missing concrete handler: implement the generated endpoint base. |
+| MOA001 | Missing concrete handler: implement the generated endpoint base. Libraries do not report it; the referencing application reports it for the library's unimplemented handlers, naming the library. Implement them in that library. |
 | MOA002 | Multiple concrete handlers: keep one implementation per operation. |
 | MOA003 | Multiple concrete endpoint configurations: keep one. |
 | MOA004 | OpenAPI parse error: validate YAML/JSON and contract. |

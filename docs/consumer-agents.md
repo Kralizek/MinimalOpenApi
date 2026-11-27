@@ -139,6 +139,8 @@ An OpenAPI document and its handlers may be declared in a class library (`Micros
 
 The generator running in the host registers every referenced library's document at build time, through the generated `{RootNamespace}.{SpecName}.{SpecName}MinimalOpenApi` entry points. Do **not** add workarounds such as `RuntimeHelpers.RunModuleConstructor` or touching a library type before `AddMinimalOpenApi()`. Only when the generator cannot run in the host, call `<SpecName>MinimalOpenApi.Register()` before `AddMinimalOpenApi()`.
 
+A library does not report MOA001 for handlers it leaves unimplemented; the referencing application reports it, naming the library. Implement the handler in that library, inheriting from the generated endpoint base.
+
 ## Generated namespaces
 
 Each OpenAPI document gets a namespace segment derived from the file name:
@@ -379,7 +381,7 @@ See the [feature support reference](../skills/minimalopenapi/references/feature-
 | Symptom | Likely cause | Action |
 |---|---|---|
 | Generated types are missing | Missing or invalid `<OpenApi>` item | Verify the path and rebuild. |
-| `MOA001` | No concrete handler implementation | Inherit from the generated endpoint base and override `HandleAsync`. |
+| `MOA001` | No concrete handler implementation (in an application, also reported for handlers a referenced library leaves unimplemented) | Inherit from the generated endpoint base and override `HandleAsync`, in the project that declares the document. |
 | `MOA002` | Duplicate handlers | Keep one concrete handler for the operation. |
 | `MOA003` | Duplicate endpoint configuration implementations | Keep one concrete configuration. |
 | `MOA004` | YAML/JSON parse failure | Validate and minimize the document. |

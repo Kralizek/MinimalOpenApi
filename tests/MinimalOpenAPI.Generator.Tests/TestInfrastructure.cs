@@ -45,6 +45,7 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
     private readonly string? _readWriteSchemaHandling;
     private readonly IReadOnlyDictionary<string, string> _globalExclusions;
     private readonly IReadOnlyList<(string? OpenApiFile, string? Include, string? IncludeStatusCodes, string? ExcludeStatusCodes)> _handlers;
+    private readonly IReadOnlyDictionary<string, string> _globalProperties;
 
     public TestAnalyzerConfigOptionsProvider(
         AdditionalText[] additionalTexts,
@@ -65,7 +66,8 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         string? displayVersion = null,
         string? readWriteSchemaHandling = null,
         IReadOnlyDictionary<string, string>? globalExclusionsByFile = null,
-        IReadOnlyList<(string? OpenApiFile, string? Include, string? IncludeStatusCodes, string? ExcludeStatusCodes)>? handlers = null)
+        IReadOnlyList<(string? OpenApiFile, string? Include, string? IncludeStatusCodes, string? ExcludeStatusCodes)>? handlers = null,
+        IReadOnlyDictionary<string, string>? globalProperties = null)
     {
         _additionalTexts = additionalTexts;
         _rootNamespace = rootNamespace;
@@ -88,13 +90,19 @@ internal sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsP
         _readWriteSchemaHandling = readWriteSchemaHandling;
         _globalExclusions = globalExclusionsByFile ?? new Dictionary<string, string>();
         _handlers = handlers ?? [];
+        _globalProperties = globalProperties ?? new Dictionary<string, string>();
     }
 
     public override AnalyzerConfigOptions GlobalOptions
-        => new TestAnalyzerConfigOptions(new Dictionary<string, string>
+    {
+        get
         {
-            [_namespaceKey] = _rootNamespace
-        });
+            var options = new Dictionary<string, string> { [_namespaceKey] = _rootNamespace };
+            foreach (var property in _globalProperties)
+                options[$"build_property.{property.Key}"] = property.Value;
+            return new TestAnalyzerConfigOptions(options);
+        }
+    }
 
     public override AnalyzerConfigOptions GetOptions(SyntaxTree tree)
         => new TestAnalyzerConfigOptions(new Dictionary<string, string>());

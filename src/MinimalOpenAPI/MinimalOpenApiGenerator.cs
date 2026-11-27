@@ -39,6 +39,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     private const string HandlerIncludeStatusCodesKey = "build_metadata.AdditionalFiles.MinimalOpenApiHandlerIncludeStatusCodes";
     private const string HandlerExcludeStatusCodesKey = "build_metadata.AdditionalFiles.MinimalOpenApiHandlerExcludeStatusCodes";
     private const string RootNamespaceKey = "build_property.RootNamespace";
+    private const string OutputTypeKey = "build_property.OutputType";
+    private const string IsTestProjectKey = "build_property.IsTestProject";
 
     /// <summary>
     /// Registers the incremental generation pipeline with Roslyn.
@@ -86,15 +88,37 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 return ns ?? "MinimalOpenAPI.Generated";
             });
 
+        // 2a. What kind of project this is: libraries defer MOA001 to the referencing application.
+        var projectKind = context.AnalyzerConfigOptionsProvider
+            .Select(static (provider, _) =>
+            {
+                provider.GlobalOptions.TryGetValue(OutputTypeKey, out var outputType);
+                provider.GlobalOptions.TryGetValue(IsTestProjectKey, out var isTestProject);
+                return ProjectKind.From(outputType, isTestProject);
+            });
+
         // 2b. Register documents declared in referenced assemblies (e.g. contract class libraries).
         // Independent of this project's own <OpenApi> items, so it also runs in hosts without any.
         var referencedEntryPoints = context.CompilationProvider
             .Select(static (compilation, ct) => ReferencedDocumentsGenerator.Collect(compilation, ct));
-        context.RegisterSourceOutput(referencedEntryPoints.Combine(rootNamespace), static (spc, input) =>
+        context.RegisterSourceOutput(referencedEntryPoints.Combine(rootNamespace).Combine(projectKind), static (spc, input) =>
         {
-            var source = ReferencedDocumentsGenerator.Generate(input.Left, input.Right);
+            var entryPoints = input.Left.Left;
+            var source = ReferencedDocumentsGenerator.Generate(entryPoints, input.Left.Right);
             if (source is not null)
                 spc.AddSource(ReferencedDocumentsGenerator.HintName, source);
+
+            if (input.Right.ReportsReferencedMissingHandlers)
+            {
+                foreach (var missing in entryPoints.UnimplementedHandlers)
+                {
+                    spc.ReportDiagnostic(Diagnostic.Create(
+                        DiagnosticDescriptors.MissingHandlerImplementation,
+                        Location.None,
+                        missing.HandlerBase,
+                        $" in referenced assembly '{missing.AssemblyName}'"));
+                }
+            }
         });
 
         // 3. Parse OpenAPI documents — parser is selected via CanParse (format + optional version check)
@@ -139,22 +163,26 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         var combined = parsedDocuments.Collect()
             .Combine(classDeclarations.Collect())
             .Combine(duplicateSpecNames)
-            .Combine(handlers.Collect());
+            .Combine(handlers.Collect())
+            .Combine(projectKind);
 
         // 6. Generate source files
         context.RegisterSourceOutput(combined, (spc, input) =>
         {
-            var documents = input.Left.Left.Left;
-            var classes = input.Left.Left.Right.ToArray();
-            var duplicates = input.Left.Right;
-            var resolved = ResolveHandlerResponses(spc, documents, input.Right);
+            var isLibrary = input.Right.IsLibrary;
+            var pipeline = input.Left;
+            var documents = pipeline.Left.Left.Left;
+            var classes = pipeline.Left.Left.Right.ToArray();
+            var duplicates = pipeline.Left.Right;
+            var resolved = ResolveHandlerResponses(spc, documents, pipeline.Right);
             foreach (var document in documents)
-                GenerateSource(spc, new GeneratorPipelineInput(document, classes, duplicates), resolved);
+                GenerateSource(spc, new GeneratorPipelineInput(document, classes, duplicates), resolved, isLibrary);
         });
     }
 
     private static void GenerateSource(SourceProductionContext spc, GeneratorPipelineInput input,
-        IReadOnlyDictionary<string, IReadOnlyDictionary<string, List<OpenApiResponse>>> handlerResponses)
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, List<OpenApiResponse>>> handlerResponses,
+        bool isLibrary)
     {
         if (!TryCreateGenerationInput(spc, input, out var generationInput))
             return;
@@ -165,7 +193,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             spc,
             generationInput,
             input.Classes.ToArray(),
-            handlerResponses.TryGetValue(generationInput.Path, out var responses) ? responses : new Dictionary<string, List<OpenApiResponse>>());
+            handlerResponses.TryGetValue(generationInput.Path, out var responses) ? responses : new Dictionary<string, List<OpenApiResponse>>(),
+            isLibrary);
     }
 
     private static bool TryCreateGenerationInput(
@@ -706,7 +735,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         SourceProductionContext spc,
         OpenApiGenerationInput input,
         ClassInfo[] allClasses,
-        IReadOnlyDictionary<string, List<OpenApiResponse>> handlerResponses)
+        IReadOnlyDictionary<string, List<OpenApiResponse>> handlerResponses,
+        bool isLibrary)
     {
         var doc = input.Document;
         var rootNamespace = input.RootNamespace;
@@ -829,6 +859,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         // Discover handlers and configurations, emit diagnostics
         var handlers = new List<DiscoveredImplementation>();
         var configurations = new List<DiscoveredImplementation>();
+        var unimplementedHandlers = new List<string>();
 
         foreach (var op in operations)
         {
@@ -881,11 +912,17 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
 
             switch (handlerImpls.Count)
             {
+                case 0 when isLibrary:
+                    // A library may leave the handler to the application that references it; the
+                    // application reports MOA001 from the list recorded on the assembly attribute.
+                    unimplementedHandlers.Add(handlerBase);
+                    break;
                 case 0:
                     spc.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.MissingHandlerImplementation,
                         CreateOpenApiLocation(openApiFilePath),
-                        $"{rootNamespace}.{specName}.Endpoints.{handlerBase}"));
+                        $"{rootNamespace}.{specName}.Endpoints.{handlerBase}",
+                        ""));
                     break;
                 case 1:
                     handlers.Add(new DiscoveredImplementation
@@ -946,7 +983,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 System.IO.Path.GetFileName(openApiFilePath),
                 publishAs,
                 displayName,
-                displayVersion));
+                displayVersion,
+                unimplementedHandlers));
 
         // Generate endpoint mapping
         var mappingSource = EndpointMappingGenerator.Generate(operations, configurations, rootNamespace, specName, directionality, doc.Schemas);
@@ -1047,6 +1085,21 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         string? DisplayName,
         string? DisplayVersion,
         ReadWriteSchemaHandling ReadWriteSchemaHandling);
+
+    /// <summary>The MSBuild project kind, as far as MinimalOpenAPI diagnostics are concerned.</summary>
+    private sealed record ProjectKind(bool IsLibrary, bool ReportsReferencedMissingHandlers)
+    {
+        public static ProjectKind From(string? outputType, string? isTestProject)
+        {
+            var isLibrary = string.Equals(outputType, "Library", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(outputType, "Module", StringComparison.OrdinalIgnoreCase);
+            var isApplication = string.Equals(outputType, "Exe", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(outputType, "WinExe", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(outputType, "AppContainerExe", StringComparison.OrdinalIgnoreCase);
+            var isTest = string.Equals(isTestProject, "true", StringComparison.OrdinalIgnoreCase);
+            return new ProjectKind(isLibrary, isApplication && !isTest);
+        }
+    }
 
     /// <summary>Combined generator pipeline state consumed by source output registration.</summary>
     private sealed record GeneratorPipelineInput(

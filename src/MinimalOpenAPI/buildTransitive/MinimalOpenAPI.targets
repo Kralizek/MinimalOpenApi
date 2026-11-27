@@ -45,6 +45,9 @@
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiHandlerIncludeStatusCodes" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiHandlerExcludeStatusCodes" />
     <CompilerVisibleProperty Include="RootNamespace" />
+    <!-- Libraries defer the missing-handler check (MOA001) to the application that references them. -->
+    <CompilerVisibleProperty Include="OutputType" />
+    <CompilerVisibleProperty Include="IsTestProject" />
   </ItemGroup>
 
   <!--

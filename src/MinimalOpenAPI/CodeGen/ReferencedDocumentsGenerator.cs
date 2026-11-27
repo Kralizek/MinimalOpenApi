@@ -21,6 +21,7 @@ internal static class ReferencedDocumentsGenerator
 {
     private const string RuntimeAssemblyName = "MinimalOpenAPI";
     private const string DocumentAttributeName = "MinimalOpenAPI.MinimalOpenApiDocumentAttribute";
+    private const string UnimplementedHandlersName = "UnimplementedHandlers";
 
     /// <summary>Hint name of the generated source.</summary>
     public const string HintName = "MinimalOpenApi/MinimalOpenApi.ReferencedDocuments.g.cs";
@@ -33,6 +34,7 @@ internal static class ReferencedDocumentsGenerator
     public static ReferencedEntryPoints Collect(Compilation compilation, CancellationToken cancellationToken)
     {
         var entryPoints = new SortedSet<string>(StringComparer.Ordinal);
+        var unimplemented = new SortedSet<UnimplementedHandler>();
 
         foreach (var reference in compilation.References)
         {
@@ -52,10 +54,22 @@ internal static class ReferencedDocumentsGenerator
                     continue;
 
                 entryPoints.Add(entryPoint.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+
+                foreach (var named in attribute.NamedArguments)
+                {
+                    if (named.Key != UnimplementedHandlersName || named.Value.Kind != TypedConstantKind.Array)
+                        continue;
+
+                    foreach (var value in named.Value.Values)
+                    {
+                        if (value.Value is INamedTypeSymbol handlerBase)
+                            unimplemented.Add(new UnimplementedHandler(handlerBase.ToDisplayString(), assembly.Name));
+                    }
+                }
             }
         }
 
-        return new ReferencedEntryPoints(entryPoints.ToArray());
+        return new ReferencedEntryPoints(entryPoints.ToArray(), unimplemented.ToArray());
     }
 
     /// <summary>Generates the module initializer, or <see langword="null"/> when nothing is referenced.</summary>
@@ -102,13 +116,21 @@ internal static class ReferencedDocumentsGenerator
     }
 }
 
-/// <summary>Equatable, ordered list of referenced document entry-point names.</summary>
-internal sealed class ReferencedEntryPoints(IReadOnlyList<string> names) : IEquatable<ReferencedEntryPoints>
+/// <summary>
+/// Equatable, ordered lists of referenced document entry-point names and of the handler bases that
+/// referenced libraries left unimplemented.
+/// </summary>
+internal sealed class ReferencedEntryPoints(IReadOnlyList<string> names, IReadOnlyList<UnimplementedHandler> unimplementedHandlers)
+    : IEquatable<ReferencedEntryPoints>
 {
     public IReadOnlyList<string> Names { get; } = names;
 
+    public IReadOnlyList<UnimplementedHandler> UnimplementedHandlers { get; } = unimplementedHandlers;
+
     public bool Equals(ReferencedEntryPoints? other)
-        => other is not null && Names.SequenceEqual(other.Names, StringComparer.Ordinal);
+        => other is not null
+            && Names.SequenceEqual(other.Names, StringComparer.Ordinal)
+            && UnimplementedHandlers.SequenceEqual(other.UnimplementedHandlers);
 
     public override bool Equals(object? obj) => Equals(obj as ReferencedEntryPoints);
 
@@ -117,6 +139,20 @@ internal sealed class ReferencedEntryPoints(IReadOnlyList<string> names) : IEqua
         var hash = 17;
         foreach (var name in Names)
             hash = unchecked((hash * 31) + StringComparer.Ordinal.GetHashCode(name));
+        foreach (var handler in UnimplementedHandlers)
+            hash = unchecked((hash * 31) + handler.GetHashCode());
         return hash;
+    }
+}
+
+/// <summary>A handler base class that a referenced library declares but does not implement.</summary>
+internal sealed record UnimplementedHandler(string HandlerBase, string AssemblyName) : IComparable<UnimplementedHandler>
+{
+    public int CompareTo(UnimplementedHandler? other)
+    {
+        if (other is null)
+            return 1;
+        var result = string.CompareOrdinal(HandlerBase, other.HandlerBase);
+        return result != 0 ? result : string.CompareOrdinal(AssemblyName, other.AssemblyName);
     }
 }

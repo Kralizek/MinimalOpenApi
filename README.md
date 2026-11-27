@@ -168,6 +168,8 @@ Contracts.Petstore.PetstoreMinimalOpenApi.Register();
 builder.Services.AddMinimalOpenApi();
 ```
 
+A library does not report MOA001 for handlers it does not implement. The application that references it reports MOA001 for them instead, naming the library; other libraries and test projects do not.
+
 `MapMinimalOpenApiEndpoints()` logs a warning when no document is registered at all. See [`sample/ClassLibrary`](sample/ClassLibrary).
 
 ## OpenAPI item metadata

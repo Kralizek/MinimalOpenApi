@@ -374,6 +374,14 @@ Exactly one handler must exist (zero → **MOA001** warning; two or more →
 **MOA002** error).  Zero or one configuration is allowed (two or more → **MOA003**
 error).
 
+A class library (`OutputType=Library`, read through the `OutputType` compiler-visible
+property) does not report MOA001 for its own documents. It lists the handler bases it leaves
+unimplemented on its assembly attribute
+(`[assembly: MinimalOpenApiDocument(typeof(...), UnimplementedHandlers = new[] { typeof(...) })]`),
+and an application that references it (`OutputType` `Exe` or `WinExe`, not a test project, i.e.
+`IsTestProject` is not `true`) reports MOA001 for each listed base, naming the library. Other
+libraries and test projects referencing it do not report it again.
+
 ### 6.4 Generated files
 
 For a spec with `n` operations the generator emits `2n + 3` source files:
@@ -575,7 +583,7 @@ types are all unsupported is generated without a body and reports MOA018.
 
 | Code | Severity | Trigger |
 |------|----------|---------|
-| **MOA001** | Warning | No concrete class inheriting from a generated handler base was found in the project.  The app will compile but `HandleAsync` will throw `NotImplementedException` at runtime. |
+| **MOA001** | Warning | No concrete class inheriting from a generated handler base was found in the project.  The app will compile but `HandleAsync` will throw `NotImplementedException` at runtime. A class library defers it to the application that references it (§6.3). |
 | **MOA002** | Error | Two or more classes inherit from the same generated handler base.  Exactly one implementation is required. |
 | **MOA003** | Error | Two or more classes inherit from the same generated configuration base.  At most one is allowed. |
 | **MOA004** | Error | The OpenAPI file could not be parsed (YAML syntax error, etc.). |
@@ -606,7 +614,9 @@ whose idempotent `Register()` calls three methods on `ServiceCollectionExtension
 2. `RegisterEndpointMapping` — stores the endpoint mapping callback.
 3. `RegisterSchemaFile` — stores the copied schema file's path and metadata.
 
-The assembly also carries `[assembly: MinimalOpenApiDocument(typeof(...MinimalOpenApi))]`.
+The assembly also carries `[assembly: MinimalOpenApiDocument(typeof(...MinimalOpenApi))]`. In a class
+library its `UnimplementedHandlers` property lists the handler bases without an implementation, so the
+referencing application can report MOA001 for them (§6.3).
 
 `Register()` is called from two generated `[ModuleInitializer]`s:
 
