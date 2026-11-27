@@ -108,6 +108,29 @@ internal static class TypeMapper
             && (schema.AdditionalProperties is not null || schema.AdditionalPropertiesAllowed);
 
     /// <summary>
+    /// Returns <see langword="true"/> when values of <paramref name="schema"/> may be <c>null</c>:
+    /// the schema itself is nullable, or it is a <c>$ref</c> (or chain of them) to a component that is
+    /// nullable (OpenAPI 3.0 <c>nullable: true</c> or an OpenAPI 3.1 <c>"null"</c> type).
+    /// </summary>
+    public static bool IsNullableSchema(OpenApiSchema schema, IReadOnlyDictionary<string, OpenApiSchema> components)
+    {
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var current = schema;
+        while (true)
+        {
+            if (current.Nullable)
+                return true;
+
+            if (current.Reference is null
+                || !visited.Add(current.Reference)
+                || !components.TryGetValue(current.Reference, out var referenced))
+                return false;
+
+            current = referenced;
+        }
+    }
+
+    /// <summary>
     /// Returns <see langword="true"/> when the schema is an inline object definition —
     /// i.e. it declares properties, an explicit <c>object</c> type, or one or more
     /// <c>allOf</c> entries, but has no <c>$ref</c> and is not a pure dictionary schema

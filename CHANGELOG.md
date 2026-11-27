@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Responses declared with `$ref: '#/components/responses/{name}'`, including chains of references, now generate the same handler result types and endpoint metadata as the same response written inline. Previously they lost their payload type, problem-details wrapper and media type.
 - Generated sources no longer depend on the consuming project's implicit usings or namespace layout. They now compile in `Microsoft.NET.Sdk` class libraries, in web projects with `ImplicitUsings` disabled, and when the root namespace or a handler namespace collides with a generated namespace (for example `RootNamespace=Contracts`, or a root namespace equal to the `OpenApi` `Namespace`).
 - Multipart form request bodies now enforce the schema's `required` list before the handler runs. A form missing a required field or file is rejected with `400 Bad Request`, and handlers never receive a `null` `Request`. Previously a form containing none of the record's fields invoked the handler with `request == null`.
+- A required property that references a nullable component schema (OpenAPI 3.0 `nullable: true` or an OpenAPI 3.1 `"null"` type) is now generated as a nullable, non-`required` C# property, so the explicit `null` the contract allows is accepted. Previously it was generated as non-nullable and `required`, and System.Text.Json rejected `null`. Code that dereferences such properties may now see nullable warnings.
 
 ## 1.1.0
 

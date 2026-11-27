@@ -118,6 +118,16 @@ internal static class GeneratorTestHelper
     /// or implicit usings, so generated sources must be self-contained, as in a class library.
     /// </summary>
     public static IReadOnlyList<Diagnostic> GetCompilationErrors(Compilation outputCompilation)
+        => WithFrameworkReferences(outputCompilation)
+            .GetDiagnostics()
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToList();
+
+    /// <summary>
+    /// Replaces the references of <paramref name="compilation"/> with the .NET and ASP.NET Core
+    /// shared frameworks, so generated sources can be compiled and emitted.
+    /// </summary>
+    public static Compilation WithFrameworkReferences(Compilation compilation)
     {
         var frameworkPath = Path.GetDirectoryName(typeof(Microsoft.AspNetCore.Http.IResult).Assembly.Location)!;
         var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
@@ -127,11 +137,7 @@ internal static class GeneratorTestHelper
             .Where(IsManagedAssembly)
             .Select(path => (MetadataReference)MetadataReference.CreateFromFile(path));
 
-        return outputCompilation
-            .WithReferences(references)
-            .GetDiagnostics()
-            .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .ToList();
+        return compilation.WithReferences(references);
     }
 
     // The shared framework folder can contain native libraries (for example the Windows-only

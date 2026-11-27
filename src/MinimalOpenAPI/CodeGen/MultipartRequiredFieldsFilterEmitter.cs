@@ -146,7 +146,7 @@ internal static class MultipartRequiredFieldsFilterEmitter
         OpenApiSchema schema,
         SchemaDirectionalityAnalysis directionality,
         IReadOnlyDictionary<string, OpenApiSchema> allSchemas)
-        => FormProperties(schema, directionality, allSchemas).Any(p => p.IsRequired && !p.Schema.Nullable);
+        => FormProperties(schema, directionality, allSchemas).Any(p => p.IsRequired && !directionality.IsNullable(p.Schema));
 
     private static IEnumerable<FormProperty> FormProperties(
         OpenApiSchema schema,

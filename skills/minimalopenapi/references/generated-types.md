@@ -62,6 +62,7 @@ Typical mappings:
 - `readOnly` / `writeOnly` may yield separate `*Request` and `*Response` contracts.
 - JSON and `application/problem+json` responses yield status-specific result types. A single distinct effective type yields one result, multiple yield `Results<...>`.
 - Binary/file responses yield nested `<Status>File` wrappers (for example `OkFile`) built from a `Stream` or `byte[]`. A concrete media type is fixed; a wildcard such as `image/*` requires a matching concrete `contentType` argument.
+- Properties are nullable when they are optional (not in the parent's `required` list) or when their schema, or the component a `$ref` points to, is nullable (`nullable: true` or a 3.1 `"null"` type). Do not add `null!` suppressions for such properties; assign `null` directly.
 - `multipart/form-data` binary strings become `IFormFile`; binary arrays become `IReadOnlyList<IFormFile>`; nested form objects bind via dotted keys. Required form fields and files are enforced with a `400` before the handler runs, and the handler never receives a `null` `Request`, so do not add null checks for required members. Object arrays and dictionaries in forms are unsupported (MOA011).
 - `additionalProperties` becomes `Dictionary<string, T>`; component keys are normalized to C# identifiers. Keep `$ref` using the original OpenAPI key.
 
