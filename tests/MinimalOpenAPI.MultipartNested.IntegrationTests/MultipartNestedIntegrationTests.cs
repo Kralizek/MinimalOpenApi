@@ -97,4 +97,93 @@ public class MultipartNestedIntegrationTests
         Assert.That(result.TagName, Is.Null);
         Assert.That(result.TagValue, Is.Null);
     }
+
+    // ── Required form fields (#121) ───────────────────────────────────────
+    //
+    // When a form contains some of the record's fields, ASP.NET Core form binding enforces the C#
+    // 'required' members itself and rejects the request (BadHttpRequestException → 400). When it
+    // contains none of them, binding produces a null Request; the generated filter rejects that with
+    // a validation problem, or passes an empty Request when the record has no required members.
+
+    [Test]
+    public async Task UploadDocument_MissingRequiredFile_Returns400WithoutInvokingHandler()
+    {
+        using var content = new MultipartFormDataContent();
+        content.Add(new StringContent("Title"), "metadata.title");
+
+        var response = await _client.PostAsync("/uploads", content);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task UploadDocument_FormWithoutAnyRecordField_Returns400ListingRequiredFields()
+    {
+        // Form binding produces a null Request here; before #121 the handler ran and threw.
+        using var content = new MultipartFormDataContent();
+        content.Add(new StringContent("x"), "other");
+
+        var response = await _client.PostAsync("/uploads", content);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("application/problem+json"));
+        var problem = await response.Content.ReadFromJsonAsync<Microsoft.AspNetCore.Http.HttpValidationProblemDetails>();
+        Assert.That(problem!.Errors.Keys, Is.EquivalentTo(new[] { "file", "metadata" }));
+    }
+
+    [Test]
+    public async Task UploadDocument_MissingRequiredNestedField_Returns400()
+    {
+        using var content = new MultipartFormDataContent();
+        content.Add(new ByteArrayContent([0x01]), "file", "test.bin");
+        content.Add(new StringContent("Source only"), "metadata.source");
+
+        var response = await _client.PostAsync("/uploads", content);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task UploadWithTag_PartialOptionalTag_BindsSuccessfully()
+    {
+        using var content = new MultipartFormDataContent();
+        content.Add(new ByteArrayContent([0x42]), "file", "partial-tag.bin");
+        content.Add(new StringContent("v2"), "tag.value");
+
+        var response = await _client.PostAsync("/uploads/with-tag", content);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var result = await response.Content.ReadFromJsonAsync<UploadResponse>();
+        Assert.That(result!.TagName, Is.Null);
+        Assert.That(result.TagValue, Is.EqualTo("v2"));
+    }
+
+    [Test]
+    public async Task UploadNote_FormWithoutAnyRecordField_PassesEmptyRequestToHandler()
+    {
+        using var content = new MultipartFormDataContent();
+        content.Add(new StringContent("x"), "other");
+
+        var response = await _client.PostAsync("/uploads/notes", content);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var result = await response.Content.ReadFromJsonAsync<UploadResponse>();
+        Assert.That(result!.FileName, Is.Empty);
+        Assert.That(result.MetadataTitle, Is.Null);
+    }
+
+    [Test]
+    public async Task UploadNote_BindsOptionalFields()
+    {
+        using var content = new MultipartFormDataContent();
+        content.Add(new StringContent("hello"), "note");
+        content.Add(new ByteArrayContent([0x01]), "attachment", "note.txt");
+
+        var response = await _client.PostAsync("/uploads/notes", content);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var result = await response.Content.ReadFromJsonAsync<UploadResponse>();
+        Assert.That(result!.FileName, Is.EqualTo("note.txt"));
+        Assert.That(result.MetadataTitle, Is.EqualTo("hello"));
+    }
 }

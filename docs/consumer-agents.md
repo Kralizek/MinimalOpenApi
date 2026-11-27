@@ -266,6 +266,8 @@ A `multipart/form-data` request generates a form-bound nested `Request` record.
 - scalar fields use normal primitive mappings;
 - nested objects bind through dotted keys such as `metadata.title`.
 
+Required form fields and files are enforced before the handler runs: a form missing any of them is rejected with `400 Bad Request`, and the handler never receives a `null` `Request`. Handlers do not need null checks for required members, and should not return their own `400` for missing required fields.
+
 Use the generated request type exactly as emitted. Do not replace it with a manually authored form model.
 
 Array-of-object and dictionary form fields produce `MOA011`. Restructure the contract rather than bypassing the diagnostic unless the endpoint is intentionally implemented outside MinimalOpenAPI.

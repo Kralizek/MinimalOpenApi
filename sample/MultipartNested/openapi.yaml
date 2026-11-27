@@ -61,6 +61,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UploadResponse'
+  /uploads/notes:
+    post:
+      operationId: uploadNote
+      summary: Upload an optional note and attachment; every form field is optional
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                attachment:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
 components:
   schemas:
     UploadTag:

@@ -505,7 +505,7 @@ internal static class HandlerBaseGenerator
     /// cannot be bound from <c>multipart/form-data</c>: arrays of complex objects or
     /// dictionary types.
     /// </summary>
-    private static bool IsUnsupportedMultipartFormShape(
+    internal static bool IsUnsupportedMultipartFormShape(
         OpenApiSchema propSchema,
         IReadOnlyDictionary<string, OpenApiSchema> allSchemas)
     {
