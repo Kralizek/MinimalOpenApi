@@ -112,6 +112,37 @@ internal static class GeneratorTestHelper
         return (driver.GetRunResult(), outputCompilation);
     }
 
+    /// <summary>
+    /// Compiles <paramref name="outputCompilation"/> (user source plus generated sources) against the
+    /// .NET and ASP.NET Core shared frameworks and returns its errors. The compilation has no global
+    /// or implicit usings, so generated sources must be self-contained, as in a class library.
+    /// </summary>
+    public static IReadOnlyList<Diagnostic> GetCompilationErrors(Compilation outputCompilation)
+    {
+        var frameworkPath = Path.GetDirectoryName(typeof(Microsoft.AspNetCore.Http.IResult).Assembly.Location)!;
+        var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
+            .Split(Path.PathSeparator)
+            .Concat(Directory.GetFiles(frameworkPath, "*.dll"))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(IsManagedAssembly)
+            .Select(path => (MetadataReference)MetadataReference.CreateFromFile(path));
+
+        return outputCompilation
+            .WithReferences(references)
+            .GetDiagnostics()
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToList();
+    }
+
+    // The shared framework folder can contain native libraries (for example the Windows-only
+    // aspnetcorev2_inprocess.dll IIS module) that cannot be used as metadata references.
+    private static bool IsManagedAssembly(string path)
+    {
+        using var stream = File.OpenRead(path);
+        using var reader = new System.Reflection.PortableExecutable.PEReader(stream);
+        return reader.HasMetadata;
+    }
+
     public static string GetGeneratedSource(GeneratorDriverRunResult result, string hintNameSuffix)
     {
         var source = result.GeneratedTrees
