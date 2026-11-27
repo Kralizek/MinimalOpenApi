@@ -276,6 +276,8 @@ requestBody:
 
 Nested object fields use ASP.NET Core dotted form keys such as `metadata.title`.
 
+The schema's `required` list is enforced before the handler runs. A form that omits a required field or file is rejected with `400 Bad Request`, and the handler always receives a non-null `Request`. Required fields of an optional nested object are checked only when the form contains that object. When the form contains none of the record's fields, the generated endpoint responds with validation problem details that list the missing fields. Otherwise ASP.NET Core form binding rejects the request itself. The `400` is produced outside the handler, so it is not part of the handler's result type.
+
 Antiforgery, request-size limits, file validation, and storage policies remain application responsibilities. Configure them through normal ASP.NET Core services, middleware, and the generated endpoint configuration.
 
 Array-of-object and dictionary form fields are not supported by ASP.NET Core's generated form binding and produce diagnostic `MOA011`.

@@ -915,7 +915,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         spc.AddSource(InfrastructureHintName(specName, "DependencyInjection"), diSource);
 
         // Generate endpoint mapping
-        var mappingSource = EndpointMappingGenerator.Generate(operations, configurations, rootNamespace, specName, directionality);
+        var mappingSource = EndpointMappingGenerator.Generate(operations, configurations, rootNamespace, specName, directionality, doc.Schemas);
         spc.AddSource(InfrastructureHintName(specName, "EndpointMapping"), mappingSource);
     }
 

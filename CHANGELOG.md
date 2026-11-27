@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Binary/file responses (`application/octet-stream`, `application/pdf`, `image/*`, `audio/*`, `video/*`, or a `type: string, format: binary` schema) now generate status-specific file result wrappers such as `OkFile`, instead of a body-less result. Wildcard media types require a concrete, validated content type.
 - MOA018 warning when a response declares only unsupported media types and is generated without a body.
 
+### Fixed
+
+- Multipart form request bodies now enforce the schema's `required` list before the handler runs. A form missing a required field or file is rejected with `400 Bad Request`, and handlers never receive a `null` `Request`. Previously a form containing none of the record's fields invoked the handler with `request == null`.
+
 ## 1.1.0
 
 ### Added

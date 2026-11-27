@@ -12,6 +12,15 @@ public sealed class UploadDocumentEndpointConfiguration : UploadDocumentEndpoint
 }
 
 /// <summary>
+/// Applies application-specific policies to the generated multipart endpoint whose fields are all optional.
+/// </summary>
+public sealed class UploadNoteEndpointConfiguration : UploadNoteEndpointConfigurationBase
+{
+    public override void Configure(RouteHandlerBuilder endpoint)
+        => endpoint.DisableAntiforgery();
+}
+
+/// <summary>
 /// Applies application-specific policies to the generated multipart endpoint that accepts a tag.
 /// </summary>
 public sealed class UploadWithTagEndpointConfiguration : UploadWithTagEndpointConfigurationBase
