@@ -2,9 +2,12 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization.Metadata;
 
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+
+using MinimalOpenAPI.UnionCompatibilityTests.Generated.Contracts;
 
 namespace MinimalOpenAPI.UnionCompatibilityTests;
 
@@ -21,12 +24,20 @@ public sealed class UnionHttpCompatibilityTests
         builder.Logging.ClearProviders();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Services.ConfigureHttpJsonOptions(options =>
-            options.SerializerOptions.TypeInfoResolver = UnionJsonContext.Default);
+            options.SerializerOptions.TypeInfoResolver = JsonTypeInfoResolver.Combine(
+                UnionJsonContext.Default,
+                new DefaultJsonTypeInfoResolver()));
 
         _app = builder.Build();
         _app.MapPost("/primitive", static (Primitive payload, HttpContext context) => Echo(context, payload));
         _app.MapPost("/animal", static (Animal payload, HttpContext context) => Echo(context, payload));
         _app.MapPost("/event", static (Event payload, HttpContext context) => Echo(context, payload));
+        _app.MapPost("/generated-pet", static (GeneratedPet payload, HttpContext context) =>
+            EchoGenerated(context, payload, payload.Value?.GetType().Name));
+        _app.MapPost("/generated-event", static (GeneratedEvent payload, HttpContext context) =>
+            EchoGenerated(context, payload, payload.Value?.GetType().Name));
+        _app.MapPost("/generated-value", static (GeneratedValue payload, HttpContext context) =>
+            EchoGenerated(context, payload, payload.Value?.GetType().Name));
 
         await _app.StartAsync();
         var address = _app.Services.GetRequiredService<IServer>()
@@ -83,6 +94,32 @@ public sealed class UnionHttpCompatibilityTests
     public Task MissingUnknownOrDuplicateDiscriminators_ReturnBadRequest(string json)
         => AssertRejectedAsync("/event", json);
 
+    [TestCase("""{"name":"Rex","breed":"Husky"}""", "GeneratedDog")]
+    [TestCase("""{"name":"Mog","lives":9}""", "GeneratedCat")]
+    public Task GeneratedStructuralUnion_RoundTripsThroughMinimalApi(string json, string expectedCase)
+        => AssertRoundTripAsync("/generated-pet", json, expectedCase);
+
+    [TestCase("""{"id":42,"kind":"created"}""", "GeneratedCreated")]
+    [TestCase("""{"kind":"deleted","id":42}""", "GeneratedDeleted")]
+    public Task GeneratedDiscriminatorUnion_PreservesAuthoredWireShape(string json, string expectedCase)
+        => AssertRoundTripAsync("/generated-event", json, expectedCase);
+
+    [TestCase("42", "Int32")]
+    [TestCase("true", "Boolean")]
+    public Task GeneratedPrimitiveUnion_RoundTripsThroughMinimalApi(string json, string expectedCase)
+        => AssertRoundTripAsync("/generated-value", json, expectedCase);
+
+    [TestCase("""{"name":"Unknown"}""")]
+    [TestCase("""{"name":"Unknown","breed":"Husky","lives":9}""")]
+    public Task GeneratedStructuralUnion_RejectsAmbiguousPayloads(string json)
+        => AssertRejectedAsync("/generated-pet", json);
+
+    [TestCase("""{"id":42}""")]
+    [TestCase("""{"id":42,"kind":"unknown"}""")]
+    [TestCase("""{"kind":"created","kind":"deleted","id":42}""")]
+    public Task GeneratedDiscriminatorUnion_RejectsInvalidDiscriminators(string json)
+        => AssertRejectedAsync("/generated-event", json);
+
     private async Task AssertRoundTripAsync(string route, string json, string expectedCase)
     {
         using var response = await PostJsonAsync(route, json);
@@ -118,6 +155,12 @@ public sealed class UnionHttpCompatibilityTests
             _ => throw new InvalidOperationException($"Unexpected union type '{typeof(T)}'.")
         };
 
+        return TypedResults.Ok(payload);
+    }
+
+    private static IResult EchoGenerated<T>(HttpContext context, T payload, string? caseName)
+    {
+        context.Response.Headers["X-Union-Case"] = caseName ?? "none";
         return TypedResults.Ok(payload);
     }
 }

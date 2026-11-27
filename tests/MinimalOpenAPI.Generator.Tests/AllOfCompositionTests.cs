@@ -247,7 +247,7 @@ public class AllOfCompositionTests
     }
 
     [Test]
-    public void Different_AllOf_Union_Properties_Are_Not_Treated_As_Equivalent()
+    public void AllOf_Containing_Inline_Union_Properties_Is_Diagnosed()
     {
         const string spec = """
             openapi: "3.1.0"
@@ -275,9 +275,12 @@ public class AllOfCompositionTests
             userSource: "// no handler",
             additionalFiles: [("openapi.yaml", spec)]);
 
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "Dtos.g.cs");
-        Assert.That(result.Diagnostics.Any(d => d.Id == "MOA007"), Is.True);
-        Assert.That(source, Does.Contain("global::System.Text.Json.JsonElement? Value"));
+        var unionDiagnostics = result.Diagnostics.Where(diagnostic => diagnostic.Id == "MOA019").ToArray();
+        Assert.That(unionDiagnostics, Has.Length.EqualTo(2));
+        Assert.That(unionDiagnostics.All(diagnostic =>
+                diagnostic.GetMessage().Contains("inline unions are not supported yet", StringComparison.Ordinal)),
+            Is.True);
+        Assert.That(result.GeneratedTrees.Any(source => source.FilePath.EndsWith("Dtos.g.cs", StringComparison.Ordinal)), Is.False);
     }
 
     [Test]

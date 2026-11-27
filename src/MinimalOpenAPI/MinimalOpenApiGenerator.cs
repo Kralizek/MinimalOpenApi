@@ -39,6 +39,23 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     private const string HandlerIncludeStatusCodesKey = "build_metadata.AdditionalFiles.MinimalOpenApiHandlerIncludeStatusCodes";
     private const string HandlerExcludeStatusCodesKey = "build_metadata.AdditionalFiles.MinimalOpenApiHandlerExcludeStatusCodes";
     private const string RootNamespaceKey = "build_property.RootNamespace";
+    private const string UnionPolyfillsSource = """
+        #nullable enable
+        #if NET10_0
+        namespace System.Runtime.CompilerServices
+        {
+            [global::System.AttributeUsage(global::System.AttributeTargets.Class | global::System.AttributeTargets.Struct, Inherited = false)]
+            internal sealed class UnionAttribute : global::System.Attribute
+            {
+            }
+
+            internal interface IUnion
+            {
+                object? Value { get; }
+            }
+        }
+        #endif
+        """;
 
     /// <summary>
     /// Registers the incremental generation pipeline with Roslyn.
@@ -137,20 +154,28 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             var classes = input.Left.Left.Right.ToArray();
             var duplicates = input.Left.Right;
             var resolved = ResolveHandlerResponses(spc, documents, input.Right);
+            var needsUnionPolyfills = false;
             foreach (var document in documents)
-                GenerateSource(spc, new GeneratorPipelineInput(document, classes, duplicates), resolved);
+                needsUnionPolyfills |= GenerateSource(spc, new GeneratorPipelineInput(document, classes, duplicates), resolved);
+
+            if (needsUnionPolyfills)
+            {
+                spc.AddSource(
+                    "MinimalOpenApi/UnionPolyfills.g.cs",
+                    SourceText.From(UnionPolyfillsSource, System.Text.Encoding.UTF8));
+            }
         });
     }
 
-    private static void GenerateSource(SourceProductionContext spc, GeneratorPipelineInput input,
+    private static bool GenerateSource(SourceProductionContext spc, GeneratorPipelineInput input,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, List<OpenApiResponse>>> handlerResponses)
     {
         if (!TryCreateGenerationInput(spc, input, out var generationInput))
-            return;
+            return false;
 
         ReportUnknownOpenApiVersionIfNeeded(spc, generationInput);
 
-        GenerateForDocument(
+        return GenerateForDocument(
             spc,
             generationInput,
             input.Classes.ToArray(),
@@ -691,7 +716,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
     private static string InfrastructureHintName(string specName, string fileName)
         => $"MinimalOpenApi/{specName}/Infrastructure/{specName}.{fileName}.g.cs";
 
-    private static void GenerateForDocument(
+    private static bool GenerateForDocument(
         SourceProductionContext spc,
         OpenApiGenerationInput input,
         ClassInfo[] allClasses,
@@ -718,7 +743,7 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                     openApiFilePath));
             }
 
-            return;
+            return false;
         }
 
         var duplicateOperationIds = doc.Operations
@@ -733,12 +758,12 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
                 openApiFilePath));
 
         if (duplicateOperationIds.Count > 0)
-            return;
+            return false;
 
         // Resolve $ref parameter references before code generation; work with the returned
         // normalized operation list so the parsed OpenApiDocument is never mutated.
         if (!TryResolveParameterReferences(spc, doc, openApiFilePath, out var operations))
-            return;
+            return false;
 
         // Build the schema name map once per document and report normalization errors
         // before any code is emitted.
@@ -764,7 +789,20 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         // Abort code generation when there are name-level errors: unnormalisable names would
         // produce invalid C# identifiers and collisions would produce duplicate type declarations.
         if (schemaNameMap.HasUnnormalisableNames || schemaNameMap.HasCollisions)
-            return;
+            return false;
+
+        var unionAnalysis = SchemaUnionAnalysis.Create(doc, schemaNameMap);
+        foreach (var unsupported in unionAnalysis.UnsupportedSchemas)
+        {
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.UnsupportedUnionSchema,
+                CreateOpenApiLocation(openApiFilePath),
+                unsupported.SchemaPath,
+                unsupported.Reason));
+        }
+
+        if (unionAnalysis.UnsupportedSchemas.Count > 0)
+            return false;
 
         var directionality = SchemaDirectionalityAnalysis.Create(
             doc.Schemas,
@@ -773,9 +811,11 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
             schemaNameMap);
 
         // Generate DTOs
+        var hasUnionTypes = false;
         if (doc.Schemas.Count > 0)
         {
-            var dtoResult = DtoGenerator.Generate(doc.Schemas, rootNamespace, specName, directionality, schemaNameMap);
+            var dtoResult = DtoGenerator.Generate(doc.Schemas, rootNamespace, specName, directionality, schemaNameMap, unionAnalysis);
+            hasUnionTypes = dtoResult.HasUnionTypes;
             if (!string.IsNullOrWhiteSpace(dtoResult.Source))
                 spc.AddSource(SchemaHintName(specName), dtoResult.Source);
 
@@ -917,6 +957,8 @@ public sealed class MinimalOpenApiGenerator : IIncrementalGenerator
         // Generate endpoint mapping
         var mappingSource = EndpointMappingGenerator.Generate(operations, configurations, rootNamespace, specName, directionality);
         spc.AddSource(InfrastructureHintName(specName, "EndpointMapping"), mappingSource);
+
+        return hasUnionTypes;
     }
 
     private static bool TryParseReadWriteSchemaHandling(string? value, out ReadWriteSchemaHandling handling)
