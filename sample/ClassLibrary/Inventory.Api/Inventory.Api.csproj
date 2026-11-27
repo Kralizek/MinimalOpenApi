@@ -29,7 +29,7 @@
       Only the endpoints (handler and configuration bases, mapping, registration), built on the DTOs of
       Inventory.Contracts. The handlers are implemented by the host.
     -->
-    <OpenApi Include="../Inventory.Contracts/inventory.yaml" Namespace="Stock" Generate="Endpoints" />
+    <OpenApi Include="../Inventory.Contracts/inventory.yaml" Namespace="Stock" Generate="Endpoints" PublishAs="/openapi/inventory.yaml" />
   </ItemGroup>
 
 </Project>

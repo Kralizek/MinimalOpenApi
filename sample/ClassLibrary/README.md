@@ -23,6 +23,7 @@ curl http://localhost:5000/catalog/items/42
 curl http://localhost:5000/billing/invoices/7
 curl http://localhost:5000/inventory/stock/abc
 curl http://localhost:5000/health
+curl http://localhost:5000/openapi/billing.yaml   # authored documents, served from the host's output
 ```
 
 End-to-end coverage: `tests/MinimalOpenAPI.ClassLibrary.IntegrationTests` (project references) and

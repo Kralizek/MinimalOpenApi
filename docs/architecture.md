@@ -214,8 +214,7 @@ Key targets:
 |--------|------|---------|
 | `AddMinimalOpenApiFilesToAdditionalFiles` | `BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile"` | Copies `<OpenApi>` items into `<AdditionalFiles>` with `MinimalOpenApiFile=true` metadata and exposes `RootNamespace` as a compiler-visible property. |
 | `AddMinimalOpenApiGeneratorDependencyAnalyzers` | `BeforeTargets="CoreCompile"` | Adds `MinimalOpenAPI.Abstractions`, `MinimalOpenAPI.Parser.Yaml`, `MinimalOpenAPI.Parser.Json`, and `YamlDotNet` as `<Analyzer>` items so Roslyn can load them into its isolated `AssemblyLoadContext` alongside the generator DLL. |
-| `CopyMinimalOpenApiFilesToOutput` | `AfterTargets="Build"` | Copies every `<OpenApi ... />` file to `$(OutDir)openapi/schemas/<SchemaId>/<filename>.<ext>`, preserving collision-safe hashed internal storage. |
-| `AddMinimalOpenApiFilesToPublishOutput` | `AfterTargets="ComputeFilesToPublish"` | Injects `ResolvedFileToPublish` items for every `<OpenApi ... />` file so `dotnet publish` includes the same hashed internal path structure. |
+| `AddMinimalOpenApiFilesToOutput` | `BeforeTargets="AssignTargetPaths"` | Adds every `<OpenApi ... />` file that generates `Endpoints` as a `ContentWithTargetPath` item with `TargetPath="openapi/schemas/<SchemaId>/<filename>.<ext>"` and `CopyToOutputDirectory` / `CopyToPublishDirectory` = `PreserveNewest`. The SDK copies it to the build and publish output of this project **and of every project that references it**, so a host serves the documents of referenced libraries (§5.1). |
 
 The `<CompilerVisibleItemMetadata>` and `<CompilerVisibleProperty>` declarations
 make `MinimalOpenApiFile` and `RootNamespace` readable via
@@ -241,7 +240,20 @@ responses the concrete handler is responsible for returning. Because
 expand into multiple handler items; the same `OpenApiFile`, `IncludeStatusCodes`,
 and `ExcludeStatusCodes` metadata is therefore applied to each expanded operation.
 
-### 5.1 Contract-package pattern (gRPC-style)
+### 5.1 Documents declared in referenced projects
+
+Because the files are ordinary copy-to-output items, the .NET SDK's transitive
+`GetCopyToOutputDirectoryItems` / `GetCopyToPublishDirectoryItems` carry them from a class library
+into the output and publish directories of the host (and of test projects referencing the host).
+The generated `RegisterSchemaFile` call already points to the same `openapi/schemas/<SchemaId>/...`
+path relative to `AppContext.BaseDirectory`, so `MapOpenApiSchemas()` in the host serves the
+library's authored document without any `Content` item in the host. The schema id is a hash of the
+file's full path, so documents with the same file name in different projects stay distinct, and
+two `<OpenApi>` items for the same file (for example a `Contracts` and an `Endpoints` project) map
+to the same path. Only items that generate `Endpoints` are copied: a `Contracts`-only item registers
+no schema file.
+
+### 5.2 Contract-package pattern (gRPC-style)
 
 An OpenAPI spec can be shipped inside a separate "contracts" NuGet package and
 consumed transparently — the same pattern used by gRPC `.proto` files.
@@ -266,7 +278,7 @@ from NuGet packages have been evaluated:
 
 ```xml
 <Target Name="PublishAllOpenApiSpecsAtExplicitPaths"
-        BeforeTargets="CopyMinimalOpenApiFilesToOutput">
+        BeforeTargets="AddMinimalOpenApiFilesToAdditionalFiles">
   <ItemGroup>
     <OpenApi Update="@(OpenApi)"
              PublishAs="/openapi/contracts/schema.yaml"
@@ -275,7 +287,7 @@ from NuGet packages have been evaluated:
 </Target>
 ```
 
-The `CopyMinimalOpenApiFilesToOutput` and `AddMinimalOpenApiFilesToPublishOutput`
+The `AddMinimalOpenApiFilesToAdditionalFiles` and `AddMinimalOpenApiFilesToOutput`
 targets process all `<OpenApi ... />` items regardless of origin
 (project file, contracts package, or any other imported `.targets` file).  File
 content is preserved byte-for-byte; YAML stays YAML, JSON stays JSON.

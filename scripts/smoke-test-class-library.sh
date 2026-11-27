@@ -71,6 +71,13 @@ expect /inventory/stock/abc 200 '"quantity":3' 'X-Inventory-Configured: true'
 expect /inventory/stock/unknown 404 ''
 expect /health 200 '"status":"ok"'
 
+# Authored documents copied from the referenced libraries into the publish output (#106);
+# billing's and the host's documents are both named openapi.yaml.
+expect /openapi/catalog.yaml 200 'title: Catalog API'
+expect /openapi/billing.yaml 200 'title: Billing API'
+expect /openapi/inventory.yaml 200 'title: Inventory API'
+expect /openapi/health.yaml 200 'operationId: getHealth'
+
 if [[ $failures -ne 0 ]]; then
   echo "$failures check(s) failed. Host log:" >&2
   cat "$log_file" >&2

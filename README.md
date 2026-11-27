@@ -360,6 +360,8 @@ app.MapMinimalOpenApiEndpoints();
 var schemas = app.MapOpenApiSchemas();
 ```
 
+Documents declared in a referenced class library are copied to the host's build and publish output too, so `MapOpenApiSchemas()` in the host serves them at their `PublishAs` path without extra `Content` items.
+
 `MapOpenApiSchemas()` returns descriptors containing `PublicPath`, `Name`, `Version`, `FullName`, and `Endpoint`. These descriptors can be used to configure Swagger UI, Scalar, or another OpenAPI viewer without generating a second document at runtime.
 
 ## Inspecting generated source

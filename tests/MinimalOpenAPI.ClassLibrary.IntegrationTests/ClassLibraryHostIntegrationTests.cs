@@ -88,6 +88,36 @@ public class ClassLibraryHostIntegrationTests
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
+    // Documents declared in referenced libraries are copied to the host's (and this test project's)
+    // output by the SDK's standard copy-to-output mechanism and served at their PublishAs paths (#106).
+    // billing.yaml and the host's document are both named openapi.yaml and must stay distinct.
+    [TestCase("/openapi/catalog.yaml", "Catalog/catalog.yaml")]
+    [TestCase("/openapi/billing.yaml", "Billing/openapi.yaml")]
+    [TestCase("/openapi/inventory.yaml", "Inventory.Contracts/inventory.yaml")]
+    [TestCase("/openapi/health.yaml", "Host/openapi.yaml")]
+    public async Task AuthoredDocuments_AreServedAtTheirPublishAsPaths(string route, string sampleFile)
+    {
+        var response = await _client.GetAsync(route);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var authored = await File.ReadAllTextAsync(Path.Combine(SampleDirectory, sampleFile));
+        Assert.That(Normalize(await response.Content.ReadAsStringAsync()), Is.EqualTo(Normalize(authored)),
+            "the authored document is served, not a regenerated one");
+    }
+
+    private static string SampleDirectory
+    {
+        get
+        {
+            var directory = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
+            while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MinimalOpenApi.slnx")))
+                directory = directory.Parent;
+            return Path.Combine(directory!.FullName, "sample", "ClassLibrary");
+        }
+    }
+
+    private static string Normalize(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd();
+
     [Test]
     public async Task HostOwnDocumentEndpoint_IsMapped()
     {

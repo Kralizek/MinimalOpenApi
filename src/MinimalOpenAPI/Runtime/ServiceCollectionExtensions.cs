@@ -150,8 +150,9 @@ public static class ServiceCollectionExtensions
     /// When the source generator has emitted <c>RegisterSchemaFile</c> calls (the normal case
     /// for projects that reference the <c>MinimalOpenAPI</c> package), only entries that have
     /// <c>PublishAs</c> are mapped. The registered paths point to
-    /// the unique per-file subdirectories created by the <c>CopyMinimalOpenApiFilesToOutput</c>
-    /// MSBuild target, so two spec files with the same filename in different source directories
+    /// the unique per-file subdirectories that the <c>AddMinimalOpenApiFilesToOutput</c> MSBuild
+    /// target adds to the build and publish output (also of projects referencing the declaring
+    /// library), so two spec files with the same filename in different source directories, projects
     /// or NuGet packages never collide.
     /// </para>
     /// </remarks>

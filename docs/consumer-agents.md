@@ -312,7 +312,7 @@ app.MapMinimalOpenApiEndpoints();
 var schemas = app.MapOpenApiSchemas();
 ```
 
-Every document is copied to build and publish output. Only documents with `PublishAs` are exposed over HTTP.
+Every document that generates endpoints is copied to the build and publish output, including those of projects referencing the declaring library, so a host serves a library's documents with `MapOpenApiSchemas()`. Do **not** add `Content` items that copy the document to `openapi/schemas/...` yourself. Only documents with `PublishAs` are exposed over HTTP.
 
 `MapOpenApiSchemas()` returns descriptors containing `PublicPath`, `Name`, `Version`, `FullName`, and `Endpoint`. These can be passed to Swagger UI, Scalar, or another viewer.
 
