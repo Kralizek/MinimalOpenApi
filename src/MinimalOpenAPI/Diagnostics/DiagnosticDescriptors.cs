@@ -163,4 +163,16 @@ internal static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    /// <summary>
+    /// A response declares content, but none of its media types is supported, so the generated
+    /// result and endpoint metadata describe the response without a body.
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnsupportedResponseContentType = new(
+        id: "MOA018",
+        title: "Unsupported response media type",
+        messageFormat: "Response '{0}' of operation '{1}' declares only unsupported media types ({2}). The generated handler result and endpoint metadata describe this response without a body. Supported response media types are application/json, application/problem+json, and binary/file media types such as application/octet-stream, application/pdf, image/*, audio/* and video/*.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
 }

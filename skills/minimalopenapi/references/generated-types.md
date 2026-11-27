@@ -61,6 +61,7 @@ Typical mappings:
 - Inline body objects become nested `Request` records; component object schemas become contracts; string enums become C# enums; `allOf` object branches flatten.
 - `readOnly` / `writeOnly` may yield separate `*Request` and `*Response` contracts.
 - JSON and `application/problem+json` responses yield status-specific result types. A single distinct effective type yields one result, multiple yield `Results<...>`.
+- Binary/file responses yield nested `<Status>File` wrappers (for example `OkFile`) built from a `Stream` or `byte[]`. A concrete media type is fixed; a wildcard such as `image/*` requires a matching concrete `contentType` argument.
 - `multipart/form-data` binary strings become `IFormFile`; binary arrays become `IReadOnlyList<IFormFile>`; nested form objects bind via dotted keys. Object arrays and dictionaries in forms are unsupported (MOA011).
 - `additionalProperties` becomes `Dictionary<string, T>`; component keys are normalized to C# identifiers. Keep `$ref` using the original OpenAPI key.
 

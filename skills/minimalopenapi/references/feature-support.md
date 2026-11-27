@@ -10,7 +10,8 @@ Check the [repository feature matrix](https://github.com/Kralizek/MinimalOpenApi
 | `anyOf` | Not implemented. Do not assume union semantics are generated; avoid replacing it with `allOf` (which means something different). |
 | OpenAPI 2.0 / Swagger 2.0 | Not supported. Use an OpenAPI 3.0/3.1 contract. |
 | Multipart form arrays of objects or dictionaries | Not supported; MOA011. Nested form objects and file arrays **are** supported. |
-| Non-JSON text or binary/file responses | Generated response families are deferred; do not assume a `text/plain`, streaming, or file result is generated correctly. |
+| Binary/file responses | `application/octet-stream`, `application/pdf`, `image/*`, `audio/*`, `video/*`, or a `string`/`binary` schema generate status-specific file wrappers such as `OkFile`. |
+| Non-JSON text responses | Deferred; a response whose media types are all unsupported reports MOA018 and has no generated body. |
 | Multiple response media types | Support is deferred; do not assume arbitrary content negotiation will be generated. |
 | Other request media types | Deferred. JSON and multipart have explicit support; when both are declared JSON is preferred and selection is limited. |
 | Parameter `style` / `explode` | Not generated; application-specific binding may be needed. |

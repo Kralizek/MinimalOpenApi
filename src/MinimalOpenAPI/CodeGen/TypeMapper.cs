@@ -135,6 +135,44 @@ internal static class TypeMapper
     public static bool IsProblemResponse(OpenApiResponse response)
         => string.Equals(response.ContentType, "application/problem+json", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>Returns the generated file result wrapper name for a binary/file response with the given status code.</summary>
+    public static string GetFileResultTypeName(int statusCode)
+    {
+        var mapping = GetHttpStatusCodeMapping(statusCode);
+        return $"{mapping.ProblemName ?? $"Status{statusCode}"}File";
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when the response's selected media type is a binary/file type:
+    /// <c>application/octet-stream</c>, <c>application/pdf</c>, <c>image/*</c>, <c>audio/*</c> or
+    /// <c>video/*</c>, or any other non-JSON, non-multipart media type whose schema is
+    /// <c>type: string, format: binary</c>.
+    /// </summary>
+    public static bool IsFileResponse(OpenApiResponse response)
+    {
+        if (response.ContentType is not { Length: > 0 } contentType)
+            return false;
+
+        var essence = GetMediaTypeEssence(contentType);
+        if (essence is "application/octet-stream" or "application/pdf"
+            || essence.StartsWith("image/", StringComparison.Ordinal)
+            || essence.StartsWith("audio/", StringComparison.Ordinal)
+            || essence.StartsWith("video/", StringComparison.Ordinal))
+            return true;
+
+        return response.Schema is { } schema
+            && IsFormFileSchema(schema)
+            && essence != "application/json"
+            && !essence.EndsWith("+json", StringComparison.Ordinal)
+            && !essence.StartsWith("multipart/", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Returns the lowercase <c>type/subtype</c> part of a media type, without parameters.
+    /// </summary>
+    public static string GetMediaTypeEssence(string mediaType)
+        => mediaType.Split(';')[0].Trim().ToLowerInvariant();
+
     /// <summary>
     /// Returns <see langword="true"/> when the request body should produce a generated JSON DTO
     /// and handler parameter.  Covers <c>application/json</c> bodies and bodies with no resolved
@@ -308,6 +346,9 @@ internal static class TypeMapper
     {
         if (IsProblemResponse(response))
             return GetProblemResultTypeName(response.StatusCode);
+
+        if (IsFileResponse(response))
+            return GetFileResultTypeName(response.StatusCode);
 
         return MapStatusCode(response.StatusCode, response.Schema, contractsNamespace, resolveInline, resolveReference);
     }

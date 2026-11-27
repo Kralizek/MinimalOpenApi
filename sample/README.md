@@ -11,7 +11,7 @@ Each sample demonstrates one clear capability area so you can find exactly what 
 | [SchemaPublishing](SchemaPublishing/README.md) | When you need `PublishAs`, `MapOpenApiSchemas()`, or Swagger UI wiring. |
 | [Parameters](Parameters/README.md) | Path, query, header, cookie, and component `$ref` parameters; defaults and format annotations. |
 | [SchemaShapes](SchemaShapes/README.md) | DTO generation from schema shapes: enums, `allOf`, `readOnly`/`writeOnly`, `additionalProperties`, `DateOnly`. |
-| [ResponseResults](ResponseResults/README.md) | Typed result unions (`Created<T>`, `Ok<T>`, `NoContent`) and `application/problem+json` wrappers. |
+| [ResponseResults](ResponseResults/README.md) | Typed result unions (`Created<T>`, `Ok<T>`, `NoContent`), `application/problem+json` wrappers, and file response wrappers. |
 | [GeneratedFiles](GeneratedFiles/README.md) | `EmitCompilerGeneratedFiles` — how to see and inspect the C# source that MinimalOpenAPI generates. |
 | [SmokeTest](SmokeTest/README.md) | CI/package-consumption validation via `PackageReference`. Not the recommended learning sample. |
 

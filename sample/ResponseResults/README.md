@@ -14,6 +14,7 @@ This sample demonstrates generated endpoint result types and response handling.
 | `NoContent` result | `cancelOrder` | `CancelOrderHandler.cs` |
 | Schema-less `NotFoundProblem` | `cancelOrder` | `CancelOrderHandler.cs` |
 | Middleware-owned `401` / `403` | `getOrder` | `openapi.yaml`, `ResponseResults.csproj` |
+| `image/*` file result (`OkFile`) | `getOrderBadge` | `GetOrderBadgeHandler.cs` |
 
 ## Handler responses versus endpoint responses
 
@@ -36,6 +37,12 @@ MinimalOpenAPI generates typed problem wrapper types from `application/problem+j
 | `NotFoundProblem` (in `getOrder`) | 404 | Schema-backed with `OrderId` field |
 | `NotFoundProblem` (in `cancelOrder`) | 404 | Schema-less (wraps `ProblemDetails`) |
 
+Binary/file responses generate status-specific file wrapper types:
+
+| Generated type | Status | Media type |
+|----------------|--------|------------|
+| `OkFile` (in `getOrderBadge`) | 200 | `image/*`: the handler supplies a concrete image content type, validated by the wrapper |
+
 ## Interesting files
 
 | File | What to look at |
@@ -44,6 +51,7 @@ MinimalOpenAPI generates typed problem wrapper types from `application/problem+j
 | `CreateOrderHandler.cs` | `Results<Created<Order>, BadRequestProblem, Conflict<string>>` usage |
 | `GetOrderHandler.cs` | `Results<Ok<Order>, NotFoundProblem>` with typed payload |
 | `CancelOrderHandler.cs` | `Results<NoContent, NotFoundProblem>` schema-less problem |
+| `GetOrderBadgeHandler.cs` | `Results<OkFile, NotFoundProblem>` returning an SVG file |
 
 ## How to run
 
@@ -72,6 +80,9 @@ curl http://localhost:5000/orders/{id}
 curl -X PUT http://localhost:5000/orders/{id} \
   -H "Content-Type: application/json" \
   -d '{"status":"confirmed"}'
+
+# Download the order badge as an SVG image
+curl -i http://localhost:5000/orders/{id}/badge
 
 # Cancel an order
 curl -X DELETE http://localhost:5000/orders/{id}

@@ -361,6 +361,7 @@ public sealed class JsonOpenApiParser : IOpenApiParser
                 StatusCode = statusCode,
                 Description = GetString(responseNode, "description") ?? string.Empty,
                 ContentType = contentType,
+                DeclaredContentTypes = GetDeclaredContentTypes(responseNode),
                 Schema = schemaNode is not null ? ExtractSchema(schemaNode) : null
             });
         }
@@ -368,6 +369,21 @@ public sealed class JsonOpenApiParser : IOpenApiParser
         return result;
     }
 
+    private static List<string> GetDeclaredContentTypes(JsonObject responseNode)
+    {
+        var contentNode = GetObject(responseNode, "content");
+        if (contentNode is null) return [];
+
+        return contentNode
+            .Select(entry => entry.Key)
+            .Where(mediaType => !string.IsNullOrEmpty(mediaType))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Selects the response media type the generator supports: <c>application/json</c> first,
+    /// then <c>application/problem+json</c>, then the first binary/file media type in document order.
+    /// </summary>
     private static bool TryGetSupportedResponseContent(
         JsonObject responseNode,
         out string? contentType,
@@ -393,7 +409,45 @@ public sealed class JsonOpenApiParser : IOpenApiParser
             return true;
         }
 
+        foreach (var entry in contentNode)
+        {
+            var mediaType = entry.Key;
+            if (string.IsNullOrEmpty(mediaType)) continue;
+
+            var node = entry.Value as JsonObject;
+            var schemaNode = node is not null ? GetObject(node, "schema") : null;
+            var isBinarySchema = schemaNode is not null
+                && string.Equals(GetTypeInfo(schemaNode).type, "string", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(GetString(schemaNode, "format"), "binary", StringComparison.OrdinalIgnoreCase);
+
+            if (!IsFileResponseMediaType(mediaType, isBinarySchema)) continue;
+
+            contentType = mediaType;
+            mediaTypeNode = node ?? new JsonObject();
+            return true;
+        }
+
         return false;
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> for binary/file response media types: <c>application/octet-stream</c>,
+    /// <c>application/pdf</c>, <c>image/*</c>, <c>audio/*</c> and <c>video/*</c>, plus any other
+    /// non-JSON, non-multipart media type whose schema is <c>type: string, format: binary</c>.
+    /// </summary>
+    private static bool IsFileResponseMediaType(string mediaType, bool isBinarySchema)
+    {
+        var essence = mediaType.Split(';')[0].Trim().ToLowerInvariant();
+        if (essence is "application/octet-stream" or "application/pdf"
+            || essence.StartsWith("image/", StringComparison.Ordinal)
+            || essence.StartsWith("audio/", StringComparison.Ordinal)
+            || essence.StartsWith("video/", StringComparison.Ordinal))
+            return true;
+
+        return isBinarySchema
+            && essence != "application/json"
+            && !essence.EndsWith("+json", StringComparison.Ordinal)
+            && !essence.StartsWith("multipart/", StringComparison.Ordinal);
     }
 
     // ── System.Text.Json helpers ──────────────────────────────────────────

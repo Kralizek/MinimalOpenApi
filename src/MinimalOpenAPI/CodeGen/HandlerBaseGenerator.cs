@@ -53,6 +53,10 @@ internal static class HandlerBaseGenerator
         }
         foreach (var r in operation.Responses.OrderBy(r => r.StatusCode))
         {
+            // File responses carry raw bytes; their schema never produces a DTO.
+            if (TypeMapper.IsFileResponse(r))
+                continue;
+
             if (r.Schema is { } respSchema && TypeMapper.IsInlineObject(respSchema))
             {
                 var typeName = TypeMapper.GetInlineResponseTypeName(r.StatusCode);
@@ -147,6 +151,17 @@ internal static class HandlerBaseGenerator
         foreach (var response in problemResponses)
         {
             AppendProblemResultWrapper(sb, response, contractsNs, localResolver);
+            sb.AppendLine();
+        }
+
+        var fileResponses = handlerResponses
+            .Where(TypeMapper.IsFileResponse)
+            .OrderBy(r => r.StatusCode)
+            .ToList();
+
+        foreach (var response in fileResponses)
+        {
+            AppendFileResultWrapper(sb, response);
             sb.AppendLine();
         }
 
@@ -713,4 +728,158 @@ internal static class HandlerBaseGenerator
         sb.AppendLine("        }");
         sb.AppendLine("    }");
     }
+
+    /// <summary>
+    /// Appends a status-specific file result wrapper for a binary/file response. The wrapper
+    /// fixes the declared status code and, for a concrete media type, the content type; for a
+    /// wildcard media type (<c>image/*</c>, <c>*/*</c>) the handler supplies a concrete content
+    /// type, which is validated against the declared pattern. Execution delegates to the
+    /// built-in ASP.NET Core stream or file-content result.
+    /// </summary>
+    private static void AppendFileResultWrapper(StringBuilder sb, OpenApiResponse response)
+    {
+        const string http = "global::Microsoft.AspNetCore.Http";
+        const string stream = "global::System.IO.Stream";
+        const string dateTimeOffset = "global::System.DateTimeOffset";
+        const string entityTag = "global::Microsoft.Net.Http.Headers.EntityTagHeaderValue";
+
+        var declaredMediaType = response.ContentType!;
+        var essence = TypeMapper.GetMediaTypeEssence(declaredMediaType);
+        var slash = essence.IndexOf('/');
+        var wildcardType = slash > 0 && essence.Substring(slash + 1) == "*"
+            ? essence.Substring(0, slash)
+            : null;
+        var isWildcard = wildcardType is not null;
+
+        var resultTypeName = TypeMapper.GetFileResultTypeName(response.StatusCode);
+        var statusCodeExpression = TypeMapper.GetStatusCodeExpression(response.StatusCode);
+        var mediaTypeLiteral = $"\"{EscapeStringLiteral(declaredMediaType)}\"";
+        var mediaTypeDoc = EscapeXml(declaredMediaType);
+
+        var contentTypeParameter = isWildcard ? "string contentType, " : "";
+        var contentTypeArgument = isWildcard ? "ValidateContentType(contentType)" : mediaTypeLiteral;
+        var optionalParameters =
+            $"string? fileDownloadName = null, {dateTimeOffset}? lastModified = null, {entityTag}? entityTag = null, bool enableRangeProcessing = false";
+        var contentTypeParamDoc = isWildcard
+            ? $"        /// <param name=\"contentType\">The concrete content type of the file. It must match the declared <c>{mediaTypeDoc}</c> media type.</param>"
+            : null;
+
+        sb.AppendLine($"    /// <summary>Typed <c>{mediaTypeDoc}</c> file result for HTTP {response.StatusCode}.</summary>");
+        TypeMapper.AppendGeneratedAttributes(sb, "    ");
+        sb.AppendLine(
+            $"    public sealed class {resultTypeName} : {http}.IResult, {http}.IStatusCodeHttpResult, {http}.IContentTypeHttpResult, {http}.IFileHttpResult");
+        sb.AppendLine("    {");
+
+        // Stream constructor.
+        sb.AppendLine("        /// <summary>Creates a result that writes <paramref name=\"fileStream\"/> to the response. The stream is disposed after the response is written.</summary>");
+        sb.AppendLine("        /// <param name=\"fileStream\">The stream with the file content.</param>");
+        if (contentTypeParamDoc is not null) sb.AppendLine(contentTypeParamDoc);
+        AppendFileOptionalParameterDocs(sb);
+        sb.AppendLine($"        public {resultTypeName}({stream} fileStream, {contentTypeParameter}{optionalParameters})");
+        sb.AppendLine($"            : this(fileStream ?? throw new global::System.ArgumentNullException(nameof(fileStream)), null, {contentTypeArgument}, fileDownloadName, lastModified, entityTag, enableRangeProcessing)");
+        sb.AppendLine("        {");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+
+        // Byte-array constructor.
+        sb.AppendLine("        /// <summary>Creates a result that writes <paramref name=\"fileContents\"/> to the response.</summary>");
+        sb.AppendLine("        /// <param name=\"fileContents\">The file content.</param>");
+        if (contentTypeParamDoc is not null) sb.AppendLine(contentTypeParamDoc);
+        AppendFileOptionalParameterDocs(sb);
+        sb.AppendLine($"        public {resultTypeName}(byte[] fileContents, {contentTypeParameter}{optionalParameters})");
+        sb.AppendLine($"            : this(null, fileContents ?? throw new global::System.ArgumentNullException(nameof(fileContents)), {contentTypeArgument}, fileDownloadName, lastModified, entityTag, enableRangeProcessing)");
+        sb.AppendLine("        {");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+
+        sb.AppendLine($"        private {resultTypeName}({stream}? fileStream, byte[]? fileContents, string contentType, string? fileDownloadName, {dateTimeOffset}? lastModified, {entityTag}? entityTag, bool enableRangeProcessing)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            FileStream = fileStream;");
+        sb.AppendLine("            FileContents = fileContents;");
+        sb.AppendLine("            ContentType = contentType;");
+        sb.AppendLine("            FileDownloadName = fileDownloadName;");
+        sb.AppendLine("            LastModified = lastModified;");
+        sb.AppendLine("            EntityTag = entityTag;");
+        sb.AppendLine("            EnableRangeProcessing = enableRangeProcessing;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+
+        sb.AppendLine("        /// <summary>The HTTP status code written to the response.</summary>");
+        sb.AppendLine($"        public int? StatusCode => {statusCodeExpression};");
+        sb.AppendLine();
+        sb.AppendLine("        /// <summary>The content type written to the response.</summary>");
+        sb.AppendLine("        public string ContentType { get; }");
+        sb.AppendLine();
+        sb.AppendLine("        /// <summary>The file name for the <c>Content-Disposition</c> header, or <see langword=\"null\"/> for none.</summary>");
+        sb.AppendLine("        public string? FileDownloadName { get; }");
+        sb.AppendLine();
+        sb.AppendLine("        /// <summary>The <c>Last-Modified</c> value used for conditional requests.</summary>");
+        sb.AppendLine($"        public {dateTimeOffset}? LastModified {{ get; }}");
+        sb.AppendLine();
+        sb.AppendLine("        /// <summary>The <c>ETag</c> value used for conditional requests.</summary>");
+        sb.AppendLine($"        public {entityTag}? EntityTag {{ get; }}");
+        sb.AppendLine();
+        sb.AppendLine("        /// <summary>Whether range requests are processed.</summary>");
+        sb.AppendLine("        public bool EnableRangeProcessing { get; }");
+        sb.AppendLine();
+        sb.AppendLine("        /// <summary>The stream with the file content, or <see langword=\"null\"/> when the result was created from a byte array.</summary>");
+        sb.AppendLine($"        public {stream}? FileStream {{ get; }}");
+        sb.AppendLine();
+        sb.AppendLine("        /// <summary>The file content, or <see langword=\"null\"/> when the result was created from a stream.</summary>");
+        sb.AppendLine("        public byte[]? FileContents { get; }");
+        sb.AppendLine();
+
+        sb.AppendLine("        /// <inheritdoc />");
+        sb.AppendLine($"        public global::System.Threading.Tasks.Task ExecuteAsync({http}.HttpContext httpContext)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            global::System.ArgumentNullException.ThrowIfNull(httpContext);");
+        sb.AppendLine();
+        sb.AppendLine($"            httpContext.Response.StatusCode = {statusCodeExpression};");
+        sb.AppendLine();
+        sb.AppendLine($"            {http}.IResult result = FileStream is not null");
+        sb.AppendLine($"                ? {http}.TypedResults.Stream(FileStream, contentType: ContentType, fileDownloadName: FileDownloadName, lastModified: LastModified, entityTag: EntityTag, enableRangeProcessing: EnableRangeProcessing)");
+        sb.AppendLine($"                : {http}.TypedResults.File(FileContents!, contentType: ContentType, fileDownloadName: FileDownloadName, enableRangeProcessing: EnableRangeProcessing, lastModified: LastModified, entityTag: EntityTag);");
+        sb.AppendLine();
+        sb.AppendLine("            return result.ExecuteAsync(httpContext);");
+        sb.AppendLine("        }");
+
+        if (isWildcard)
+        {
+            sb.AppendLine();
+            sb.AppendLine("        private static string ValidateContentType(string contentType)");
+            sb.AppendLine("        {");
+            sb.AppendLine("            global::System.ArgumentException.ThrowIfNullOrWhiteSpace(contentType);");
+            sb.AppendLine();
+            sb.AppendLine("            var essence = contentType.Split(';')[0].Trim();");
+            sb.AppendLine("            var separator = essence.IndexOf('/');");
+            sb.Append("            if (separator <= 0 || separator == essence.Length - 1 || essence.IndexOf('*') >= 0");
+            if (wildcardType != "*")
+            {
+                sb.AppendLine();
+                sb.Append($"                || !essence.StartsWith(\"{EscapeStringLiteral(wildcardType!)}/\", global::System.StringComparison.OrdinalIgnoreCase)");
+            }
+            sb.AppendLine(")");
+            sb.AppendLine("            {");
+            sb.AppendLine("                throw new global::System.ArgumentException(");
+            sb.AppendLine($"                    \"Content type '\" + contentType + \"' does not match the declared response media type '{EscapeStringLiteral(declaredMediaType)}'.\",");
+            sb.AppendLine("                    nameof(contentType));");
+            sb.AppendLine("            }");
+            sb.AppendLine();
+            sb.AppendLine("            return contentType;");
+            sb.AppendLine("        }");
+        }
+
+        sb.AppendLine("    }");
+    }
+
+    private static void AppendFileOptionalParameterDocs(StringBuilder sb)
+    {
+        sb.AppendLine("        /// <param name=\"fileDownloadName\">The file name for the <c>Content-Disposition: attachment</c> header, or <see langword=\"null\"/> for none.</param>");
+        sb.AppendLine("        /// <param name=\"lastModified\">The <c>Last-Modified</c> value used for conditional requests.</param>");
+        sb.AppendLine("        /// <param name=\"entityTag\">The <c>ETag</c> value used for conditional requests.</param>");
+        sb.AppendLine("        /// <param name=\"enableRangeProcessing\">Whether range requests are processed.</param>");
+    }
+
+    private static string EscapeXml(string value)
+        => value.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
 }

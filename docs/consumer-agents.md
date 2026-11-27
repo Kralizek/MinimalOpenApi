@@ -167,6 +167,7 @@ General rules:
 - multiple distinct effective response result types use flat `Results<>` for two through six types and tail-nested unions beyond six;
 - inline response objects produce status-specific nested records;
 - `application/problem+json` produces status-specific typed wrappers;
+- binary/file responses produce status-specific file wrappers such as `OkFile`;
 - `additionalProperties` maps to `Dictionary<string, T>`;
 - inline object array items produce generated item records rather than `object[]`;
 - `allOf` object branches are flattened into one contract shape.
@@ -348,7 +349,7 @@ The following are limitations of MinimalOpenAPI's generator, **not** invalid Ope
 - **`oneOf` and `anyOf`:** polymorphic/union models are not supported. Do not replace either with `allOf`: the semantics differ. Object `allOf` flattening is supported, subject to incompatible-property diagnostics/fallback.
 - **OpenAPI 2.0:** not supported; use OpenAPI 3.0 or 3.1.
 - **Request media types:** JSON and multipart are supported; other media types are deferred. Multiple request media types are limited, with JSON preferred where JSON and multipart coexist.
-- **Response media types:** non-JSON text, binary/file, and multiple response media types are not generated.
+- **Response media types:** non-JSON text and multiple response media types are not generated; a response whose media types are all unsupported reports MOA018.
 - **Multipart form shapes:** arrays of objects and dictionaries are unsupported (MOA011), unlike JSON inline object arrays.
 - **Parameter serialization:** `style` and `explode` configuration is not generated.
 - **Response headers:** not generated as typed response contracts.
@@ -363,7 +364,7 @@ See the [feature support reference](../skills/minimalopenapi/references/feature-
 - Runtime `DataAnnotations` validation is not automatically executed by ASP.NET Core Minimal APIs.
 - Cookie parameters require application-specific binding or `HttpContext` access.
 - Multipart arrays of objects and dictionaries are not supported.
-- Non-JSON text and binary response families are not yet generated.
+- Non-JSON text response families are not yet generated.
 
 ## Troubleshooting
 
@@ -382,6 +383,7 @@ See the [feature support reference](../skills/minimalopenapi/references/feature-
 | `MOA015` | Invalid handler-response configuration | Verify document selector, operation ID, declared statuses and filter precedence. |
 | `MOA016` | Duplicate operation ID | Give each operation a unique `operationId`. |
 | `MOA017` | Unsupported/unresolved schema `$ref` | Correct the contract to use supported local schema references. |
+| `MOA018` | Response declares only unsupported media types | Use JSON, problem details or a binary/file media type, or accept a body-less generated result. |
 | `NotImplementedException` at runtime | Missing override or call to base implementation | Override `HandleAsync` and remove the base call. |
 | Duplicate route at startup | Manual and generated mapping both register the operation | Remove the manual mapping. |
 

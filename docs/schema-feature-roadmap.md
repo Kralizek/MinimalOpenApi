@@ -92,8 +92,8 @@ Antiforgery, request-size limits, file validation, and storage remain applicatio
 | Multiple status codes | Supported | Produces `Results<T1, T2, ...>` unions. |
 | Empty responses | Supported | Maps to status-specific no-content result types where applicable. |
 | `application/problem+json` | Supported | Produces status-specific typed wrappers around the declared problem payload. |
-| Non-JSON text responses | Deferred | Requires a deliberate mapping to content results. |
-| Binary/file responses | Deferred | Requires a deliberate mapping to bytes, streams, or file results. |
+| Non-JSON text responses | Deferred | Requires a deliberate mapping to content results. Responses that declare only unsupported media types report `MOA018`. |
+| Binary/file responses | Supported | `application/octet-stream`, `application/pdf`, `image/*`, `audio/*`, `video/*`, and other non-JSON media types with a `string`/`binary` schema produce status-specific file wrappers such as `OkFile`. Wildcard media types require the handler to supply a validated concrete content type. |
 | Multiple response media types | Deferred | Needs deterministic result-type and metadata rules. |
 | Response headers | Not generated | Applications set headers through `HttpContext`; no useful strongly typed Minimal API equivalent exists. |
 
@@ -114,7 +114,7 @@ Antiforgery, request-size limits, file validation, and storage remain applicatio
 The likely next design areas are:
 
 1. `oneOf` and `anyOf` polymorphism, including discriminator rules and generated serialization metadata.
-2. Non-JSON response families: text, binary streams, and files.
+2. Non-JSON text response families.
 3. Additional request media types where ASP.NET Core has a stable, strongly typed binding model.
 4. `deprecated` metadata mapped consistently to generated C# and endpoint metadata.
 5. Broader parameter serialization support where it can be represented without custom runtime binders.
