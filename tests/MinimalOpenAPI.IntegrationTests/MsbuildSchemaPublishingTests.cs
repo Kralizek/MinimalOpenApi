@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 
 namespace MinimalOpenAPI.IntegrationTests;
 
@@ -169,9 +170,22 @@ public class MsbuildSchemaPublishingTests
         throw new InvalidOperationException("Could not locate repository root.");
     }
 
+    private static readonly TimeSpan DotNetTimeout = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan OutputDrainTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// Runs a nested <c>dotnet</c> command and returns its exit code and combined output.
+    /// </summary>
+    /// <remarks>
+    /// Build servers and MSBuild worker nodes started by the nested command can outlive it and
+    /// inherit the redirected output pipes. Reading the streams to the end would then block until
+    /// those processes exit (about 45 minutes in CI). The command therefore runs with
+    /// <c>--disable-build-servers</c>, and the helper waits for the process to exit rather than
+    /// for end-of-stream, draining remaining output for a bounded time only.
+    /// </remarks>
     private static (int ExitCode, string Output) RunDotNet(string workingDirectory, string arguments)
     {
-        var psi = new ProcessStartInfo("dotnet", arguments)
+        var psi = new ProcessStartInfo("dotnet", $"{arguments} --disable-build-servers")
         {
             WorkingDirectory = workingDirectory,
             RedirectStandardOutput = true,
@@ -179,10 +193,42 @@ public class MsbuildSchemaPublishingTests
             UseShellExecute = false,
         };
 
-        using var process = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start dotnet process.");
-        var output = process.StandardOutput.ReadToEnd();
-        var error = process.StandardError.ReadToEnd();
-        process.WaitForExit();
-        return (process.ExitCode, output + Environment.NewLine + error);
+        var output = new StringBuilder();
+        var outputClosed = new TaskCompletionSource();
+        var errorClosed = new TaskCompletionSource();
+
+        using var process = new Process { StartInfo = psi };
+        process.OutputDataReceived += (_, e) => Append(e.Data, outputClosed);
+        process.ErrorDataReceived += (_, e) => Append(e.Data, errorClosed);
+
+        if (!process.Start())
+            throw new InvalidOperationException("Failed to start dotnet process.");
+
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+
+        // A finite timeout returns on process exit without waiting for end-of-stream.
+        if (!process.WaitForExit(DotNetTimeout))
+        {
+            process.Kill(entireProcessTree: true);
+            Assert.Fail($"'dotnet {arguments}' did not exit within {DotNetTimeout}.");
+        }
+
+        Task.WaitAll([outputClosed.Task, errorClosed.Task], OutputDrainTimeout);
+
+        lock (output)
+            return (process.ExitCode, output.ToString());
+
+        void Append(string? line, TaskCompletionSource closed)
+        {
+            if (line is null)
+            {
+                closed.TrySetResult();
+                return;
+            }
+
+            lock (output)
+                output.AppendLine(line);
+        }
     }
 }
