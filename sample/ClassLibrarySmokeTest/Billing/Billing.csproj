@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <Compile Include="../../ClassLibrary/Billing/*.cs" />
-    <OpenApi Include="../../ClassLibrary/Billing/openapi.yaml" Namespace="Billing" />
+    <OpenApi Include="../../ClassLibrary/Billing/openapi.yaml" Namespace="Billing" PublishAs="/openapi/billing.yaml" />
   </ItemGroup>
 
 </Project>

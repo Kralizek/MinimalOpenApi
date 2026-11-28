@@ -9,6 +9,8 @@
     <Project Path="sample/ClassLibrary/Billing/Billing.csproj" />
     <Project Path="sample/ClassLibrary/Catalog/Catalog.csproj" />
     <Project Path="sample/ClassLibrary/Host/Host.csproj" />
+    <Project Path="sample/ClassLibrary/Inventory.Api/Inventory.Api.csproj" />
+    <Project Path="sample/ClassLibrary/Inventory.Contracts/Inventory.Contracts.csproj" />
     <Project Path="sample/GeneratedFiles/GeneratedFiles.csproj" />
     <Project Path="sample/MultipartNested/MultipartNested.csproj" />
     <Project Path="sample/Parameters/Parameters.csproj" />

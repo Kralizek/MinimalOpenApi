@@ -22,7 +22,7 @@
   <Import Project="../../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
 
   <ItemGroup>
-    <OpenApi Include="openapi.yaml" Namespace="Billing" />
+    <OpenApi Include="openapi.yaml" Namespace="Billing" PublishAs="/openapi/billing.yaml" />
   </ItemGroup>
 
 </Project>

@@ -19,6 +19,9 @@ public partial class Program
 
         app.MapMinimalOpenApiEndpoints();
 
+        // Serves the authored documents (including the libraries') at their PublishAs paths.
+        app.MapOpenApiSchemas();
+
         await app.RunAsync();
     }
 }

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Inventory</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="MinimalOpenAPI" Version="$(MinimalOpenAPIVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <OpenApi Include="../../ClassLibrary/Inventory.Contracts/inventory.yaml" Namespace="Stock" Generate="Contracts" />
+  </ItemGroup>
+
+</Project>

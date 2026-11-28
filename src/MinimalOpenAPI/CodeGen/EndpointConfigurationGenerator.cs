@@ -22,6 +22,7 @@ internal static class EndpointConfigurationGenerator
         sb.AppendLine();
         sb.AppendLine($"/// <summary>Optional endpoint configuration base for the <c>{operation.OperationId}</c> operation.</summary>");
         TypeMapper.AppendGeneratedAttributes(sb);
+        sb.AppendLine("[global::MinimalOpenAPI.MinimalOpenApiEndpointConfigurationBase]");
         sb.AppendLine($"public abstract class {configurationBaseClass}");
         sb.AppendLine("{");
         sb.AppendLine("    /// <summary>Applies application-specific endpoint configuration after contract-derived metadata.</summary>");

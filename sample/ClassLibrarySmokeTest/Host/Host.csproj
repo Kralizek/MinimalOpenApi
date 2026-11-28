@@ -12,11 +12,13 @@
   <ItemGroup>
     <ProjectReference Include="../Catalog/Catalog.csproj" />
     <ProjectReference Include="../Billing/Billing.csproj" />
+    <ProjectReference Include="../Inventory.Api/Inventory.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Include="../../ClassLibrary/Host/*.cs" />
-    <OpenApi Include="../../ClassLibrary/Host/openapi.yaml" Namespace="Health" />
+    <Compile Include="../../ClassLibrary/Host/Inventory/*.cs" />
+    <OpenApi Include="../../ClassLibrary/Host/openapi.yaml" Namespace="Health" PublishAs="/openapi/health.yaml" />
   </ItemGroup>
 
 </Project>

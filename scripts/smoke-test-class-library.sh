@@ -3,7 +3,8 @@
 #
 # Restores, builds (--warnaserror) and publishes the host against the MinimalOpenAPI package in
 # artifacts/, then runs the published host and checks the endpoints of every OpenAPI document:
-# two declared in referenced class libraries and one declared by the host itself.
+# two declared in referenced class libraries, one split into a Contracts and an Endpoints library
+# whose handler and endpoint configuration live in the host, and one declared by the host itself.
 #
 # Usage: scripts/smoke-test-class-library.sh [publish-dir] [port]
 set -euo pipefail
@@ -66,7 +67,16 @@ expect() {
 expect /catalog/items/42 200 '"name":"Item 42"'
 expect /catalog/items/0 404 ''
 expect /billing/invoices/2 200 '"total":21' 'X-Billing-Configured: true'
+expect /inventory/stock/abc 200 '"quantity":3' 'X-Inventory-Configured: true'
+expect /inventory/stock/unknown 404 ''
 expect /health 200 '"status":"ok"'
+
+# Authored documents copied from the referenced libraries into the publish output (#106);
+# billing's and the host's documents are both named openapi.yaml.
+expect /openapi/catalog.yaml 200 'title: Catalog API'
+expect /openapi/billing.yaml 200 'title: Billing API'
+expect /openapi/inventory.yaml 200 'title: Inventory API'
+expect /openapi/health.yaml 200 'operationId: getHealth'
 
 if [[ $failures -ne 0 ]]; then
   echo "$failures check(s) failed. Host log:" >&2

@@ -28,11 +28,13 @@ app.Run();
 
 For conventions shared by **all** generated endpoints, configure the `RouteGroupBuilder` returned by `MapMinimalOpenApiEndpoints()`; use the generated per-operation configuration base for narrower policies. See [endpoint configuration](endpoint-configuration.md). All configured OpenAPI documents share the generated route group.
 
-`PublishAs` is opt-in; without it the authored file is copied to output but not served over HTTP. `MapOpenApiSchemas()` returns descriptors for viewer integrations and serves authored documents, not a generated code-first spec.
+`PublishAs` is opt-in; without it the authored file is copied to output but not served over HTTP. Documents declared in referenced class libraries are copied to the host's build and publish output automatically; do not add manual `Content` items for them. `MapOpenApiSchemas()` returns descriptors for viewer integrations and serves authored documents, not a generated code-first spec.
 
 For multiple documents choose distinct `Namespace` metadata if derived names collide. When configuring a `MinimalOpenApiHandler` against multiple documents, use `OpenApiFile` equal to the complete configured `OpenApi Include` path, not merely its basename. With one document `OpenApiFile` may be omitted; if supplied it is still validated.
 
 Contracts and handlers may live in a class library referenced by a separate host. The host calls only `AddMinimalOpenApi()` / `MapMinimalOpenApiEndpoints()`; the generator running in the host registers every referenced document at build time through the generated `{RootNamespace}.{SpecName}.{SpecName}MinimalOpenApi` entry points. Do not add module-constructor or "touch a library type" workarounds. Only if the generator cannot run in the host, call `<SpecName>MinimalOpenApi.Register()` before `AddMinimalOpenApi()`. A startup warning that no endpoints were mapped means no document was registered.
+
+Handlers and endpoint configurations may be implemented in the declaring library or in any project referencing it (for example the host) by deriving from the generated base; that project needs no `<OpenApi>` item and must not register them manually. `Generate` metadata splits a document across projects: `Generate="Contracts"` emits only DTOs, `Generate="Endpoints"` emits the bases, mapping and registration on top of the DTOs from a referenced project that generates `Contracts` for the same file; the default is both. Point every item at the same file with the same `ReadWriteSchemaHandling`.
 
 `ReadWriteSchemaHandling`: `Ignore` is neutral, `Auto` creates directional request/response shapes when needed (default), and `Split` always creates directional graphs from body roots.
 

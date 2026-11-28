@@ -26,5 +26,18 @@ public sealed class MinimalOpenApiDocumentAttribute : Attribute
 
     /// <summary>The generated static class exposing <c>Register()</c>.</summary>
     public Type EntryPoint { get; }
+
+    /// <summary>
+    /// The generated handler base classes of this document that have no implementation in this
+    /// assembly. A class library leaves them to the application that references it, which reports
+    /// MOA001 for each one at build time.
+    /// </summary>
+    public Type[] UnimplementedHandlers { get; set; } = [];
+
+    /// <summary>
+    /// The generated endpoint configuration base classes of this document that are implemented in
+    /// this assembly, so referencing projects can report a second implementation (MOA003).
+    /// </summary>
+    public Type[] ImplementedConfigurations { get; set; } = [];
 }
 #endif

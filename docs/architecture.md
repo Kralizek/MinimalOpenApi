@@ -214,8 +214,7 @@ Key targets:
 |--------|------|---------|
 | `AddMinimalOpenApiFilesToAdditionalFiles` | `BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile"` | Copies `<OpenApi>` items into `<AdditionalFiles>` with `MinimalOpenApiFile=true` metadata and exposes `RootNamespace` as a compiler-visible property. |
 | `AddMinimalOpenApiGeneratorDependencyAnalyzers` | `BeforeTargets="CoreCompile"` | Adds `MinimalOpenAPI.Abstractions`, `MinimalOpenAPI.Parser.Yaml`, `MinimalOpenAPI.Parser.Json`, and `YamlDotNet` as `<Analyzer>` items so Roslyn can load them into its isolated `AssemblyLoadContext` alongside the generator DLL. |
-| `CopyMinimalOpenApiFilesToOutput` | `AfterTargets="Build"` | Copies every `<OpenApi ... />` file to `$(OutDir)openapi/schemas/<SchemaId>/<filename>.<ext>`, preserving collision-safe hashed internal storage. |
-| `AddMinimalOpenApiFilesToPublishOutput` | `AfterTargets="ComputeFilesToPublish"` | Injects `ResolvedFileToPublish` items for every `<OpenApi ... />` file so `dotnet publish` includes the same hashed internal path structure. |
+| `AddMinimalOpenApiFilesToOutput` | `BeforeTargets="AssignTargetPaths"` | Adds every `<OpenApi ... />` file that generates `Endpoints` as a `ContentWithTargetPath` item with `TargetPath="openapi/schemas/<SchemaId>/<filename>.<ext>"` and `CopyToOutputDirectory` / `CopyToPublishDirectory` = `PreserveNewest`. The SDK copies it to the build and publish output of this project **and of every project that references it**, so a host serves the documents of referenced libraries (§5.1). |
 
 The `<CompilerVisibleItemMetadata>` and `<CompilerVisibleProperty>` declarations
 make `MinimalOpenApiFile` and `RootNamespace` readable via
@@ -241,7 +240,20 @@ responses the concrete handler is responsible for returning. Because
 expand into multiple handler items; the same `OpenApiFile`, `IncludeStatusCodes`,
 and `ExcludeStatusCodes` metadata is therefore applied to each expanded operation.
 
-### 5.1 Contract-package pattern (gRPC-style)
+### 5.1 Documents declared in referenced projects
+
+Because the files are ordinary copy-to-output items, the .NET SDK's transitive
+`GetCopyToOutputDirectoryItems` / `GetCopyToPublishDirectoryItems` carry them from a class library
+into the output and publish directories of the host (and of test projects referencing the host).
+The generated `RegisterSchemaFile` call already points to the same `openapi/schemas/<SchemaId>/...`
+path relative to `AppContext.BaseDirectory`, so `MapOpenApiSchemas()` in the host serves the
+library's authored document without any `Content` item in the host. The schema id is a hash of the
+file's full path, so documents with the same file name in different projects stay distinct, and
+two `<OpenApi>` items for the same file (for example a `Contracts` and an `Endpoints` project) map
+to the same path. Only items that generate `Endpoints` are copied: a `Contracts`-only item registers
+no schema file.
+
+### 5.2 Contract-package pattern (gRPC-style)
 
 An OpenAPI spec can be shipped inside a separate "contracts" NuGet package and
 consumed transparently — the same pattern used by gRPC `.proto` files.
@@ -266,7 +278,7 @@ from NuGet packages have been evaluated:
 
 ```xml
 <Target Name="PublishAllOpenApiSpecsAtExplicitPaths"
-        BeforeTargets="CopyMinimalOpenApiFilesToOutput">
+        BeforeTargets="AddMinimalOpenApiFilesToAdditionalFiles">
   <ItemGroup>
     <OpenApi Update="@(OpenApi)"
              PublishAs="/openapi/contracts/schema.yaml"
@@ -275,7 +287,7 @@ from NuGet packages have been evaluated:
 </Target>
 ```
 
-The `CopyMinimalOpenApiFilesToOutput` and `AddMinimalOpenApiFilesToPublishOutput`
+The `AddMinimalOpenApiFilesToAdditionalFiles` and `AddMinimalOpenApiFilesToOutput`
 targets process all `<OpenApi ... />` items regardless of origin
 (project file, contracts package, or any other imported `.targets` file).  File
 content is preserved byte-for-byte; YAML stays YAML, JSON stays JSON.
@@ -373,6 +385,56 @@ For each operation it looks for:
 Exactly one handler must exist (zero → **MOA001** warning; two or more →
 **MOA002** error).  Zero or one configuration is allowed (two or more → **MOA003**
 error).
+
+A class library (`OutputType=Library`, read through the `OutputType` compiler-visible
+property) does not report MOA001 for its own documents. Every document lists on its assembly
+attribute the handler bases it leaves unimplemented and the configuration bases it implements
+(`[assembly: MinimalOpenApiDocument(typeof(...), UnimplementedHandlers = ..., ImplementedConfigurations = ...)]`).
+
+#### Implementations in referencing projects
+
+Generated handler and configuration bases carry `[MinimalOpenApiHandlerBase]` /
+`[MinimalOpenApiEndpointConfigurationBase]`. The class-discovery transform sorts each concrete
+class's base chain: bases of this project's own documents are not in the compilation the generator
+sees (they are error types, or types of this assembly) and are matched by name as above; bases that
+are real symbols from another assembly and carry a marker are *referenced bases*.
+
+For referenced bases, `ImplementationsGenerator` emits `MinimalOpenApi.Implementations.g.cs`:
+
+- a public `{RootNamespace}.MinimalOpenApiImplementations` entry point whose idempotent
+  `Register()` first calls every referenced document's `Register()` and then registers a
+  `RegisterGeneratedServices` callback that replaces the document's registration
+  (`RemoveAll<Base>` + `AddScoped<Base, Impl>` / `AddSingleton<ConfigBase, Impl>`); the document
+  registers its fallback handler with `TryAddScoped`, so the order never matters;
+- a module initializer calling it, and
+  `[assembly: MinimalOpenApiImplementations(typeof(...), Handlers = ..., Configurations = ...)]`, so
+  projects referencing this one call the entry point from their `MinimalOpenApiReferencedDocuments`
+  initializer (after the document entry points) and know which bases it implements.
+
+Endpoint mapping always resolves `{Operation}EndpointConfigurationBase` from DI at startup, so a
+configuration implemented anywhere is applied.
+
+The same output checks implementations across assemblies. For every base it counts this project's
+classes, the referenced assemblies listing it in `MinimalOpenApiImplementations`, and the declaring
+assembly when that assembly implements it itself. More than one → MOA002 (handlers) / MOA003
+(configurations), reported by every project that contributes one and by the application. None
+for a base the declaring assembly lists as unimplemented → MOA001, reported only by an
+application (`OutputType` `Exe`/`WinExe`, `IsTestProject` not `true`), naming the declaring
+library. Other libraries and test projects stay silent.
+
+#### Generation layers
+
+The `Generate` item metadata (`MinimalOpenApiGenerate`; `;` is forwarded as `|`) selects
+`Contracts`, `Endpoints` or both (the default). Invalid values → MOA022.
+
+- `Contracts` emits the DTOs and `[assembly: MinimalOpenApiContracts(specName, contractsNamespace, documentHash)]`.
+  The hash covers the document content (line endings normalised) and the effective
+  `ReadWriteSchemaHandling`, the inputs that shape the contract types.
+- `Endpoints` emits everything else. Without `Contracts` it uses the contracts namespace of the
+  referenced `MinimalOpenApiContracts` attribute with the same hash (the spec name breaks ties).
+  None or several → MOA020; none with that hash but one with the same spec name → MOA021. The
+  handler bases and endpoint mapping take the contracts namespace as a parameter, so the generated
+  code refers to the referenced DTOs.
 
 ### 6.4 Generated files
 
@@ -575,9 +637,9 @@ types are all unsupported is generated without a body and reports MOA018.
 
 | Code | Severity | Trigger |
 |------|----------|---------|
-| **MOA001** | Warning | No concrete class inheriting from a generated handler base was found in the project.  The app will compile but `HandleAsync` will throw `NotImplementedException` at runtime. |
-| **MOA002** | Error | Two or more classes inherit from the same generated handler base.  Exactly one implementation is required. |
-| **MOA003** | Error | Two or more classes inherit from the same generated configuration base.  At most one is allowed. |
+| **MOA001** | Warning | No concrete class inheriting from a generated handler base was found in the project.  The app will compile but `HandleAsync` will throw `NotImplementedException` at runtime. A class library defers it to the application that references it, which also counts implementations in other projects (§6.3). |
+| **MOA002** | Error | Two or more classes inherit from the same generated handler base, in this project or across referenced projects (§6.3).  Exactly one implementation is required. |
+| **MOA003** | Error | Two or more classes inherit from the same generated configuration base, in this project or across referenced projects.  At most one is allowed. |
 | **MOA004** | Error | The OpenAPI file could not be parsed (YAML syntax error, etc.). |
 | **MOA005** | Error | The `<OpenApi>` item has a file extension the generator does not recognise (only `.yaml`, `.yml`, and `.json` are supported). |
 | **MOA006** | Warning | The `openapi` version field is absent or contains a value the generator cannot parse as a `System.Version`.  The spec is still processed; generation continues. |
@@ -594,6 +656,9 @@ types are all unsupported is generated without a body and reports MOA018.
 | **MOA017** | Error | A schema `$ref` is unresolved or unsupported. MinimalOpenAPI currently supports only local `#/components/schemas/{name}` references; generation is aborted for that document. |
 | **MOA018** | Warning | A response declares content, but none of its media types is supported (for example `text/plain`, `text/csv` without a binary schema, or `application/xml`). The generated handler result and endpoint metadata describe the response without a body. |
 | **MOA019** | Error | A response `$ref` is unresolved or unsupported. Local `#/components/responses/{name}` references, including chains of them, are resolved by the parsers and generate the same code as the inline response; external, missing and cyclic references abort generation for that document. |
+| **MOA020** | Error | A document generates only `Endpoints`, but no referenced assembly (or more than one) generates its `Contracts`. |
+| **MOA021** | Error | The referenced `Contracts` of the document were generated from a different version of the document or with a different `ReadWriteSchemaHandling`. |
+| **MOA022** | Error | The `Generate` metadata of an `<OpenApi>` item is not `Contracts`, `Endpoints`, or both. |
 
 ---
 
@@ -606,7 +671,11 @@ whose idempotent `Register()` calls three methods on `ServiceCollectionExtension
 2. `RegisterEndpointMapping` — stores the endpoint mapping callback.
 3. `RegisterSchemaFile` — stores the copied schema file's path and metadata.
 
-The assembly also carries `[assembly: MinimalOpenApiDocument(typeof(...MinimalOpenApi))]`.
+The assembly also carries `[assembly: MinimalOpenApiDocument(typeof(...MinimalOpenApi))]`, whose
+`UnimplementedHandlers` / `ImplementedConfigurations` properties feed the cross-assembly checks (§6.3).
+Projects implementing bases of referenced documents get a `MinimalOpenApiImplementations` entry point
+and attribute as well (§6.3); `MinimalOpenApiReferencedDocuments` calls the referenced document entry
+points first and the referenced implementation entry points next.
 
 `Register()` is called from two generated `[ModuleInitializer]`s:
 

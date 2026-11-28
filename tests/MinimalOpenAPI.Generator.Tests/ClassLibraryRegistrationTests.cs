@@ -51,7 +51,7 @@ public class ClassLibraryRegistrationTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(entryPoint, Does.Contain("[assembly: global::MinimalOpenAPI.MinimalOpenApiDocument(typeof(global::LibA.Catalog.CatalogMinimalOpenApi))]"));
+            Assert.That(entryPoint, Does.Contain("[assembly: global::MinimalOpenAPI.MinimalOpenApiDocument(typeof(global::LibA.Catalog.CatalogMinimalOpenApi)"));
             Assert.That(entryPoint, Does.Contain("namespace LibA.Catalog;"));
             Assert.That(entryPoint, Does.Contain("public static class CatalogMinimalOpenApi"));
             Assert.That(entryPoint, Does.Contain("public static void Register()"));

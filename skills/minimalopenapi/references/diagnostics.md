@@ -4,9 +4,9 @@ Run `dotnet build` after modifying the OpenAPI contract or MSBuild metadata. Do 
 
 | Diagnostic | Meaning / next check |
 | --- | --- |
-| MOA001 | Missing concrete handler: implement the generated endpoint base. |
-| MOA002 | Multiple concrete handlers: keep one implementation per operation. |
-| MOA003 | Multiple concrete endpoint configurations: keep one. |
+| MOA001 | Missing concrete handler: implement the generated endpoint base, in the declaring project or in any project referencing it. Libraries do not report it; the application reports it when no project implements a library's handler. |
+| MOA002 | Multiple concrete handlers: keep one implementation per operation, across all projects (the declaring library, handler libraries and the host). |
+| MOA003 | Multiple concrete endpoint configurations: keep one, across all projects. |
 | MOA004 | OpenAPI parse error: validate YAML/JSON and contract. |
 | MOA008 | Invalid/unresolved parameter `$ref`: check `components/parameters`. |
 | MOA009 | Duplicate generated document namespace: use distinct `Namespace` metadata. |
@@ -18,6 +18,9 @@ Run `dotnet build` after modifying the OpenAPI contract or MSBuild metadata. Do 
 | MOA017 | Unresolved/unsupported schema `$ref`: use supported local component references and fix the contract. |
 | MOA018 | Response declares only unsupported media types (for example `text/plain` or `application/xml`): the generated result has no body. Do not drop the response from the contract; use a supported media type or accept the body-less result. |
 | MOA019 | Unresolved/unsupported response `$ref`: reference a response declared under `components/responses` in the same document (chains are fine; external or cyclic references are not). |
+| MOA020 | `Generate="Endpoints"` without contracts: reference exactly one project that generates `Contracts` for the same document, or add `Contracts` to `Generate`. |
+| MOA021 | Referenced contracts generated from a different version of the document or a different `ReadWriteSchemaHandling`: point both `<OpenApi>` items at the same file with the same settings and rebuild. |
+| MOA022 | Invalid `Generate` value: use `Contracts`, `Endpoints`, or `Contracts;Endpoints`. |
 
 Other MOA diagnostics are documented in the [architecture guide](https://github.com/Kralizek/MinimalOpenApi/blob/master/docs/architecture.md); this quick table intentionally focuses on consumer actions rather than guessing remaining codes. Missing types often mean a failed generator run, a wrong document path or namespace, or a signature changed after regeneration.
 

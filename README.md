@@ -170,6 +170,40 @@ builder.Services.AddMinimalOpenApi();
 
 `MapMinimalOpenApiEndpoints()` logs a warning when no document is registered at all. See [`sample/ClassLibrary`](sample/ClassLibrary).
 
+### Handlers in other projects
+
+Handlers and endpoint configurations do not have to live where the document is declared. Any project that references the library may implement them: it only derives from the generated base class and needs no `<OpenApi>` item of its own.
+
+```csharp
+// In the host (or in a handlers library referenced by it)
+public sealed class GetPetHandler : Contracts.Petstore.Endpoints.GetPetEndpointBase
+{
+    public override Task<Ok<Pet>> HandleAsync(long petId, CancellationToken cancellationToken) => ...;
+}
+```
+
+The generator in that project registers the implementation in place of the library's default, which throws `NotImplementedException`. A library does not report MOA001 for handlers it leaves to others. The application reports MOA001 when no project implements one, and MOA002 / MOA003 when a handler or endpoint configuration is implemented in two projects. Test projects and other libraries stay silent.
+
+### Splitting contracts and endpoints
+
+The `Generate` metadata selects what an `<OpenApi>` item generates, so the same document can be shared by several projects:
+
+| `Generate` | Generates |
+|---|---|
+| `Contracts` | The DTOs (`{RootNamespace}.{SpecName}.Contracts`), for example in a library shared with API clients. |
+| `Endpoints` | Handler and endpoint configuration bases, endpoint mapping, DI registration, entry point and schema file. The DTOs come from the referenced project that generates `Contracts` for the same document. |
+| `Contracts;Endpoints` (default) | Both. |
+
+```xml
+<!-- Shop.Contracts.csproj -->
+<OpenApi Include="shop.yaml" Generate="Contracts" />
+
+<!-- Shop.Api.csproj, which references Shop.Contracts -->
+<OpenApi Include="../Shop.Contracts/shop.yaml" Generate="Endpoints" />
+```
+
+The handlers can then live in `Shop.Api` or in any project that references it, such as the host. The `Contracts` layer records a hash of the document and of `ReadWriteSchemaHandling`. A project that generates only `Endpoints` reports MOA020 when no referenced project generates its contracts, and MOA021 when they were generated from a different version of the document.
+
 ## OpenAPI item metadata
 
 | Metadata | Purpose |
@@ -180,6 +214,7 @@ builder.Services.AddMinimalOpenApi();
 | `PublishAs` | Exposes the authored document at an exact HTTP path through `MapOpenApiSchemas()`. |
 | `DisplayName` | Optional display name returned by the schema descriptor. |
 | `DisplayVersion` | Optional display version returned by the schema descriptor. |
+| `Generate` | `Contracts`, `Endpoints`, or both separated by `;` (the default). See [Splitting contracts and endpoints](#splitting-contracts-and-endpoints). |
 
 Example:
 
@@ -325,6 +360,8 @@ app.MapMinimalOpenApiEndpoints();
 var schemas = app.MapOpenApiSchemas();
 ```
 
+Documents declared in a referenced class library are copied to the host's build and publish output too, so `MapOpenApiSchemas()` in the host serves them at their `PublishAs` path without extra `Content` items.
+
 `MapOpenApiSchemas()` returns descriptors containing `PublicPath`, `Name`, `Version`, `FullName`, and `Endpoint`. These descriptors can be used to configure Swagger UI, Scalar, or another OpenAPI viewer without generating a second document at runtime.
 
 ## Inspecting generated source
@@ -373,7 +410,7 @@ See [`docs/schema-feature-roadmap.md`](docs/schema-feature-roadmap.md) for the d
 
 ## Diagnostics
 
-The generator reports stable `MOA001`–`MOA019` diagnostics for missing implementations, duplicate handlers or configurations, parser failures, unsupported configuration, unresolved references, unsupported multipart shapes, generated-name collisions, invalid handler-response configuration, duplicate operation IDs, unsupported schema references, responses whose media types are all unsupported, and unresolved response references.
+The generator reports stable `MOA001`–`MOA022` diagnostics for missing implementations, duplicate handlers or configurations, parser failures, unsupported configuration, unresolved references, unsupported multipart shapes, generated-name collisions, invalid handler-response configuration, duplicate operation IDs, unsupported schema references, responses whose media types are all unsupported, unresolved response references, and contracts that are missing or out of date in projects that generate only endpoints.
 
 See [`docs/architecture.md`](docs/architecture.md) for the complete diagnostic table and internal design.
 

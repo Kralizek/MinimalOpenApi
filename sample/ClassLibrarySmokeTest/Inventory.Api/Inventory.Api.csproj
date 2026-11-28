@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Inventory.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- The package flows from Inventory.Contracts. -->
+  <ItemGroup>
+    <ProjectReference Include="../Inventory.Contracts/Inventory.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <OpenApi Include="../../ClassLibrary/Inventory.Contracts/inventory.yaml" Namespace="Stock" Generate="Endpoints" PublishAs="/openapi/inventory.yaml" />
+  </ItemGroup>
+
+</Project>

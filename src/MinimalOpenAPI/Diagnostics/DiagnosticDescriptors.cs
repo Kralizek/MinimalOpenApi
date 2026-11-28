@@ -10,9 +10,36 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor MissingHandlerImplementation = new(
         id: "MOA001",
         title: "Missing handler implementation",
-        messageFormat: "No concrete implementation of '{0}' was found. The default implementation will throw NotImplementedException at runtime. Create a class that inherits from '{0}' to provide a real implementation.",
+        messageFormat: "No concrete implementation of '{0}' was found{1}. The default implementation will throw NotImplementedException at runtime. Create a class that inherits from '{0}' to provide a real implementation.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>An Endpoints-only document has no (or an ambiguous) referenced Contracts layer.</summary>
+    public static readonly DiagnosticDescriptor MissingReferencedContracts = new(
+        id: "MOA020",
+        title: "Missing referenced contracts",
+        messageFormat: "OpenAPI document '{0}' generates only Endpoints, but {1}. Reference exactly one project that generates its Contracts from the same document, or add Contracts to the OpenApi item's Generate metadata.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    /// <summary>The referenced Contracts layer was generated from a different version of the document.</summary>
+    public static readonly DiagnosticDescriptor ReferencedContractsMismatch = new(
+        id: "MOA021",
+        title: "Referenced contracts generated from a different document",
+        messageFormat: "The Contracts of OpenAPI document '{0}' in referenced assembly '{1}' were generated from a different version of the document or with a different ReadWriteSchemaHandling. Generate both from the same document and settings.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    /// <summary>The Generate metadata of an OpenApi item is invalid.</summary>
+    public static readonly DiagnosticDescriptor InvalidGenerateValue = new(
+        id: "MOA022",
+        title: "Invalid Generate value",
+        messageFormat: "OpenApi item '{0}' has Generate='{1}'. Valid values are 'Contracts', 'Endpoints', or both separated by ';'.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     /// <summary>More than one concrete implementation found for a generated handler base class.</summary>

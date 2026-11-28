@@ -66,6 +66,59 @@ public class ClassLibraryHostIntegrationTests
     }
 
     [Test]
+    public async Task LayeredDocument_IsServedByHandlerAndConfigurationImplementedInTheHost()
+    {
+        // inventory.yaml: DTOs generated in Inventory.Contracts, endpoints in Inventory.Api,
+        // handler and endpoint configuration implemented in the host.
+        var response = await _client.GetAsync("/inventory/stock/abc");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Headers.TryGetValues("X-Inventory-Configured", out var values), Is.True);
+        Assert.That(values, Is.EqualTo(new[] { "true" }));
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.That(json.RootElement.GetProperty("sku").GetString(), Is.EqualTo("abc"));
+        Assert.That(json.RootElement.GetProperty("quantity").GetInt32(), Is.EqualTo(3));
+    }
+
+    [Test]
+    public async Task LayeredDocument_HostHandlerResultsAreReturned()
+    {
+        var response = await _client.GetAsync("/inventory/stock/unknown");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    // Documents declared in referenced libraries are copied to the host's (and this test project's)
+    // output by the SDK's standard copy-to-output mechanism and served at their PublishAs paths (#106).
+    // billing.yaml and the host's document are both named openapi.yaml and must stay distinct.
+    [TestCase("/openapi/catalog.yaml", "Catalog/catalog.yaml")]
+    [TestCase("/openapi/billing.yaml", "Billing/openapi.yaml")]
+    [TestCase("/openapi/inventory.yaml", "Inventory.Contracts/inventory.yaml")]
+    [TestCase("/openapi/health.yaml", "Host/openapi.yaml")]
+    public async Task AuthoredDocuments_AreServedAtTheirPublishAsPaths(string route, string sampleFile)
+    {
+        var response = await _client.GetAsync(route);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var authored = await File.ReadAllTextAsync(Path.Combine(SampleDirectory, sampleFile));
+        Assert.That(Normalize(await response.Content.ReadAsStringAsync()), Is.EqualTo(Normalize(authored)),
+            "the authored document is served, not a regenerated one");
+    }
+
+    private static string SampleDirectory
+    {
+        get
+        {
+            var directory = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
+            while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MinimalOpenApi.slnx")))
+                directory = directory.Parent;
+            return Path.Combine(directory!.FullName, "sample", "ClassLibrary");
+        }
+    }
+
+    private static string Normalize(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd();
+
+    [Test]
     public async Task HostOwnDocumentEndpoint_IsMapped()
     {
         var response = await _client.GetAsync("/health");

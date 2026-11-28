@@ -37,6 +37,7 @@
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiDisplayName" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiDisplayVersion" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiReadWriteSchemaHandling" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiGenerate" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiExcludeStatusCodesFromHandlers" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiFileIdentity" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiHandler" />
@@ -45,6 +46,9 @@
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiHandlerIncludeStatusCodes" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="MinimalOpenApiHandlerExcludeStatusCodes" />
     <CompilerVisibleProperty Include="RootNamespace" />
+    <!-- Libraries defer the missing-handler check (MOA001) to the application that references them. -->
+    <CompilerVisibleProperty Include="OutputType" />
+    <CompilerVisibleProperty Include="IsTestProject" />
   </ItemGroup>
 
   <!--
@@ -88,6 +92,7 @@
                        MinimalOpenApiDisplayName="%(OpenApi.DisplayName)"
                        MinimalOpenApiDisplayVersion="%(OpenApi.DisplayVersion)"
                        MinimalOpenApiReadWriteSchemaHandling="%(OpenApi.ReadWriteSchemaHandling)"
+                       MinimalOpenApiGenerate="$([System.String]::Copy('%(OpenApi.Generate)').Replace('%3B', '|').Replace(';', '|'))"
                        MinimalOpenApiExcludeStatusCodesFromHandlers="$([System.String]::Copy('%(OpenApi.ExcludeStatusCodesFromHandlers)').Replace('%3B', '|'))" />
     </ItemGroup>
     <ItemGroup>
@@ -206,49 +211,44 @@
 
   <!-- ── OpenAPI file publishing ─────────────────────────────────────── -->
   <!--
-    Copy all <OpenApi /> files to the build output directory so
-    they are available when running locally (e.g. dotnet run via AppContext.BaseDirectory).
-    Each file is placed under a unique subdirectory derived from a stable hash of its
-    full source path, preventing name collisions between files with the same filename
-    from different directories or NuGet packages.
-    Destination: $(OutDir)openapi/schemas/<SchemaId>/<filename>.<extension>
+    Ship every <OpenApi /> file that generates Endpoints (the layer that registers the schema file)
+    with the build and publish output, under a unique subdirectory derived from a stable hash of its
+    full source path. Files with the same name from different directories, projects or packages
+    therefore never collide.
+    Destination (relative to the output / publish root): openapi/schemas/<SchemaId>/<filename>.<extension>
     Examples:
-      /repo/openapi.yaml (hash 987654321)  →  <OutDir>/openapi/schemas/987654321/openapi.yaml
-      /pkg/v2/openapi.yaml (hash 123456789) →  <OutDir>/openapi/schemas/123456789/openapi.yaml
+      /repo/openapi.yaml (hash 987654321)  →  openapi/schemas/987654321/openapi.yaml
+      /pkg/v2/openapi.yaml (hash 123456789) →  openapi/schemas/123456789/openapi.yaml
+
+    The files are added as ContentWithTargetPath items with CopyToOutputDirectory and
+    CopyToPublishDirectory, the SDK's standard "copy this file" mechanism. The SDK copies them to this
+    project's output and publish directories, and also to those of every project referencing it
+    (GetCopyToOutputDirectoryItems / GetCopyToPublishDirectoryItems are transitive), so a host that
+    references a library declaring a document serves the library's authored document without any
+    extra items. The target runs before AssignTargetPaths, which both this project's build and the
+    referencing project's calls into this project depend on.
   -->
-  <Target Name="CopyMinimalOpenApiFilesToOutput"
-          AfterTargets="Build"
+  <Target Name="AddMinimalOpenApiFilesToOutput"
+          BeforeTargets="AssignTargetPaths"
+          DependsOnTargets="CopyMinimalOpenApiFilesToOutput"
           Condition="'@(OpenApi)' != ''">
     <ItemGroup>
-      <_MinimalOpenApiFilesToCopy Include="@(OpenApi)">
+      <_MinimalOpenApiOutputFile Include="@(OpenApi->'%(FullPath)')"
+                                 Condition="'%(OpenApi.Generate)' == '' or $([System.String]::Copy('%(OpenApi.Generate)').ToLowerInvariant().Contains('endpoints'))">
         <SchemaId>$([System.Math]::Abs($([MSBuild]::StableStringHash('%(FullPath)'))))</SchemaId>
-      </_MinimalOpenApiFilesToCopy>
+      </_MinimalOpenApiOutputFile>
+      <ContentWithTargetPath Include="@(_MinimalOpenApiOutputFile)"
+                             TargetPath="openapi/schemas/%(_MinimalOpenApiOutputFile.SchemaId)/%(_MinimalOpenApiOutputFile.Filename)%(_MinimalOpenApiOutputFile.Extension)"
+                             CopyToOutputDirectory="PreserveNewest"
+                             CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
-    <MakeDir Directories="@(_MinimalOpenApiFilesToCopy->'$(OutDir)openapi/schemas/%(SchemaId)')" />
-    <Copy SourceFiles="@(_MinimalOpenApiFilesToCopy)"
-          DestinationFiles="@(_MinimalOpenApiFilesToCopy->'$(OutDir)openapi/schemas/%(SchemaId)/%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
   </Target>
 
   <!--
-    Include all <OpenApi /> files in the dotnet publish output.
-    Hooks into AfterTargets="ComputeFilesToPublish" so items are injected
-    into ResolvedFileToPublish after the SDK's standard publish computation
-    and before CopyFilesToPublishDirectory copies everything to $(PublishDir).
-    Destination: openapi/schemas/<SchemaId>/<filename>.<extension>  (relative to publish root)
+    Formerly the target that copied the files after Build. Kept, empty, so that project targets hooked
+    with BeforeTargets="CopyMinimalOpenApiFilesToOutput" (for example to update <OpenApi> metadata)
+    still run before the files are added to the output.
   -->
-  <Target Name="AddMinimalOpenApiFilesToPublishOutput"
-          AfterTargets="ComputeFilesToPublish"
-          Condition="'@(OpenApi)' != ''">
-    <ItemGroup>
-      <_MinimalOpenApiFilesToPublish Include="@(OpenApi)">
-        <SchemaId>$([System.Math]::Abs($([MSBuild]::StableStringHash('%(FullPath)'))))</SchemaId>
-      </_MinimalOpenApiFilesToPublish>
-      <ResolvedFileToPublish Include="@(_MinimalOpenApiFilesToPublish)">
-        <RelativePath>openapi/schemas/%(_MinimalOpenApiFilesToPublish.SchemaId)/%(_MinimalOpenApiFilesToPublish.Filename)%(_MinimalOpenApiFilesToPublish.Extension)</RelativePath>
-        <CopyToPublishDirectory>Always</CopyToPublishDirectory>
-      </ResolvedFileToPublish>
-    </ItemGroup>
-  </Target>
+  <Target Name="CopyMinimalOpenApiFilesToOutput" />
 
 </Project>

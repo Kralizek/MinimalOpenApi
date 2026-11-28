@@ -26,9 +26,10 @@ internal static class HandlerBaseGenerator
         IReadOnlyDictionary<string, OpenApiSchema>? allSchemas = null,
         List<AllOfPropertyConflict>? allOfConflicts = null,
         List<MultipartUnsupportedShape>? multipartUnsupportedShapes = null,
-        List<OpenApiResponse>? handlerResponses = null)
+        List<OpenApiResponse>? handlerResponses = null,
+        string? contractsNamespace = null)
     {
-        var contractsNs = $"{rootNamespace}.{specName}.Contracts";
+        var contractsNs = contractsNamespace ?? $"{rootNamespace}.{specName}.Contracts";
         var handlerClass = TypeMapper.HandlerClassName(operation.OperationId);
         var schemas = allSchemas ?? new Dictionary<string, OpenApiSchema>();
         handlerResponses ??= operation.Responses;
@@ -105,6 +106,7 @@ internal static class HandlerBaseGenerator
         sb.AppendLine();
         sb.AppendLine($"/// <summary>Abstract handler base for the <c>{operation.OperationId}</c> operation.</summary>");
         TypeMapper.AppendGeneratedAttributes(sb);
+        sb.AppendLine("[global::MinimalOpenAPI.MinimalOpenApiHandlerBase]");
         sb.AppendLine($"public class {handlerClass}");
         sb.AppendLine("{");
 

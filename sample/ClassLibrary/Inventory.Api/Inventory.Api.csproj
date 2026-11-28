@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Inventory.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!--
+    In the NuGet scenario a consumer would have:
+      <PackageReference Include="MinimalOpenAPI" />
+    and the build/buildTransitive targets would be imported automatically.
+    In this project-reference dev scenario we import the targets explicitly.
+  -->
+  <Import Project="../../../src/MinimalOpenAPI/buildTransitive/MinimalOpenAPI.targets" />
+
+  <ItemGroup>
+    <ProjectReference Include="../Inventory.Contracts/Inventory.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Only the endpoints (handler and configuration bases, mapping, registration), built on the DTOs of
+      Inventory.Contracts. The handlers are implemented by the host.
+    -->
+    <OpenApi Include="../Inventory.Contracts/inventory.yaml" Namespace="Stock" Generate="Endpoints" PublishAs="/openapi/inventory.yaml" />
+  </ItemGroup>
+
+</Project>
